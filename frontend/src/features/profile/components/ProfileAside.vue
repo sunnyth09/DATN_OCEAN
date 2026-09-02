@@ -9,6 +9,12 @@
       <div class="aside-user-info">
         <h3 class="aside-user-name">{{ userName }}</h3>
         <p class="aside-user-email">{{ userEmail }}</p>
+        <div v-if="userTierName" style="margin-top: 6px;">
+          <span class="vip-tier-badge" :style="{ backgroundColor: userTierColor || '#e5e7eb' }">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+             Hạng: {{ userTierName }}
+          </span>
+        </div>
         <!-- Điểm thưởng mini badge -->
         <div v-if="rewardPoints > 0" class="aside-points-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24; margin-right: 2px;">
@@ -220,9 +226,26 @@
             <line x1="16" y1="2" x2="16" y2="6"></line>
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
+            <path d="m9 16 2 2 4-4"></path>
           </svg>
         </div>
         <span>Lịch đặt sân</span>
+      </router-link>
+
+      <router-link
+        to="/profile/open-plays"
+        class="aside-nav-item"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        <span>Trận đấu của tôi</span>
       </router-link>
 
       <div class="aside-nav-divider"></div>
@@ -259,14 +282,16 @@ const menuLabels = {
   '/profile/addresses': 'Sổ địa chỉ',
   '/profile/orders': 'Đơn hàng của tôi',
   '/profile/return-requests': 'Yêu cầu hoàn hàng',
+  '/profile/tickets': 'Khiếu nại của tôi',
   '/profile/wishlist': 'Sản phẩm yêu thích',
   '/profile/coupons': 'Mã giảm giá của tôi',
   '/profile/affiliate': 'Affiliate',
   '/profile/wallet': 'Ví tiền',
-  '/profile/rewards': 'Điểm thưởng',
+  '/profile/loyalty': 'Điểm thưởng',
   '/profile/change-password': 'Đổi mật khẩu',
   '/profile/notifications': 'Thông báo',
-  '/profile/bookings': 'Lịch đặt sân'
+  '/profile/court-bookings': 'Lịch đặt sân',
+  '/profile/open-plays': 'Trận đấu của tôi'
 };
 
 const currentMenuTitle = computed(() => {
@@ -282,6 +307,8 @@ const userName = computed(() => authStore.displayName);
 const userEmail = computed(() => authStore.email);
 const userInitial = computed(() => authStore.userInitial);
 const userAvatar = computed(() => authStore.avatarUrl || '');
+const userTierName = computed(() => authStore.user?.tier?.name);
+const userTierColor = computed(() => authStore.user?.tier?.color);
 
 // Điểm thưởng
 const rewardPoints = ref(0);
@@ -386,8 +413,8 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 600;
   flex-shrink: 0;
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
@@ -400,25 +427,40 @@ const handleLogout = async () => {
 }
 
 .aside-user-info {
+  flex: 1;
   min-width: 0;
 }
 
 .aside-user-name {
+  margin: 0 0 4px;
   font-size: 1rem;
-  font-weight: 700;
-  margin: 0;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .aside-user-email {
-  font-size: 0.8rem;
-  margin: 2px 0 0;
-  opacity: 0.85;
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.vip-tier-badge {
+    display: inline-flex;
+    align-items: center;
+    color: #fff;
+    font-size: 0.65rem;
+    padding: 2px 6px 2px 4px;
+    border-radius: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    line-height: 1.2;
+    margin-top: 6px;
 }
 
 /* Nav */

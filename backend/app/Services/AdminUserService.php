@@ -21,21 +21,68 @@ class AdminUserService
     private const ALLOWED_STATUSES = ['active', 'inactive', 'banned'];
 
     /**
-     * Danh sách user có tìm kiếm + phân trang.
+     * Danh sách user có tìm kiếm + phân trang + lọc trạng thái/thùng rác.
      */
-    public function paginate(?string $search, int $perPage = 20)
+    public function paginate($filters = [], int $perPage = 20)
     {
-        $query = User::where('role', 'customer');
+        if (is_string($filters)) {
+            $filters = ['search' => $filters];
+        }
 
+        $query = User::query();
+
+        // Xử lý thùng rác (soft deletes)
+        $trashed = $filters['trashed'] ?? null;
+        if ($trashed === 'only' || $trashed === 'trash' || $trashed === 'deleted') {
+            $query->onlyTrashed();
+        } elseif ($trashed === 'with') {
+            $query->withTrashed();
+        }
+
+        // Lọc theo Role
+        if (! empty($filters['role']) && $filters['role'] !== 'all') {
+            $query->where('role', $filters['role']);
+        }
+
+        // Lọc theo Status
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
+            $query->where('status', $filters['status']);
+        }
+
+        // Tìm kiếm từ khóa
+        $search = $filters['search'] ?? null;
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'LIKE', "%{$search}%")
                     ->orWhere('email', 'LIKE', "%{$search}%")
-                    ->orWhere('phone', 'LIKE', "%{$search}%");
+                    ->orWhere('phone', 'LIKE', "%{$search}%")
+                    ->orWhere('user_id', $search);
             });
         }
 
-        return $query->orderBy('created_at', 'DESC')->paginate($perPage);
+        if ($trashed === 'only' || $trashed === 'trash' || $trashed === 'deleted') {
+            $query->orderBy('deleted_at', 'DESC');
+        } else {
+            $query->orderBy('created_at', 'DESC');
+        }
+
+        return $query->paginate($perPage);
+    }
+
+    /**
+     * Thống kê số lượng user theo từng tab trạng thái.
+     *
+     * @return array{all: int, active: int, inactive: int, banned: int, trashed: int}
+     */
+    public function getCounts(): array
+    {
+        return [
+            'all' => User::count(),
+            'active' => User::where('status', 'active')->count(),
+            'inactive' => User::where('status', 'inactive')->count(),
+            'banned' => User::where('status', 'banned')->count(),
+            'trashed' => User::onlyTrashed()->count(),
+        ];
     }
 
     /**
@@ -244,7 +291,109 @@ class AdminUserService
             Admin::where('email', $email)->delete();
         }
 
-        return ['ok' => true, 'code' => 200, 'message' => 'Đã xóa khách hàng thành công!'];
+        return ['ok' => true, 'code' => 200, 'message' => 'Đã chuyển khách hàng vào thùng rác thành công!'];
+    }
+
+    /**
+     * Khôi phục user đã xóa mềm.
+     *
+     * @return array{ok: bool, code: int, message: string}
+     */
+    public function restore($id): array
+    {
+        $user = User::onlyTrashed()->find($id);
+        if (! $user) {
+            return ['ok' => false, 'code' => 404, 'message' => 'Không tìm thấy khách hàng trong thùng rác!'];
+        }
+
+        $user->restore();
+
+        return ['ok' => true, 'code' => 200, 'message' => "Đã khôi phục tài khoản '{$user->full_name}' thành công!"];
+    }
+
+    /**
+     * Xóa vĩnh viễn user khỏi cơ sở dữ liệu.
+     *
+     * @return array{ok: bool, code: int, message: string}
+     */
+    public function forceDelete($id, $currentUserId): array
+    {
+        if ($this->isSelf($currentUserId, $id)) {
+            return ['ok' => false, 'code' => 403, 'message' => 'Bạn không thể xóa vĩnh viễn chính mình!'];
+        }
+
+        $user = User::withTrashed()->find($id);
+        if (! $user) {
+            return ['ok' => false, 'code' => 404, 'message' => 'Không tìm thấy khách hàng!'];
+        }
+
+        $email = $user->email;
+        $fullName = $user->full_name;
+
+        // Xóa admin liên kết nếu có
+        Admin::where('email', $email)->forceDelete();
+
+        $user->forceDelete();
+
+        return ['ok' => true, 'code' => 200, 'message' => "Đã xóa vĩnh viễn khách hàng '{$fullName}'!"];
+    }
+
+    /**
+     * Khôi phục hàng loạt users đã xóa mềm.
+     *
+     * @param array<int> $ids
+     * @return array{ok: bool, code: int, message: string, count: int}
+     */
+    public function bulkRestore(array $ids): array
+    {
+        if (empty($ids)) {
+            return ['ok' => false, 'code' => 422, 'message' => 'Vui lòng chọn ít nhất 1 khách hàng để khôi phục!', 'count' => 0];
+        }
+
+        $restored = User::onlyTrashed()->whereIn('user_id', $ids)->restore();
+
+        return [
+            'ok' => true,
+            'code' => 200,
+            'message' => "Đã khôi phục thành công {$restored} khách hàng!",
+            'count' => $restored,
+        ];
+    }
+
+    /**
+     * Xóa vĩnh viễn hàng loạt users.
+     *
+     * @param array<int> $ids
+     * @return array{ok: bool, code: int, message: string, count: int}
+     */
+    public function bulkForceDelete(array $ids, $currentUserId): array
+    {
+        if (empty($ids)) {
+            return ['ok' => false, 'code' => 422, 'message' => 'Vui lòng chọn ít nhất 1 khách hàng để xóa vĩnh viễn!', 'count' => 0];
+        }
+
+        // Loại trừ tài khoản của chính mình
+        $filteredIds = array_filter($ids, fn ($targetId) => ! $this->isSelf($currentUserId, $targetId));
+
+        if (empty($filteredIds)) {
+            return ['ok' => false, 'code' => 403, 'message' => 'Không thể xóa vĩnh viễn tài khoản của chính bạn!', 'count' => 0];
+        }
+
+        $users = User::withTrashed()->whereIn('user_id', $filteredIds)->get();
+        $count = 0;
+
+        foreach ($users as $user) {
+            Admin::where('email', $user->email)->forceDelete();
+            $user->forceDelete();
+            $count++;
+        }
+
+        return [
+            'ok' => true,
+            'code' => 200,
+            'message' => "Đã xóa vĩnh viễn thành công {$count} khách hàng!",
+            'count' => $count,
+        ];
     }
 
     private function isSelf($currentUserId, $targetId): bool

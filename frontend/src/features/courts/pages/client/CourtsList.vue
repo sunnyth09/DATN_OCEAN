@@ -31,6 +31,11 @@ const goToDetail = (court) => {
     router.push({ name: 'court-detail', params: { slug: court.slug || court.court_id } });
 };
 
+const stripHtml = (html) => {
+    if (!html) return '';
+    return String(html).replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim();
+};
+
 const formatCurrency = (value) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 };
@@ -47,6 +52,39 @@ const getTypeIcon = (type) => {
 
 const DEFAULT_COURT_IMAGE = 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=800&auto=format&fit=crop';
 
+const isMobileFilterOpen = ref(false);
+
+const setQuickDate = (type) => {
+    const d = new Date();
+    if (type === 'today') {
+        searchParams.value.date = toLocalDateString(d);
+    } else if (type === 'tomorrow') {
+        d.setDate(d.getDate() + 1);
+        searchParams.value.date = toLocalDateString(d);
+    } else if (type === 'all') {
+        searchParams.value.date = '';
+    }
+    fetchCourts();
+};
+
+const isQuickDateActive = (type) => {
+    const d = new Date();
+    if (type === 'today') {
+        return searchParams.value.date === toLocalDateString(d);
+    } else if (type === 'tomorrow') {
+        d.setDate(d.getDate() + 1);
+        return searchParams.value.date === toLocalDateString(d);
+    } else if (type === 'all') {
+        return !searchParams.value.date;
+    }
+    return false;
+};
+
+const setCourtType = (t) => {
+    searchParams.value.type = t;
+    fetchCourts();
+};
+
 const handleImgError = (event) => {
     event.target.src = DEFAULT_COURT_IMAGE;
 };
@@ -62,72 +100,174 @@ const clearFilters = () => {
 
 <template>
     <div class="container py-3 py-md-4">
-        <!-- Hero Banner -->
-        <div class="court-hero">
-            <div style="position: relative; z-index: 1;">
-                <h1 class="court-hero__title">
-                    <i class="bi bi-trophy me-2"></i>
-                    Hệ Thống Sân Cầu Lông
-                </h1>
-                <p class="court-hero__subtitle">
-                    Lựa chọn sân phù hợp và đặt lịch ngay hôm nay. Hệ thống 7 sân đạt chuẩn thi đấu.
-                </p>
-                <!-- Legend -->
-                <div class="d-flex flex-wrap gap-2 mt-2 mt-md-3">
-                    <span class="d-inline-flex align-items-center gap-1 px-2 px-md-3 py-1 rounded-pill"
-                        style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
-                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #4ade80;"></span> Trống
+        <!-- Sleek Segmented Sub-Nav Bar -->
+        <div class="court-subnav-bar">
+            <div class="court-segmented-control">
+                <router-link to="/courts" class="court-segment-btn active">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <span>Đặt Sân Thể Thao</span>
+                </router-link>
+                <router-link to="/open-plays" class="court-segment-btn">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Kèo Giao Lưu & Ghép Trận</span>
+                </router-link>
+            </div>
+
+            <router-link to="/profile/court-bookings" class="court-subnav-right-btn">
+                <i class="bi bi-calendar-check" style="color: #e63b6f;"></i>
+                <span>Lịch Đặt Của Tôi</span>
+            </router-link>
+        </div>
+
+        <!-- Ocean Sport Unified Pink Hero Banner -->
+        <div class="court-hero-pink">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                <div>
+                    <div class="hero-pill">
+                        <i class="bi bi-geo-alt-fill me-1"></i> OCEAN SPORT COURTS
+                    </div>
+                    <h1>Hệ Thống Sân Cầu Lông</h1>
+                    <p class="hero-sub mb-0">
+                        Lựa chọn sân phù hợp và đặt lịch trực tuyến nhanh chóng. Hệ thống sân thảm đạt chuẩn thi đấu quốc tế.
+                    </p>
+                </div>
+
+                <!-- Glass Legend Chips -->
+                <div class="court-glass-legend flex-shrink-0">
+                    <span class="court-glass-chip">
+                        <span class="court-glass-dot court-glass-dot--available"></span>
+                        <span>Sân trống</span>
                     </span>
-                    <span class="d-inline-flex align-items-center gap-1 px-2 px-md-3 py-1 rounded-pill"
-                        style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
-                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #f87171;"></span> Đang chơi
+                    <span class="court-glass-chip">
+                        <span class="court-glass-dot court-glass-dot--playing"></span>
+                        <span>Đang chơi</span>
                     </span>
-                    <span class="d-inline-flex align-items-center gap-1 px-2 px-md-3 py-1 rounded-pill"
-                        style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
-                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #fbbf24;"></span> Bảo trì
+                    <span class="court-glass-chip">
+                        <span class="court-glass-dot court-glass-dot--maintenance"></span>
+                        <span>Bảo trì</span>
                     </span>
                 </div>
             </div>
         </div>
 
-        <div class="row g-2 g-md-3 g-lg-4">
-            <!-- Sidebar Filter -->
+        <div class="row g-3 g-lg-4">
+            <!-- Modern Sports Filter Sidebar -->
             <div class="col-lg-3 mb-2 mb-lg-4">
-                <div class="filter-sidebar sticky-top">
-                    <div class="filter-sidebar__inner">
-                        <h5 class="filter-sidebar__title">
-                            <i class="bi bi-funnel me-2"></i>Bộ Lọc Sân
+                <!-- Mobile Filter Toggle -->
+                <div class="d-lg-none mb-3">
+                    <button
+                        class="btn btn-outline-secondary w-100 rounded-3 py-2 d-flex align-items-center justify-content-between fw-semibold"
+                        @click="isMobileFilterOpen = !isMobileFilterOpen"
+                    >
+                        <span><i class="bi bi-funnel-fill text-danger me-2"></i>Bộ Lọc Sân Thể Thao</span>
+                        <i class="bi" :class="isMobileFilterOpen ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                    </button>
+                </div>
+
+                <div class="sports-filter-card sticky-top" :class="{ 'd-none d-lg-block': !isMobileFilterOpen }">
+                    <!-- Filter Header -->
+                    <div class="filter-header-modern">
+                        <h5 class="filter-header-title">
+                            <span class="filter-header-icon"><i class="bi bi-funnel-fill"></i></span>
+                            <span>Bộ Lọc Sân</span>
                         </h5>
+                        <button class="filter-btn-reset" @click="clearFilters">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Đặt lại
+                        </button>
+                    </div>
 
-                        <div class="filter-controls-grid">
-                            <div class="filter-group">
-                                <label class="filter-sidebar__label">Ngày đặt</label>
-                                <input type="date" class="form-control filter-sidebar__input" v-model="searchParams.date"
-                                    @change="fetchCourts">
-                            </div>
-
-                            <div class="filter-group">
-                                <label class="filter-sidebar__label">Loại sân</label>
-                                <select class="form-select filter-sidebar__input" v-model="searchParams.type"
-                                    @change="fetchCourts">
-                                    <option value="">Tất cả loại sân</option>
-                                    <option value="standard">Tiêu chuẩn</option>
-                                    <option value="vip">VIP</option>
-                                    <option value="outdoor">Ngoài trời</option>
-                                    <option value="indoor">Trong nhà</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="filter-actions-wrap">
-                            <button class="btn filter-sidebar__apply" @click="fetchCourts">
-                                <i class="bi bi-search me-2"></i>Áp Dụng Lọc
+                    <!-- Date Filter with Quick Chips -->
+                    <div class="filter-group-modern">
+                        <label class="filter-label-modern">Ngày đặt</label>
+                        <div class="quick-chips-group mb-2">
+                            <button
+                                type="button"
+                                class="quick-filter-chip"
+                                :class="{ active: isQuickDateActive('today') }"
+                                @click="setQuickDate('today')"
+                            >
+                                Hôm nay
                             </button>
-                            <button class="btn btn-link btn-clear-filter" @click="clearFilters">
-                                <i class="bi bi-x-circle me-1"></i>Xóa bộ lọc
+                            <button
+                                type="button"
+                                class="quick-filter-chip"
+                                :class="{ active: isQuickDateActive('tomorrow') }"
+                                @click="setQuickDate('tomorrow')"
+                            >
+                                Ngày mai
+                            </button>
+                            <button
+                                type="button"
+                                class="quick-filter-chip"
+                                :class="{ active: isQuickDateActive('all') }"
+                                @click="setQuickDate('all')"
+                            >
+                                Tất cả
+                            </button>
+                        </div>
+                        <div class="modern-input-box">
+                            <i class="bi bi-calendar3 modern-input-icon"></i>
+                            <input
+                                type="date"
+                                class="modern-input-field"
+                                v-model="searchParams.date"
+                                @change="fetchCourts"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Court Type Chips -->
+                    <div class="filter-group-modern">
+                        <label class="filter-label-modern">Loại sân</label>
+                        <div class="quick-chips-group">
+                            <button
+                                type="button"
+                                class="quick-filter-chip"
+                                :class="{ active: searchParams.type === '' }"
+                                @click="setCourtType('')"
+                            >
+                                Tất cả
+                            </button>
+                            <button
+                                type="button"
+                                class="quick-filter-chip"
+                                :class="{ active: searchParams.type === 'standard' }"
+                                @click="setCourtType('standard')"
+                            >
+                                🏸 Tiêu chuẩn
+                            </button>
+                            <button
+                                type="button"
+                                class="quick-filter-chip"
+                                :class="{ active: searchParams.type === 'vip' }"
+                                @click="setCourtType('vip')"
+                            >
+                                ⭐ VIP
+                            </button>
+                            <button
+                                type="button"
+                                class="quick-filter-chip"
+                                :class="{ active: searchParams.type === 'indoor' }"
+                                @click="setCourtType('indoor')"
+                            >
+                                🏠 Trong nhà
+                            </button>
+                            <button
+                                type="button"
+                                class="quick-filter-chip"
+                                :class="{ active: searchParams.type === 'outdoor' }"
+                                @click="setCourtType('outdoor')"
+                            >
+                                ☀️ Ngoài trời
                             </button>
                         </div>
                     </div>
+
+                    <!-- Apply Filter Button -->
+                    <button class="filter-apply-btn-modern mt-3" @click="fetchCourts">
+                        <i class="bi bi-search"></i>
+                        <span>Áp Dụng Lọc</span>
+                    </button>
                 </div>
             </div>
 
@@ -189,7 +329,7 @@ const clearFilters = () => {
                             <div class="card-body client-court-card__body d-flex flex-column">
                                 <h5 class="court-card-name">{{ court.court_name }}</h5>
                                 <p v-if="court.description" class="court-card-desc flex-grow-1">
-                                    {{ court.description }}
+                                    {{ stripHtml(court.description) }}
                                 </p>
 
                                 <div class="court-card-footer mt-auto">

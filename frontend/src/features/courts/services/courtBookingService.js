@@ -49,6 +49,11 @@ export const courtBookingService = {
   getAdminCourts(params) {
     return api.get('/admin/courts', { params });
   },
+  uploadCourtImage(formData) {
+    return api.post('/admin/courts/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
   createAdminCourt(payload) {
     return api.post('/admin/courts', payload);
   },
@@ -128,6 +133,11 @@ export const courtBookingService = {
 
   // -- Services --
   getServices(params) { return api.get('/admin/court-services', { params }); },
+  uploadCourtServiceImage(formData) {
+    return api.post('/admin/court-services/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
   createService(payload) { return api.post('/admin/court-services', payload); },
   updateService(id, payload) { return api.put(`/admin/court-services/${id}`, payload); },
   deleteService(id) { return api.delete(`/admin/court-services/${id}`); },

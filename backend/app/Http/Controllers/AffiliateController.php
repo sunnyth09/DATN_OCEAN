@@ -74,8 +74,6 @@ class AffiliateController extends Controller
         return response()->json($result['body'], $result['status_code']);
     }
 
-
-
     /**
      * Lịch sử rút tiền
      * GET /profile/affiliate/withdrawals

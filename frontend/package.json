@@ -14,6 +14,7 @@
     "@meilisearch/instant-meilisearch": "^0.19.3",
     "@unhead/vue": "^2.1.12",
     "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
     "chart.js": "^4.5.1",
     "dompurify": "^3.4.12",
     "html5-qrcode": "^2.3.8",

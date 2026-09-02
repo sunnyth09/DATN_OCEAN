@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useCourtBookingStore } from '@/features/courts/stores/useCourtBookingStore';
 import { useAuthStore } from '@/stores/auth';
 import Swal from 'sweetalert2';
@@ -22,16 +22,42 @@ const toast = {
     warning: (msg) => Swal.fire({ icon: 'warning', title: msg, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 }),
     info: (msg) => Swal.fire({ icon: 'info', title: msg, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 })
 };
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import CourtPlayerInviteModal from '@/features/courts/components/CourtPlayerInviteModal.vue';
 
 const store = useCourtBookingStore();
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 let userChannel = null;
+
+const showPlayerInviteModal = ref(false);
+const activeBookingForInvite = ref(null);
+
+const currentUserId = computed(() => authStore.user?.user_id || authStore.user?.id || 0);
+
+const isHostOfBooking = (booking) => {
+    const hostId = booking.open_play?.host_user_id || booking.user_id;
+    return hostId === currentUserId.value;
+};
+
+const openPlayerInvite = (booking) => {
+    activeBookingForInvite.value = booking;
+    showPlayerInviteModal.value = true;
+};
 
 onMounted(async () => {
     await store.fetchUserBookings();
     subscribeUserChannel();
+
+    // Check query params if arrived from notification or direct link
+    const targetBookingId = route.query.booking_id;
+    if (targetBookingId) {
+        const found = store.userBookings.find(b => (b.booking_id == targetBookingId || b.id == targetBookingId));
+        if (found) {
+            openPlayerInvite(found);
+        }
+    }
 });
 
 onUnmounted(() => {
@@ -340,6 +366,38 @@ const goToDetail = (courtId) => {
                                         <div v-if="i < 3" class="stepper-line" :class="{ active: getStatusStep(booking.status) > step.s }"></div>
                                     </template>
                                 </div>
+
+                                <!-- Players Collaboration Section -->
+                                <div v-if="booking.status !== 'cancelled'" class="booking-players-section mt-3 pt-2 border-top">
+                                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-semibold text-dark" style="font-size: 0.82rem;">
+                                                <i class="bi bi-people-fill text-pink me-1"></i> Người chơi:
+                                            </span>
+                                            <span class="badge rounded-pill" :class="booking.open_play?.status === 'full' ? 'bg-danger text-white' : 'bg-pink-soft text-pink border border-pink-soft'" style="font-size: 0.78rem;">
+                                                <i class="bi" :class="booking.open_play?.status === 'full' ? 'bi-lock-fill me-1' : 'bi-person-check-fill me-1'"></i>
+                                                {{ (booking.open_play?.confirmed_participants?.length) || 1 }} / {{ (booking.open_play?.max_players) || 4 }} người
+                                                <span v-if="booking.open_play?.status !== 'full'" class="ms-1 font-monospace">
+                                                    (Còn {{ Math.max(0, (booking.open_play?.max_players || 4) - (booking.open_play?.confirmed_participants?.length || 1)) }} slot)
+                                                </span>
+                                            </span>
+                                        </div>
+
+                                        <!-- Mini Avatars Stack -->
+                                        <div class="avatar-stack d-flex align-items-center">
+                                            <!-- Host -->
+                                            <div class="player-mini-avatar host" :title="'Host: ' + (booking.user?.full_name || booking.customer_name || 'Host')">
+                                                {{ (booking.user?.full_name || booking.customer_name || 'H').charAt(0) }}
+                                            </div>
+                                            <!-- Participants -->
+                                            <template v-for="(p, pi) in (booking.open_play?.confirmed_participants || [])" :key="'p-' + pi">
+                                                <div v-if="p.role !== 'host'" class="player-mini-avatar" :title="p.user?.full_name || p.guest_name || 'Người chơi'">
+                                                    {{ (p.user?.full_name || p.guest_name || 'P').charAt(0) }}
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Amount -->
@@ -374,6 +432,15 @@ const goToDetail = (courtId) => {
                             <i class="bi bi-qr-code"></i>
                             <span>QR check-in</span>
                         </button>
+                        <button
+                            v-if="['pending', 'confirmed', 'checked_in'].includes(booking.status)"
+                            class="booking-btn"
+                            style="background: #fff0f5; color: #e63b6f; border: 1px solid #fbcfe8;"
+                            @click="openPlayerInvite(booking)"
+                        >
+                            <i class="bi bi-person-plus-fill"></i>
+                            <span>{{ isHostOfBooking(booking) ? 'Mời người chơi' : 'Xem người chơi' }}</span>
+                        </button>
                         <button 
                             v-if="booking.status === 'pending' || booking.status === 'confirmed'" 
                             class="booking-btn booking-btn--cancel"
@@ -385,6 +452,14 @@ const goToDetail = (courtId) => {
                     </div>
                 </div>
             </div>
+
+            <!-- Match Player Invitation Modal -->
+            <CourtPlayerInviteModal
+                v-if="activeBookingForInvite"
+                v-model="showPlayerInviteModal"
+                :booking="activeBookingForInvite"
+                @updated="store.fetchUserBookings"
+            />
         </div>
     </div>
 </template>
@@ -392,6 +467,41 @@ const goToDetail = (courtId) => {
 <style scoped>
 .card {
     font-family: var(--font-inter, 'Inter', sans-serif);
+}
+
+.text-pink {
+    color: var(--court-primary, #E63B6F) !important;
+}
+.bg-pink-soft {
+    background-color: #FDF2F8 !important;
+}
+.border-pink-soft {
+    border-color: #FCE7F3 !important;
+}
+
+.avatar-stack {
+    display: flex;
+    align-items: center;
+}
+.player-mini-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #334155;
+    border: 2px solid #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-left: -6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.player-mini-avatar.host {
+    background: var(--court-primary, #E63B6F);
+    color: #ffffff;
+    margin-left: 0;
 }
 
 .booking-history-card {

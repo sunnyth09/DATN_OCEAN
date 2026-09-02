@@ -364,6 +364,20 @@ class _SlotGridState extends State<SlotGrid> {
     final isPast = slot.isPast;
     final enabled = slot.isAvailable || slot.isMyLock;
 
+    final now = DateTime.now();
+    final isCurrentOngoingSlot = _isToday && (() {
+      try {
+        final startParts = slot.startTime.split(':');
+        final endParts = slot.endTime.split(':');
+        final startMins = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+        final endMins = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+        final nowMins = now.hour * 60 + now.minute;
+        return nowMins >= startMins && nowMins < endMins;
+      } catch (_) {
+        return false;
+      }
+    })();
+
     Color bgColor;
     Color borderColor;
     Color timeColor;
@@ -378,6 +392,13 @@ class _SlotGridState extends State<SlotGrid> {
       priceBadgeBg = Colors.white.withValues(alpha: 0.22);
       priceBadgeText = Colors.white;
       statusText = slot.shortPrice;
+    } else if (isCurrentOngoingSlot && enabled) {
+      bgColor = const Color(0xFFFFF0F5);
+      borderColor = AppColors.primary;
+      timeColor = AppColors.primary;
+      priceBadgeBg = const Color(0xFFFFE4E6);
+      priceBadgeText = AppColors.primary;
+      statusText = 'Bây giờ • ${slot.shortPrice}';
     } else if (isLockedByOther) {
       bgColor = const Color(0xFFFFFBEB);
       borderColor = const Color(0xFFF59E0B);

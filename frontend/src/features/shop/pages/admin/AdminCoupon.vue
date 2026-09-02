@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue';
 import api from '@/axios';
-import { Toast, Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 
@@ -11,6 +10,12 @@ const isModalOpen = ref(false);
 const isSubmitting = ref(false);
 const isEditing = ref(false);
 const searchQuery = ref('');
+const currentTab = ref('all'); // 'all' | 'active' | 'expired' | 'inactive' | 'trashed'
+const counts = ref({ all: 0, active: 0, expired: 0, inactive: 0, trashed: 0 });
+
+// Bulk Selection
+const selectedCouponIds = ref([]);
+const isBulkLoading = ref(false);
 
 // === Danh mục ===
 const allCategories = ref([]);
@@ -52,8 +57,6 @@ const defaultForm = () => ({
 
 const form = ref(defaultForm());
 
-const toast = ref({ message: '', type: 'success' });
-
 const showToast = (message, type = 'success') => {
   Swal.fire({
     toast: true,
@@ -66,10 +69,34 @@ const showToast = (message, type = 'success') => {
   });
 };
 
+const fetchCounts = async () => {
+    try {
+        const res = await api.get('/admin/coupons/counts');
+        if (res.data?.status === 'success') {
+            counts.value = res.data.data;
+        }
+    } catch (e) {
+        console.error('Lỗi tải coupon counts:', e);
+    }
+};
+
 const fetchCoupons = async () => {
     try {
         isLoading.value = true;
-        const response = await api.get('/admin/coupons');
+        selectedCouponIds.value = [];
+
+        const params = {
+            search: searchQuery.value || undefined,
+            per_page: 50,
+        };
+
+        if (currentTab.value === 'trashed') {
+            params.trashed = 'only';
+        } else if (currentTab.value !== 'all') {
+            params.status = currentTab.value;
+        }
+
+        const response = await api.get('/admin/coupons', { params });
         if (response.data.status === 'success') {
             coupons.value = response.data.data;
         }
@@ -80,11 +107,34 @@ const fetchCoupons = async () => {
     }
 };
 
+const switchTab = (tab) => {
+    currentTab.value = tab;
+    selectedCouponIds.value = [];
+    fetchCoupons();
+    fetchCounts();
+};
+
+const isAllSelected = computed(() => {
+    return filteredCoupons.value.length > 0 && selectedCouponIds.value.length === filteredCoupons.value.length;
+});
+
+const toggleSelectAll = () => {
+    if (isAllSelected.value) {
+        selectedCouponIds.value = [];
+    } else {
+        selectedCouponIds.value = filteredCoupons.value.map(c => c.id);
+    }
+};
+
+const clearSelection = () => {
+    selectedCouponIds.value = [];
+};
+
 const filteredCoupons = computed(() => {
     let list = coupons.value;
     if (searchQuery.value) {
         const q = searchQuery.value.toLowerCase();
-        list = list.filter(c => c.code.toLowerCase().includes(q));
+        list = list.filter(c => c.code && c.code.toLowerCase().includes(q));
     }
     return list;
 });
@@ -100,6 +150,7 @@ const fetchCategories = async () => {
 
 onMounted(() => {
     fetchCoupons();
+    fetchCounts();
     fetchCategories();
 });
 
@@ -166,14 +217,12 @@ const handleSubmit = async () => {
         send_email: Boolean(form.value.send_email),
     };
     
-    // Ép kiểu các trường nullable nếu là chuỗi rỗng
     if (payload.max_discount_value === '') payload.max_discount_value = null;
     if (payload.min_order_value === '') payload.min_order_value = null;
     if (payload.usage_limit === '') payload.usage_limit = null;
     if (payload.start_date === '') payload.start_date = null;
     if (payload.end_date === '') payload.end_date = null;
     
-    // Giảm tối đa chỉ có ý nghĩa nếu type = percent
     if (payload.type !== 'percent') {
         payload.max_discount_value = null;
     }
@@ -187,6 +236,7 @@ const handleSubmit = async () => {
             showToast(res.data.message || 'Tạo mã mới thành công!', 'success');
         }
         await fetchCoupons();
+        await fetchCounts();
         closeModal();
     } catch (error) {
         if (error.response?.status === 422 && error.response?.data?.errors) {
@@ -194,7 +244,6 @@ const handleSubmit = async () => {
             for (const key in backendErrors) {
                 errors.value[key] = backendErrors[key][0];
             }
-            // formError.value = error.response.data.message || 'Vui lòng kiểm tra lại các trường nhập liệu!';
         } else {
             formError.value = error.response?.data?.message || (isEditing.value ? 'Cập nhật thất bại!' : 'Tạo mã mới thất bại!');
         }
@@ -203,24 +252,138 @@ const handleSubmit = async () => {
     }
 };
 
-const confirmDeleteCouponPrompt = async (id) => {
+// Single Soft Delete
+const confirmDeleteCouponPrompt = async (coupon) => {
     const result = await Swal.fire({
-        title: 'Xóa mã giảm giá?',
-        text: 'Bạn có chắc chắn muốn xóa (xóa mềm) mã giảm giá này không? Lịch sử giao dịch cũ sẽ không bị ảnh hưởng.',
+        title: 'Chuyển vào thùng rác?',
+        html: `Bạn có chắc chắn muốn chuyển mã giảm giá <strong>${coupon.code}</strong> vào thùng rác?`,
         icon: 'warning',
         showCancelButton: true,
+        confirmButtonColor: '#dc3545',
         confirmButtonText: 'Đồng ý xóa',
         cancelButtonText: 'Hủy'
     });
 
     if (result.isConfirmed) {
         try {
-            const res = await api.delete(`/admin/coupons/${id}`);
-            showToast(res.data.message || 'Đã xóa mã giảm giá!', 'success');
+            const res = await api.delete(`/admin/coupons/${coupon.id}`);
+            showToast(res.data.message || 'Đã chuyển mã giảm giá vào thùng rác!', 'success');
             await fetchCoupons();
+            await fetchCounts();
         } catch (error) {
             showToast(error.response?.data?.message || 'Xóa thất bại!', 'danger');
         }
+    }
+};
+
+// Single Restore
+const restoreCoupon = async (coupon) => {
+    try {
+        const res = await api.post(`/admin/coupons/${coupon.id}/restore`);
+        showToast(res.data?.message || 'Khôi phục mã giảm giá thành công!', 'success');
+        await fetchCoupons();
+        await fetchCounts();
+    } catch (error) {
+        showToast(error.response?.data?.message || 'Khôi phục thất bại!', 'danger');
+    }
+};
+
+// Single Force Delete
+const forceDeleteCoupon = async (coupon) => {
+    const result = await Swal.fire({
+        title: 'XÓA VĨNH VIỄN?',
+        html: `Hành động này sẽ <strong>xóa hoàn toàn</strong> mã <strong>${coupon.code}</strong> khỏi cơ sở dữ liệu và <strong class="text-danger">KHÔNG THỂ KHÔI PHỤC</strong>.`,
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonColor: '#b91c1c',
+        confirmButtonText: 'Xác nhận xóa vĩnh viễn',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const res = await api.delete(`/admin/coupons/${coupon.id}/force`);
+            showToast(res.data?.message || 'Đã xóa vĩnh viễn mã giảm giá!', 'success');
+            await fetchCoupons();
+            await fetchCounts();
+        } catch (error) {
+            showToast(error.response?.data?.message || 'Lỗi xóa vĩnh viễn!', 'danger');
+        }
+    }
+};
+
+// Bulk Actions
+const handleBulkTrash = async () => {
+    const count = selectedCouponIds.value.length;
+    const result = await Swal.fire({
+        title: `Xóa ${count} mã giảm giá?`,
+        text: `Chuyển ${count} mã đã chọn vào thùng rác?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Đồng ý',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (!result.isConfirmed) return;
+
+    isBulkLoading.value = true;
+    try {
+        for (const id of selectedCouponIds.value) {
+            await api.delete(`/admin/coupons/${id}`);
+        }
+        showToast(`Đã chuyển ${count} mã giảm giá vào thùng rác!`, 'success');
+        selectedCouponIds.value = [];
+        await fetchCoupons();
+        await fetchCounts();
+    } catch (e) {
+        showToast(e.response?.data?.message || 'Lỗi thao tác hàng loạt!', 'danger');
+    } finally {
+        isBulkLoading.value = false;
+    }
+};
+
+const handleBulkRestore = async () => {
+    const count = selectedCouponIds.value.length;
+    isBulkLoading.value = true;
+    try {
+        const res = await api.post('/admin/coupons/bulk-restore', { ids: selectedCouponIds.value });
+        showToast(res.data?.message || `Đã khôi phục ${count} mã giảm giá!`, 'success');
+        selectedCouponIds.value = [];
+        await fetchCoupons();
+        await fetchCounts();
+    } catch (e) {
+        showToast(e.response?.data?.message || 'Lỗi khôi phục hàng loạt!', 'danger');
+    } finally {
+        isBulkLoading.value = false;
+    }
+};
+
+const handleBulkForceDelete = async () => {
+    const count = selectedCouponIds.value.length;
+    const result = await Swal.fire({
+        title: `XÓA VĨNH VIỄN ${count} MÃ GIẢM GIÁ?`,
+        text: `Hành động này sẽ xóa hoàn toàn ${count} mã đã chọn và KHÔNG THỂ HOÀN TÁC!`,
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonColor: '#b91c1c',
+        confirmButtonText: 'Xóa vĩnh viễn',
+        cancelButtonText: 'Hủy'
+    });
+
+    if (!result.isConfirmed) return;
+
+    isBulkLoading.value = true;
+    try {
+        const res = await api.post('/admin/coupons/bulk-force-delete', { ids: selectedCouponIds.value });
+        showToast(res.data?.message || `Đã xóa vĩnh viễn ${count} mã giảm giá!`, 'success');
+        selectedCouponIds.value = [];
+        await fetchCoupons();
+        await fetchCounts();
+    } catch (e) {
+        showToast(e.response?.data?.message || 'Lỗi xóa vĩnh viễn hàng loạt!', 'danger');
+    } finally {
+        isBulkLoading.value = false;
     }
 };
 
@@ -279,7 +442,6 @@ const toggleCategory = (catId) => {
     }
 };
 
-// Lấy tên category theo ID (duyệt cả children)
 const getCategoryName = (catId) => {
     for (const cat of allCategories.value) {
         if (cat.category_id === catId) return cat.name;
@@ -290,11 +452,6 @@ const getCategoryName = (catId) => {
     }
     return '';
 };
-
-const selectedCategoryNames = computed(() => {
-    if (!form.value.category_ids.length) return 'Tất cả danh mục';
-    return form.value.category_ids.map(id => getCategoryName(id)).filter(Boolean).join(', ');
-});
 </script>
 
 <template>
@@ -308,13 +465,68 @@ const selectedCategoryNames = computed(() => {
                     </svg>
                     Quản lý Mã giảm giá
                 </h1>
-                <p class="page-subtitle">Quản lý các loại mã giảm giá, Freeship, Flash Sale</p>
+                <p class="page-subtitle">Quản lý các loại mã giảm giá, Freeship, Flash Sale và khôi phục mã đã xóa</p>
             </div>
             <button @click="openCreateModal" class="btn-primary" id="add-coupon-btn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
                 Tạo mã mới
+            </button>
+        </div>
+
+        <!-- Status Tabs Bar with Live Counts -->
+        <div class="coupon-tabs-bar animate-in" style="animation-delay: 0.05s">
+            <button
+                class="tab-pill"
+                :class="{ active: currentTab === 'all' }"
+                @click="switchTab('all')"
+            >
+                <span>Tất cả</span>
+                <span class="tab-badge">{{ counts.all }}</span>
+            </button>
+
+            <button
+                class="tab-pill"
+                :class="{ active: currentTab === 'active' }"
+                @click="switchTab('active')"
+            >
+                <span class="status-dot dot-active"></span>
+                <span>Đang áp dụng</span>
+                <span class="tab-badge">{{ counts.active }}</span>
+            </button>
+
+            <button
+                class="tab-pill"
+                :class="{ active: currentTab === 'expired' }"
+                @click="switchTab('expired')"
+            >
+                <span class="status-dot dot-expired"></span>
+                <span>Đã hết hạn</span>
+                <span class="tab-badge">{{ counts.expired }}</span>
+            </button>
+
+            <button
+                class="tab-pill"
+                :class="{ active: currentTab === 'inactive' }"
+                @click="switchTab('inactive')"
+            >
+                <span class="status-dot dot-inactive"></span>
+                <span>Tạm khóa</span>
+                <span class="tab-badge">{{ counts.inactive }}</span>
+            </button>
+
+            <button
+                class="tab-pill tab-trash"
+                :class="{ active: currentTab === 'trashed' }"
+                @click="switchTab('trashed')"
+            >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Thùng rác (Xóa mềm)</span>
+                <span class="tab-badge badge-trash">{{ counts.trashed }}</span>
             </button>
         </div>
 
@@ -334,43 +546,103 @@ const selectedCategoryNames = computed(() => {
             <div class="filter-stats">
                 <span class="stat-pill">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                    {{ coupons.length }} mã tổng
-                </span>
-                <span class="stat-pill">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    {{ coupons.filter(c => c.is_active && !isExpired(c.end_date)).length }} đang chạy
+                    {{ filteredCoupons.length }} mã {{ currentTab === 'trashed' ? 'trong thùng rác' : 'hiển thị' }}
                 </span>
             </div>
         </div>
 
+        <!-- Floating Bulk Action Bar -->
+        <div v-if="selectedCouponIds.length > 0" class="bulk-action-bar animate-in">
+            <div class="bulk-action-info">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Đã chọn <strong>{{ selectedCouponIds.length }}</strong> mã giảm giá</span>
+            </div>
+            <div class="bulk-action-btns">
+                <template v-if="currentTab === 'trashed'">
+                    <button class="btn-bulk-restore" @click="handleBulkRestore" :disabled="isBulkLoading">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                        <span>Khôi phục đã chọn ({{ selectedCouponIds.length }})</span>
+                    </button>
+                    <button class="btn-bulk-force" @click="handleBulkForceDelete" :disabled="isBulkLoading">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span>Xóa vĩnh viễn đã chọn</span>
+                    </button>
+                </template>
+                <template v-else>
+                    <button class="btn-bulk-trash" @click="handleBulkTrash" :disabled="isBulkLoading">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span>Chuyển vào thùng rác</span>
+                    </button>
+                </template>
+                <button class="btn-bulk-cancel" @click="clearSelection">Bỏ chọn</button>
+            </div>
+        </div>
+
         <!-- Loading State -->
-        <AdminTableSkeleton v-if="isLoading" :columns="7" :rows="6" />
+        <AdminTableSkeleton v-if="isLoading" :columns="currentTab === 'trashed' ? 7 : 8" :rows="6" />
 
         <!-- Coupon Table -->
         <div v-else class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
             <div class="table-header">
                 <span class="table-count">
-                    <strong>{{ filteredCoupons.length }}</strong> mã giảm giá được tìm thấy
+                    <strong>{{ filteredCoupons.length }}</strong> mã giảm giá {{ currentTab === 'trashed' ? 'trong thùng rác' : 'được tìm thấy' }}
                 </span>
             </div>
             <div class="table-wrapper">
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px; text-align: center;">
+                                <input
+                                    type="checkbox"
+                                    class="form-check-input select-checkbox"
+                                    :checked="isAllSelected"
+                                    @change="toggleSelectAll"
+                                    :disabled="filteredCoupons.length === 0"
+                                />
+                            </th>
                             <th>Mã code / Loại</th>
                             <th>Mức giảm</th>
                             <th>Điều kiện / Giới hạn</th>
                             <th>Lượt xài</th>
-                            <th>Thời gian</th>
+                            <th>{{ currentTab === 'trashed' ? 'Ngày xóa mềm' : 'Thời gian' }}</th>
                             <th>Trạng thái</th>
-                            <th>Thao tác</th>
+                            <th style="text-align: right;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="filteredCoupons.length === 0">
-                            <td colspan="7" class="empty-cell" style="text-align:center; padding: 40px; color:#9fb3c8;">Không có mã giảm giá nào.</td>
+                            <td :colspan="currentTab === 'trashed' ? 7 : 8" class="empty-cell">
+                                <span class="empty-emoji">{{ currentTab === 'trashed' ? '🗑️' : '🎟️' }}</span>
+                                <h3>{{ currentTab === 'trashed' ? 'Thùng rác trống (Không có mã giảm giá bị xóa)' : 'Không tìm thấy mã giảm giá' }}</h3>
+                                <p class="small text-muted mt-1">{{ currentTab === 'trashed' ? 'Các voucher bị xóa mềm sẽ được lưu trữ tại đây và có thể khôi phục bất cứ lúc nào.' : (searchQuery ? 'Thử tìm kiếm bằng từ khóa khác.' : 'Bắt đầu bằng cách bấm Tạo mã mới.') }}</p>
+                            </td>
                         </tr>
-                        <tr v-for="coupon in filteredCoupons" :key="coupon.id">
+                        <tr
+                            v-for="coupon in filteredCoupons"
+                            :key="coupon.id"
+                            v-else
+                            :class="{ 'row-selected': selectedCouponIds.includes(coupon.id), 'row-trashed': currentTab === 'trashed' }"
+                        >
+                            <td style="text-align: center;">
+                                <input
+                                    type="checkbox"
+                                    class="form-check-input select-checkbox"
+                                    :value="coupon.id"
+                                    v-model="selectedCouponIds"
+                                />
+                            </td>
                             <td>
                                 <span class="code-text" :class="!coupon.is_public ? 'private-code' : ''">
                                     {{ coupon.code }} 
@@ -408,32 +680,51 @@ const selectedCategoryNames = computed(() => {
                                 </button>
                             </td>
                             <td class="date-cell">
-                                <div><small>Từ:</small> {{ formatDate(coupon.start_date) || '-' }}</div>
-                                <div><small>Đến:</small> <span :class="{'expired': isExpired(coupon.end_date)}">{{ formatDate(coupon.end_date) || '-' }}</span></div>
+                                <template v-if="currentTab === 'trashed'">
+                                    <div><small>Xóa lúc:</small> {{ formatDate(coupon.deleted_at) || '-' }}</div>
+                                </template>
+                                <template v-else>
+                                    <div><small>Từ:</small> {{ formatDate(coupon.start_date) || '-' }}</div>
+                                    <div><small>Đến:</small> <span :class="{'expired': isExpired(coupon.end_date)}">{{ formatDate(coupon.end_date) || '-' }}</span></div>
+                                </template>
                             </td>
                             <td>
-                                <span :class="['status-badge', (coupon.is_active && !isExpired(coupon.end_date)) ? 'active' : 'inactive']">
-                                    {{ isExpired(coupon.end_date) ? 'Hết hạn' : (coupon.is_active ? 'Kích hoạt' : 'Tạm khóa') }}
-                                </span>
+                                <template v-if="currentTab === 'trashed'">
+                                    <span class="status-badge inactive">Đã xóa</span>
+                                </template>
+                                <template v-else>
+                                    <span :class="['status-badge', (coupon.is_active && !isExpired(coupon.end_date)) ? 'active' : 'inactive']">
+                                        {{ isExpired(coupon.end_date) ? 'Hết hạn' : (coupon.is_active ? 'Kích hoạt' : 'Tạm khóa') }}
+                                    </span>
+                                </template>
                             </td>
-                            <td>
-                                <button class="btn-action edit" title="Chỉnh sửa" @click="openEditModal(coupon)">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                </button>
-                                <button class="btn-action delete" title="Xóa" @click="confirmDeleteCouponPrompt(coupon.id)">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                                </button>
+                            <td style="text-align: right;">
+                                <!-- Trashed Actions -->
+                                <div v-if="currentTab === 'trashed'" class="action-buttons justify-content-end">
+                                    <button class="btn-action-restore" title="Khôi phục mã giảm giá" @click="restoreCoupon(coupon)">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="1 4 1 10 7 10"></polyline>
+                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                                        </svg>
+                                        <span>Khôi phục</span>
+                                    </button>
+                                    <button class="btn-action delete" title="Xóa vĩnh viễn" @click="forceDeleteCoupon(coupon)">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </div>
+                                <!-- Normal Actions -->
+                                <div v-else class="action-buttons justify-content-end">
+                                    <button class="btn-action edit" title="Chỉnh sửa" @click="openEditModal(coupon)">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </button>
+                                    <button class="btn-action delete" title="Chuyển vào thùng rác" @click="confirmDeleteCouponPrompt(coupon)">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
-            </div>
-
-            <!-- Empty State -->
-            <div v-if="!isLoading && filteredCoupons.length === 0" class="empty-state">
-                <span class="empty-emoji"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></span>
-                <h3>Không tìm thấy mã giảm giá</h3>
-                <p>{{ searchQuery ? 'Thử từ khóa khác.' : 'Bắt đầu bằng cách bấm Tạo mã mới.' }}</p>
             </div>
         </div>
 
@@ -448,100 +739,147 @@ const selectedCategoryNames = computed(() => {
                         </button>
                     </div>
                     <form @submit.prevent="handleSubmit" novalidate class="modal-body">
-                        
-                        <!-- Cụm Code -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Mã Code <span class="required">*</span></label>
-                                <input v-model="form.code" type="text" placeholder="VD: SALE50K" class="form-control" :class="{'is-invalid': errors.code}" style="text-transform: uppercase;" />
-                                <span v-if="errors.code" class="field-error">{{ errors.code }}</span>
-                            </div>
-                        </div>
+                        <div v-if="formError" class="alert alert-danger mb-3 py-2 px-3 small">{{ formError }}</div>
 
-                        <!-- Cụm Loại & Giá trị -->
                         <div class="form-row">
                             <div class="form-group">
-                                <label>Áp dụng loại giảm <span class="required">*</span></label>
+                                <label>Mã Voucher <span class="required">*</span></label>
+                                <input
+                                    type="text"
+                                    v-model="form.code"
+                                    class="form-control"
+                                    :class="{'is-invalid': errors.code}"
+                                    placeholder="VD: FREESHIP100"
+                                    style="text-transform: uppercase;"
+                                />
+                                <div class="invalid-feedback" v-if="errors.code">{{ errors.code }}</div>
+                            </div>
+                            <div class="form-group">
+                                <label>Loại giảm giá <span class="required">*</span></label>
                                 <select v-model="form.type" class="form-control form-select">
-                                    <option value="fixed">Giảm cố định (VNĐ)</option>
-                                    <option value="percent">Giảm phần trăm (%)</option>
-                                    <option value="free_ship">Miễn phí ship (VNĐ)</option>
+                                    <option value="fixed">Số tiền cố định (VNĐ)</option>
+                                    <option value="percent">Phần trăm (%)</option>
+                                    <option value="free_ship">Miễn phí vận chuyển (VNĐ)</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="form-row">
                             <div class="form-group">
                                 <label>Mức giảm <span class="required">*</span></label>
-                                <input v-model.number="form.value" type="number" min="0" class="form-control" :class="{'is-invalid': errors.value}" placeholder="0" />
-                                <span v-if="errors.value" class="field-error">{{ errors.value }}</span>
+                                <input
+                                    type="number"
+                                    v-model="form.value"
+                                    class="form-control"
+                                    :class="{'is-invalid': errors.value}"
+                                    :placeholder="form.type === 'percent' ? 'VD: 15 (nghĩa là 15%)' : 'VD: 50000'"
+                                />
+                                <div class="invalid-feedback" v-if="errors.value">{{ errors.value }}</div>
+                            </div>
+                            <div class="form-group" v-if="form.type === 'percent'">
+                                <label>Giảm tối đa (VNĐ)</label>
+                                <input
+                                    type="number"
+                                    v-model="form.max_discount_value"
+                                    class="form-control"
+                                    placeholder="Bỏ trống nếu không giới hạn"
+                                />
+                            </div>
+                            <div class="form-group" v-else>
+                                <label>Đơn tối thiểu (VNĐ)</label>
+                                <input
+                                    type="number"
+                                    v-model="form.min_order_value"
+                                    class="form-control"
+                                    placeholder="VD: 200000"
+                                />
                             </div>
                         </div>
 
-                        <!-- Cặp giảm tối đa (nếu là percent) -->
                         <div class="form-row" v-if="form.type === 'percent'">
-                            <div class="form-group" style="grid-column: 1 / -1;">
-                                <label>Mức GIẢM TỐI ĐA cho phép (VNĐ)</label>
-                                <input v-model.number="form.max_discount_value" type="number" min="0" class="form-control" placeholder="Để trống nếu không giới hạn trần" />
+                            <div class="form-group">
+                                <label>Đơn tối thiểu (VNĐ)</label>
+                                <input
+                                    type="number"
+                                    v-model="form.min_order_value"
+                                    class="form-control"
+                                    placeholder="VD: 200000"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label>Tổng lượt dùng tối đa</label>
+                                <input
+                                    type="number"
+                                    v-model="form.usage_limit"
+                                    class="form-control"
+                                    placeholder="Bỏ trống = không giới hạn"
+                                />
+                            </div>
+                        </div>
+                        <div class="form-row" v-else>
+                            <div class="form-group">
+                                <label>Tổng lượt dùng tối đa</label>
+                                <input
+                                    type="number"
+                                    v-model="form.usage_limit"
+                                    class="form-control"
+                                    placeholder="Bỏ trống = không giới hạn"
+                                />
+                            </div>
+                            <div class="form-group">
+                                <label>Mỗi User dùng tối đa (lần)</label>
+                                <input
+                                    type="number"
+                                    v-model="form.user_usage_limit"
+                                    class="form-control"
+                                    placeholder="1"
+                                    min="1"
+                                />
                             </div>
                         </div>
 
-                        <!-- Cụm Điều kiện giá & User -->
-                        <div class="form-row" style="margin-top: 8px;">
+                        <div class="form-row" v-if="form.type === 'percent'">
                             <div class="form-group">
-                                <label>Đơn tối thiểu áp dụng (VNĐ)</label>
-                                <input v-model.number="form.min_order_value" type="number" min="0" class="form-control" placeholder="Không bắt buộc" />
+                                <label>Mỗi User dùng tối đa (lần)</label>
+                                <input
+                                    type="number"
+                                    v-model="form.user_usage_limit"
+                                    class="form-control"
+                                    placeholder="1"
+                                    min="1"
+                                />
                             </div>
-                            <div class="form-group">
-                                <label>Số lượt được Dùng / 1 User</label>
-                                <input v-model.number="form.user_usage_limit" type="number" min="1" class="form-control" placeholder="Mặc định: 1" />
-                            </div>
+                            <div class="form-group"></div>
                         </div>
 
-                        <!-- Cụm Kho -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Tổng số mã phát ra (Kho)</label>
-                                <input v-model.number="form.usage_limit" type="number" min="1" class="form-control" placeholder="Để trống = vô hạn" />
-                            </div>
-                        </div>
-
-                        <!-- Cụm Ngày -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Ngày bắt đầu <span class="required">*</span></label>
-                                <input v-model="form.start_date" type="datetime-local" class="form-control" :class="{'is-invalid': errors.start_date}" />
-                                <span v-if="errors.start_date" class="field-error">{{ errors.start_date }}</span>
-                            </div>
-                            <div class="form-group">
-                                <label>Ngày kết thúc <span class="required">*</span></label>
-                                <input v-model="form.end_date" type="datetime-local" class="form-control" :class="{'is-invalid': errors.end_date}" />
-                                <span v-if="errors.end_date" class="field-error">{{ errors.end_date }}</span>
-                            </div>
-                        </div>
-
-                        <!-- Cụm Danh mục áp dụng (Dropdown tree-view) -->
-                        <div class="form-group" style="margin-bottom: 16px; position: relative;">
-                            <label>Áp dụng cho Danh mục <span style="color:#9fb3c8;font-weight:400;font-size:0.75rem">(bỏ trống = tất cả)</span></label>
+                        <!-- Danh mục áp dụng -->
+                        <div class="form-group position-relative">
+                            <label>Danh mục áp dụng (bỏ trống = áp dụng tất cả)</label>
                             <div class="cat-dropdown-trigger" @click="isCatDropdownOpen = !isCatDropdownOpen">
-                                <span class="cat-dropdown-text">{{ selectedCategoryNames }}</span>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" :style="{transform: isCatDropdownOpen ? 'rotate(180deg)' : '', transition: '0.2s'}"><polyline points="6 9 12 15 18 9"/></svg>
-                            </div>
-                            <!-- Selected tags -->
-                            <div v-if="form.category_ids.length" class="cat-selected-tags">
-                                <span v-for="catId in form.category_ids" :key="catId" class="cat-tag">
-                                    {{ getCategoryName(catId) }}
-                                    <svg @click.stop="toggleCategory(catId)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="cursor:pointer;margin-left:4px;vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                <span class="cat-dropdown-text">
+                                    {{ form.category_ids.length ? `Đã chọn ${form.category_ids.length} danh mục` : 'Tất cả danh mục' }}
                                 </span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :style="{ transform: isCatDropdownOpen ? 'rotate(180deg)' : 'rotate(0)' }">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
                             </div>
-                            <!-- Dropdown menu -->
                             <div v-if="isCatDropdownOpen" class="cat-dropdown-menu">
-                                <div v-if="allCategories.length === 0" style="padding:12px;color:#9fb3c8;font-size:0.8rem">Đang tải...</div>
-                                <template v-for="parent in allCategories" :key="parent.category_id">
+                                <template v-for="cat in allCategories" :key="cat.category_id">
                                     <label class="cat-dropdown-item parent">
-                                        <input type="checkbox" :checked="form.category_ids.includes(parent.category_id)" @change="toggleCategory(parent.category_id)" />
-                                        <span>{{ parent.name }}</span>
+                                        <input
+                                            type="checkbox"
+                                            :checked="form.category_ids.includes(cat.category_id)"
+                                            @change="toggleCategory(cat.category_id)"
+                                        />
+                                        <span>{{ cat.name }}</span>
                                     </label>
-                                    <template v-if="parent.children && parent.children.length">
-                                        <label v-for="child in parent.children" :key="child.category_id" class="cat-dropdown-item child">
-                                            <input type="checkbox" :checked="form.category_ids.includes(child.category_id)" @change="toggleCategory(child.category_id)" />
+                                    <template v-if="cat.children && cat.children.length">
+                                        <label v-for="child in cat.children" :key="child.category_id" class="cat-dropdown-item child">
+                                            <input
+                                                type="checkbox"
+                                                :checked="form.category_ids.includes(child.category_id)"
+                                                @change="toggleCategory(child.category_id)"
+                                            />
                                             <span>{{ child.name }}</span>
                                         </label>
                                     </template>
@@ -549,49 +887,57 @@ const selectedCategoryNames = computed(() => {
                             </div>
                         </div>
 
-                        <!-- ✅ Kích hoạt ngay -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Ngày bắt đầu <span class="required">*</span></label>
+                                <input
+                                    type="datetime-local"
+                                    v-model="form.start_date"
+                                    class="form-control"
+                                    :class="{'is-invalid': errors.start_date}"
+                                />
+                                <div class="invalid-feedback" v-if="errors.start_date">{{ errors.start_date }}</div>
+                            </div>
+                            <div class="form-group">
+                                <label>Ngày kết thúc <span class="required">*</span></label>
+                                <input
+                                    type="datetime-local"
+                                    v-model="form.end_date"
+                                    class="form-control"
+                                    :class="{'is-invalid': errors.end_date}"
+                                />
+                                <div class="invalid-feedback" v-if="errors.end_date">{{ errors.end_date }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Checkbox options -->
                         <div class="option-section">
                             <label class="option-checkbox main-option">
                                 <input type="checkbox" v-model="form.is_active" />
                                 <span class="checkmark"></span>
-                                <span class="option-label">Kích hoạt ngay</span>
+                                <span class="option-label">Kích hoạt mã ngay</span>
                             </label>
-                        </div>
-
-                        <!-- TÙY CHỌN NÂNG CAO -->
-                        <div class="advanced-section">
-                            <div class="advanced-title">TÙY CHỌN NÂNG CAO</div>
-
                             <label class="option-checkbox">
                                 <input type="checkbox" v-model="form.is_public" />
                                 <span class="checkmark"></span>
-                                <svg class="option-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e65100" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-                                <span class="option-label">Công khai trên Săn Voucher</span>
+                                <span class="option-label">Hiển thị công khai trong ví Voucher</span>
                             </label>
-
-                            <!-- Gửi email (indented, highlighted) -->
-                            <div v-if="!isEditing" class="email-option-wrap">
-                                <label class="option-checkbox">
-                                    <input type="checkbox" v-model="form.send_email" />
-                                    <span class="checkmark"></span>
-                                    <svg class="option-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1565c0" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                                    <span class="option-label" style="color:#1565c0; font-weight:600;">Gửi email thông báo cho tất cả người dùng ngay lập tức</span>
-                                </label>
-                            </div>
-
                             <label class="option-checkbox">
                                 <input type="checkbox" v-model="form.is_first_order" />
                                 <span class="checkmark"></span>
-                                <svg class="option-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d84315" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                                <span class="option-label">Chỉ cho đơn đầu tiên</span>
+                                <span class="option-label">Chỉ áp dụng cho đơn hàng đầu tiên</span>
+                            </label>
+                            <label class="option-checkbox" v-if="!isEditing">
+                                <input type="checkbox" v-model="form.send_email" />
+                                <span class="checkmark"></span>
+                                <span class="option-label">Gửi email thông báo cho tất cả khách hàng</span>
                             </label>
                         </div>
-                        
+
                         <div class="modal-footer">
-                            <button type="button" @click="closeModal" class="btn-outline">Hủy bỏ</button>
+                            <button type="button" class="btn-outline" @click="closeModal">Hủy bỏ</button>
                             <button type="submit" class="btn-primary" :disabled="isSubmitting">
-                                <span v-if="isSubmitting">Đang lưu...</span>
-                                <span v-else>{{ isEditing ? 'Lưu cập nhật' : 'Tạo mã mới' }}</span>
+                                {{ isSubmitting ? 'Đang lưu...' : (isEditing ? 'Cập nhật' : 'Tạo mã ngay') }}
                             </button>
                         </div>
                     </form>
@@ -599,69 +945,37 @@ const selectedCategoryNames = computed(() => {
             </div>
         </Transition>
 
-
-
-        <!-- Vue Modal: Xem lượt dùng coupon -->
+        <!-- Usages Modal -->
         <Transition name="modal">
             <div v-if="isUsagesModalOpen" class="modal-overlay" @click.self="closeUsagesModal">
-                <div class="modal-box ocean-card" style="max-width: 600px;">
+                <div class="modal-box ocean-card" style="max-width: 580px;">
                     <div class="modal-head">
-                        <h3>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" style="vertical-align:middle;margin-right:6px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                            Lượt dùng: <strong style="color:#d84315">{{ usagesData?.coupon?.code }}</strong>
-                        </h3>
-                        <button class="btn-close" @click="closeUsagesModal">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
+                        <h3>Lượt sử dụng mã: {{ usagesData?.coupon?.code }}</h3>
+                        <button class="btn-close" @click="closeUsagesModal">×</button>
                     </div>
-                    <div style="padding: 20px 24px;">
-                        <!-- Stats -->
-                        <div v-if="usagesData" style="display:flex; gap:12px; margin-bottom:16px;">
-                            <div class="stat-card">
-                                <div class="stat-num">{{ usagesData.total_saved }}</div>
-                                <div class="stat-label">Đã lưu</div>
+                    <div class="modal-body">
+                        <div v-if="isLoadingUsages" class="text-center py-4 text-muted">Đang tải...</div>
+                        <div v-else-if="usagesData">
+                            <div class="d-flex gap-3 mb-3">
+                                <div class="stat-card">
+                                    <div class="stat-num">{{ usagesData.total_saved }}</div>
+                                    <div class="stat-label">Đã lưu mã</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-num text-success">{{ usagesData.total_used }}</div>
+                                    <div class="stat-label">Đã sử dụng</div>
+                                </div>
                             </div>
-                            <div class="stat-card">
-                                <div class="stat-num" style="color:#2e7d32">{{ usagesData.total_used }}</div>
-                                <div class="stat-label">Đã dùng</div>
+                            <div v-if="!usagesData.usages || usagesData.usages.length === 0" class="text-center py-3 text-muted">Chưa có ai lưu hoặc dùng mã này.</div>
+                            <div v-else class="list-group">
+                                <div v-for="u in usagesData.usages" :key="u.user_id" class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                                    <div>
+                                        <div class="fw-bold">{{ u.full_name }}</div>
+                                        <small class="text-muted">{{ u.email }} | {{ u.phone || '—' }}</small>
+                                    </div>
+                                    <span class="usage-count-badge">{{ u.used_count }} lần</span>
+                                </div>
                             </div>
-                            <div class="stat-card">
-                                <div class="stat-num" style="color:#d84315">{{ usagesData.coupon?.used_count || 0 }} / {{ usagesData.coupon?.usage_limit || '∞' }}</div>
-                                <div class="stat-label">Tổng lượt xài</div>
-                            </div>
-                        </div>
-
-                        <!-- Loading -->
-                        <div v-if="isLoadingUsages" class="loading-state" style="padding:40px"><div class="spinner"></div>Đang tải...</div>
-                        
-                        <!-- Table -->
-                        <div v-else-if="usagesData && usagesData.usages.length" style="max-height:350px; overflow-y:auto;">
-                            <table class="data-table" style="font-size:0.85rem">
-                                <thead>
-                                    <tr>
-                                        <th>Khách hàng</th>
-                                        <th>Email</th>
-                                        <th>Số lần dùng</th>
-                                        <th>Trạng thái</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="u in usagesData.usages" :key="u.user_id">
-                                        <td><strong>{{ u.full_name }}</strong></td>
-                                        <td style="color:var(--text-muted); font-size:0.8rem">{{ u.email }}</td>
-                                        <td><span class="usage-count-badge">{{ u.used_count }}</span></td>
-                                        <td>
-                                            <span v-if="u.used_count > 0" class="status-badge active" style="font-size:0.6rem">Đã dùng</span>
-                                            <span v-else class="status-badge inactive" style="font-size:0.6rem">Chỉ lưu</span>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Empty -->
-                        <div v-else-if="usagesData" style="text-align:center; padding:40px; color:#9fb3c8">
-                            <p>Chưa có ai lưu hoặc dùng mã này.</p>
                         </div>
                     </div>
                 </div>
@@ -671,32 +985,12 @@ const selectedCategoryNames = computed(() => {
 </template>
 
 <style scoped>
-/* Validation Styles */
-.field-error {
-    color: #e53935;
-    font-size: 0.8rem;
-    margin-top: 4px;
-    display: block;
-}
-.is-invalid {
-    border-color: #e53935 !important;
-    background-color: #fff2f2 !important;
-}
-.form-error-box {
-    background-color: #fff2f2;
-    border: 1px solid #e53935;
-    color: #c62828;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-size: 0.9rem;
-}
-.category-page { font-family: var(--font-inter); }
+.category-page { font-family: var(--font-inter); padding-bottom: 2rem; }
 
 /* Header */
 .page-header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 .page-title {
     font-size: 1.5rem; font-weight: 800; color: var(--text-main);
@@ -708,95 +1002,160 @@ const selectedCategoryNames = computed(() => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: var(--primary); color: white;
-    font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
+    background: linear-gradient(135deg, #e63b6f 0%, #ff6b8b 100%);
+    color: white; font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
     box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover {
-    background: var(--ocean-bright); transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(3, 169, 244, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(230, 59, 111, 0.3);
 }
-.btn-primary:disabled { opacity: 0.7; transform: none; cursor: not-allowed; }
 
 .btn-outline {
-    padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color);
-    background: var(--ocean-deepest); color: var(--text-main);
-    font-family: var(--font-inter); font-size: 0.85rem; font-weight: 600;
-    cursor: pointer; transition: all 0.2s;
+    padding: 10px 22px; border-radius: 8px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--card-bg, #ffffff); color: var(--text-muted, #64748b);
+    font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
 }
-.btn-outline:hover { border-color: var(--text-light); }
+.btn-outline:hover { border-color: #e63b6f; color: #e63b6f; }
 
-/* Filters */
+/* Coupon Tabs Bar */
+.coupon-tabs-bar {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px;
+}
+.tab-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 9999px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--card-bg, #ffffff); color: var(--text-muted, #64748b);
+    font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+    white-space: nowrap;
+}
+.tab-pill:hover {
+    background: var(--hover-bg, #f8fafc); color: var(--text-main, #0f172a); border-color: #cbd5e1;
+}
+.tab-pill.active {
+    background: #fff0f5; color: #e63b6f; border-color: #fbcfe8; font-weight: 700;
+    box-shadow: 0 2px 6px rgba(230, 59, 111, 0.12);
+}
+.tab-pill.tab-trash.active {
+    background: #fef2f2; color: #dc2626; border-color: #fecaca;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.12);
+}
+
+.tab-badge {
+    font-size: 0.72rem; font-weight: 700; padding: 1px 7px;
+    border-radius: 9999px; background: #f1f5f9; color: #475569;
+}
+.tab-pill.active .tab-badge { background: #e63b6f; color: #ffffff; }
+.tab-pill.tab-trash.active .tab-badge { background: #dc2626; color: #ffffff; }
+
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-active { background: #10b981; }
+.dot-expired { background: #ef4444; }
+.dot-inactive { background: #94a3b8; }
+
+/* Filters Bar */
 .filters-bar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; margin-bottom: 24px; gap: 16px;
+    padding: 14px 18px; margin-bottom: 16px; gap: 16px;
 }
 .search-box {
     display: flex; align-items: center; gap: 10px;
-    background: var(--ocean-deepest); border: 1px solid var(--border-color);
-    border-radius: 8px; padding: 10px 16px; flex: 1; max-width: 400px;
-    transition: all 0.2s;
+    background: var(--ocean-deepest, #f8fafc); border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px; padding: 9px 14px; flex: 1; max-width: 400px;
 }
 .search-box:focus-within {
-    border-color: var(--primary); background: var(--card-bg);
+    border-color: #e63b6f; background: #ffffff;
     box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
-.search-box svg { color: var(--text-light); flex-shrink: 0; }
+.search-box svg { color: var(--text-light, #94a3b8); }
 .search-input {
     background: none; border: none; outline: none;
-    color: var(--text-main); font-family: var(--font-inter);
-    font-size: 0.9rem; width: 100%;
+    color: var(--text-main, #0f172a); font-size: 0.88rem; width: 100%;
 }
-.search-input::placeholder { color: var(--text-light); }
-
 .filter-stats { display: flex; gap: 8px; flex-shrink: 0; }
 .stat-pill {
     display: flex; align-items: center; gap: 6px;
-    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-color);
-    background: var(--ocean-deepest); color: var(--text-muted);
+    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--ocean-deepest, #f8fafc); color: var(--text-muted, #64748b);
     font-size: 0.8rem; font-weight: 600;
 }
-.stat-pill svg { color: var(--primary); }
+.stat-pill svg { color: #e63b6f; }
 
-/* Loading & Empty */
-.loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
-.spinner {
-    width: 30px; height: 30px; border: 3px solid var(--border-color);
-    border-top-color: var(--primary); border-radius: 50%;
-    animation: spin 1s linear infinite; margin: 0 auto 16px;
+/* Floating Bulk Action Bar */
+.bulk-action-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; background: #1e293b; color: #ffffff;
+    border-radius: 12px; margin-bottom: 16px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    animation: slideDown 0.25s ease;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.bulk-action-info { display: flex; align-items: center; gap: 10px; font-size: 0.88rem; }
+.bulk-action-btns { display: flex; align-items: center; gap: 8px; }
+
+.btn-bulk-restore {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; border: none;
+    background: #10b981; color: #ffffff; font-size: 0.82rem; font-weight: 700;
+    cursor: pointer; transition: all 0.15s ease;
+}
+.btn-bulk-restore:hover { background: #059669; }
+
+.btn-bulk-force {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; border: none;
+    background: #dc2626; color: #ffffff; font-size: 0.82rem; font-weight: 700;
+    cursor: pointer; transition: all 0.15s ease;
+}
+.btn-bulk-force:hover { background: #b91c1c; }
+
+.btn-bulk-trash {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; border: none;
+    background: #e11d48; color: #ffffff; font-size: 0.82rem; font-weight: 700;
+    cursor: pointer; transition: all 0.15s ease;
+}
+.btn-bulk-trash:hover { background: #be123c; }
+
+.btn-bulk-cancel {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid #475569;
+    background: transparent; color: #cbd5e1; font-size: 0.82rem; cursor: pointer;
+}
+.btn-bulk-cancel:hover { background: #334155; color: #ffffff; }
+
+.select-checkbox { width: 16px; height: 16px; cursor: pointer; }
 
 /* Table */
-.table-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); }
-.table-count { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
-.table-count strong { color: var(--text-main); font-weight: 800; }
+.table-header { padding: 14px 20px; border-bottom: 1px solid var(--border-color, #e2e8f0); }
+.table-count { font-size: 0.85rem; color: var(--text-muted, #64748b); font-weight: 500; }
+.table-count strong { color: var(--text-main, #0f172a); font-weight: 800; }
 
 .table-wrapper { overflow-x: auto; }
-.data-table { width: 100%; min-width: 900px; border-collapse: collapse; text-align: left; }
+.data-table { width: 100%; border-collapse: collapse; text-align: left; }
 .data-table th {
-    padding: 14px 24px; font-size: 0.72rem; font-weight: 700;
-    color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
-    border-bottom: 1px solid var(--border-color);
-    background: var(--ocean-deepest);
+    padding: 12px 16px; font-size: 0.72rem; font-weight: 700;
+    color: var(--text-muted, #64748b); text-transform: uppercase; letter-spacing: 0.8px;
+    border-bottom: 1px solid var(--border-color, #e2e8f0); background: var(--ocean-deepest, #f8fafc);
+    white-space: nowrap;
 }
-.data-table :deep(td) {
-    padding: 14px 24px; border-bottom: 1px solid var(--border-color);
+.data-table td {
+    padding: 12px 16px; border-bottom: 1px solid var(--border-color, #e2e8f0);
     transition: background 0.15s; vertical-align: middle;
 }
-.data-table :deep(tbody tr:hover td) { background: var(--hover-bg); }
+.data-table tbody tr:hover td { background: var(--hover-bg, #f8fafc); }
+.row-selected td { background: #fff0f5 !important; }
 
-/* Elements Table Specific */
-.code-text { display: block; font-weight: 800; color: #d84315; font-size: 0.95rem; font-family: monospace; letter-spacing: 0.5px; margin-bottom: 4px;}
-.private-code { color: #546e7a; }
-.type-badge { display: inline-block; font-size: 0.65rem; background: #eceff1; color: #546e7a; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
-.value-text { font-size: 1rem; color: var(--seafoam, #128176); }
-.max-discount-text { font-size: 0.75rem; color: #d84315; font-weight: 600; margin-top: 2px; }
-
-.condition-info { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
-.badge-first-order { display: inline-block; background: #fff3e0; color: #e65100; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
-.badge-user-limit { display: inline-block; background: #e3f2fd; color: #0d47a1; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-top: 4px; margin-left: 4px;}
+.code-text { font-family: monospace; font-weight: 800; font-size: 0.95rem; color: #e63b6f; letter-spacing: 0.5px; }
+.private-code { color: #7b1fa2; }
+.type-badge { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+.value-text { font-size: 0.95rem; color: var(--text-main); }
+.max-discount-text { font-size: 0.75rem; color: var(--text-muted); }
+.condition-info { font-size: 0.8rem; color: var(--text-muted); }
+.badge-first-order { font-size: 0.65rem; background: #fff3e0; color: #e65100; padding: 1px 6px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+.badge-user-limit { font-size: 0.65rem; background: #f3e5f5; color: #7b1fa2; padding: 1px 6px; border-radius: 4px; display: inline-block; margin-top: 2px; margin-left: 2px; }
 
 .usage-info { font-weight: 600; color: var(--text-main); }
 .date-cell div { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; margin-bottom: 2px; }
@@ -807,21 +1166,28 @@ const selectedCategoryNames = computed(() => {
 .status-badge.active { background: #e8f5e9; color: #2e7d32; }
 .status-badge.inactive { background: #ffebee; color: #c62828; }
 
+.action-buttons { display: flex; gap: 6px; align-items: center; }
 .btn-action {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px; border-radius: 6px; border: none;
-    background: transparent; color: var(--text-muted);
-    cursor: pointer; transition: all 0.2s; margin-right: 4px;
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--ocean-deepest, #f8fafc); color: var(--text-muted, #64748b);
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
 }
-.btn-action.edit:hover { background: #e3f2fd; color: #1565c0; }
-.btn-action.delete:hover { background: #ffebee; color: #c62828; }
+.btn-action.edit:hover { color: #0284c7; border-color: #0284c7; background: rgba(2, 132, 199, 0.08); }
+.btn-action.delete:hover { color: #e11d48; border-color: #e11d48; background: rgba(225, 29, 72, 0.08); }
 
-.empty-state { text-align: center; padding: 60px 20px; }
+.btn-action-restore {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 6px; border: 1px solid #a7f3d0;
+    background: #ecfdf5; color: #059669; font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; transition: all 0.15s ease;
+}
+.btn-action-restore:hover { background: #10b981; color: #ffffff; border-color: #10b981; }
+
+.empty-cell { text-align: center; padding: 60px 20px !important; }
 .empty-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
-.empty-state h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px; }
-.empty-state p { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
+.empty-cell h3 { font-size: 1rem; color: #64748b; margin: 0; }
 
-/* Vue Modal for Form */
+/* Modal styles */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);
@@ -830,34 +1196,32 @@ const selectedCategoryNames = computed(() => {
 .modal-box {
     width: 100%; max-width: 650px; padding: 0;
     max-height: 90vh; overflow-y: auto;
-    border-radius: 16px; background: var(--card-bg);
+    border-radius: 16px; background: var(--card-bg, #ffffff);
     box-shadow: 0 10px 40px rgba(0,0,0,0.1);
 }
 .modal-head {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 20px 24px; border-bottom: 1px solid var(--border-color);
+    padding: 20px 24px; border-bottom: 1px solid var(--border-color, #e2e8f0);
 }
-.modal-head h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin: 0; }
+.modal-head h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main, #0f172a); margin: 0; }
 .btn-close {
     background: none; border: none; cursor: pointer; margin: 0;
-    color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted, #64748b); display: flex; align-items: center; justify-content: center;
     padding: 4px; border-radius: 6px; transition: all 0.2s;
 }
-.btn-close:hover { background: var(--hover-bg); color: var(--coral); }
+.btn-close:hover { color: #dc2626; }
 .modal-body { padding: 24px; }
-.modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 20px; border-top: 1px solid var(--border-color, #e2e8f0); }
 
-/* Form Control */
 .form-group { margin-bottom: 16px; }
-.form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px; }
-.required { color: var(--coral); }
+.form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main, #0f172a); margin-bottom: 8px; }
+.required { color: #dc2626; }
 .form-control {
     width: 100%; padding: 10px 14px; border-radius: 8px;
-    border: 1px solid var(--border-color); background: var(--ocean-deepest);
-    color: var(--text-main); font-family: var(--font-inter);
-    font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
+    border: 1px solid var(--border-color, #e2e8f0); background: var(--ocean-deepest, #f8fafc);
+    color: var(--text-main, #0f172a); font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.form-control:focus { border-color: #e63b6f; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); background: #ffffff; }
 .form-select {
     appearance: none; cursor: pointer;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -865,184 +1229,90 @@ const selectedCategoryNames = computed(() => {
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-/* Toggle Slider */
-.toggle-wrap { margin-top: 4px; }
-.toggle-switch-wrapper { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
-.toggle-input { opacity: 0; width: 0; height: 0; }
-.toggle-slider {
-    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-    background-color: var(--text-light); transition: .3s; border-radius: 24px;
-}
-.toggle-slider:before {
-    position: absolute; content: ""; height: 18px; width: 18px;
-    left: 3px; bottom: 3px; background-color: var(--card-bg); transition: .3s; border-radius: 50%;
-}
-.toggle-input:checked + .toggle-slider { background-color: var(--primary); }
-.toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
-.toggle-text { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
-
-/* Modal Transition */
-.modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
-.modal-enter-from, .modal-leave-to { opacity: 0; }
-.modal-enter-from .modal-box, .modal-leave-to .modal-box { transform: scale(0.95) translateY(10px); }
-
-/* Custom Bootstap Toast style */
-.text-bg-white { background-color: var(--card-bg) !important; color: #333 !important; }
-
-/* Category Badges in table */
 .cat-badges { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
 .badge-category {
     display: inline-block; font-size: 0.6rem; font-weight: 600;
-    padding: 1px 6px; border-radius: 4px;
-    background: #e3f2fd; color: #1565c0;
+    padding: 1px 6px; border-radius: 4px; background: #e3f2fd; color: #1565c0;
 }
 .badge-category.all { background: #f3e5f5; color: #7b1fa2; }
 
-/* Category Dropdown selector */
 .cat-dropdown-trigger {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 14px; border-radius: 8px;
-    border: 1.5px solid var(--border-color); background: var(--ocean-deepest);
-    cursor: pointer; transition: all 0.2s; font-size: 0.85rem;
-    color: var(--text-main); font-family: var(--font-inter);
+    border: 1px solid var(--border-color, #e2e8f0); background: var(--ocean-deepest, #f8fafc);
+    cursor: pointer; transition: all 0.2s; font-size: 0.85rem; color: var(--text-main, #0f172a);
 }
-.cat-dropdown-trigger:hover { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111,0.08); }
+.cat-dropdown-trigger:hover { border-color: #e63b6f; }
 .cat-dropdown-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-
-.cat-selected-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-.cat-tag {
-    display: inline-flex; align-items: center; gap: 3px;
-    padding: 3px 10px; border-radius: 14px; font-size: 0.72rem; font-weight: 600;
-    background: linear-gradient(135deg, #e3f2fd, #bbdefb); color: #0d47a1;
-    border: 1px solid #90caf9; transition: all 0.2s;
-}
-.cat-tag:hover { background: linear-gradient(135deg, #bbdefb, #90caf9); }
 
 .cat-dropdown-menu {
     position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
-    background: var(--card-bg); border: 1px solid #e0e6ed;
-    border-radius: 10px; box-shadow: 0 12px 36px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+    background: var(--card-bg, #ffffff); border: 1px solid #e0e6ed;
+    border-radius: 10px; box-shadow: 0 12px 36px rgba(0,0,0,0.12);
     max-height: 280px; overflow-y: auto; margin-top: 6px; padding: 6px 0;
 }
-.cat-dropdown-menu::-webkit-scrollbar { width: 5px; }
-.cat-dropdown-menu::-webkit-scrollbar-track { background: transparent; }
-.cat-dropdown-menu::-webkit-scrollbar-thumb { background: #c7d2e0; border-radius: 10px; }
-
 .cat-dropdown-item {
     display: flex; align-items: center; gap: 10px;
-    padding: 0; cursor: pointer; font-size: 0.84rem;
-    font-weight: 500; color: #3d4f5f; transition: all 0.15s;
-    font-family: var(--font-inter); margin: 2px 6px; border-radius: 6px;
-    padding: 9px 12px; user-select: none;
+    padding: 8px 12px; cursor: pointer; font-size: 0.84rem; font-weight: 500;
+    color: #3d4f5f; transition: all 0.15s; margin: 2px 6px; border-radius: 6px;
 }
-.cat-dropdown-item:hover { background: var(--hover-bg); color: var(--primary); }
-.cat-dropdown-item.parent {
-    font-weight: 700; font-size: 0.85rem; color: var(--text-main);
-    margin-top: 2px; border-bottom: 1px solid #f1f5f9;
-    border-radius: 6px 6px 0 0; padding-bottom: 9px;
-}
-.cat-dropdown-item.parent:first-child { margin-top: 0; }
-.cat-dropdown-item.child {
-    padding-left: 36px; font-size: 0.8rem; color: var(--text-muted);
-    position: relative; margin-top: 0; border-radius: 0;
-}
-.cat-dropdown-item.child::before {
-    content: ''; position: absolute; left: 20px; top: 50%; width: 8px; height: 1px;
-    background: #cbd5e1;
-}
-/* Custom checkbox inside dropdown */
-.cat-dropdown-item input[type="checkbox"] {
-    appearance: none; -webkit-appearance: none;
-    width: 17px; height: 17px; border: 2px solid #c0c8d4; border-radius: 4px;
-    cursor: pointer; flex-shrink: 0; position: relative;
-    background: var(--card-bg); transition: all 0.15s;
-}
-.cat-dropdown-item input[type="checkbox"]:hover { border-color: var(--primary); }
-.cat-dropdown-item input[type="checkbox"]:checked {
-    background: var(--primary); border-color: var(--primary);
-}
-.cat-dropdown-item input[type="checkbox"]:checked::after {
-    content: ''; position: absolute; left: 4px; top: 1px;
-    width: 5px; height: 9px; border: solid #fff;
-    border-width: 0 2px 2px 0; transform: rotate(45deg);
-}
+.cat-dropdown-item:hover { background: #fff0f5; color: #e63b6f; }
+.cat-dropdown-item.parent { font-weight: 700; color: #0f172a; border-bottom: 1px solid #f1f5f9; }
+.cat-dropdown-item.child { padding-left: 28px; font-size: 0.8rem; color: #64748b; }
 
-/* Usage button in table */
 .btn-usage {
     display: inline-flex; align-items: center; gap: 4px;
     margin-top: 4px; padding: 2px 8px; border-radius: 12px;
     border: 1px solid #e3f2fd; background: #e3f2fd; color: #1565c0;
     font-size: 0.68rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
-    font-family: var(--font-inter);
 }
 .btn-usage:hover { background: #bbdefb; border-color: #90caf9; }
 
-/* Stat cards in usages modal */
 .stat-card {
     flex: 1; text-align: center; padding: 12px; border-radius: 10px;
-    background: var(--ocean-deepest); border: 1px solid var(--border-color);
+    background: var(--ocean-deepest, #f8fafc); border: 1px solid var(--border-color, #e2e8f0);
 }
-.stat-num { font-size: 1.3rem; font-weight: 800; color: var(--text-main); }
-.stat-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+.stat-num { font-size: 1.3rem; font-weight: 800; color: var(--text-main, #0f172a); }
+.stat-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted, #64748b); margin-top: 2px; }
 
-/* Usage count badge */
 .usage-count-badge {
     display: inline-block; min-width: 24px; padding: 2px 8px;
-    background: #fff3e0; color: #e65100; font-weight: 800;
-    font-size: 0.8rem; border-radius: 12px; text-align: center;
+    background: #fff3e0; color: #e65100; font-weight: 800; font-size: 0.8rem; border-radius: 12px;
 }
 
-/* ======= Option Checkbox (Redesigned form section) ======= */
-.option-section {
-    padding: 14px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 12px;
-}
-
+.option-section { padding: 12px 0; border-bottom: 1px solid var(--border-color, #e2e8f0); margin-bottom: 12px; }
 .option-checkbox {
     display: flex; align-items: center; gap: 10px;
-    cursor: pointer; padding: 8px 0; margin: 0; font-family: var(--font-inter);
-    user-select: none; font-size: 0.88rem; color: var(--text-main);
+    cursor: pointer; padding: 6px 0; margin: 0; font-size: 0.86rem; color: var(--text-main, #0f172a);
 }
 .option-checkbox input[type="checkbox"] { display: none; }
 .option-checkbox .checkmark {
-    width: 20px; height: 20px; border: 2px solid #c0c8d4; border-radius: 4px;
-    flex-shrink: 0; position: relative; transition: all 0.2s;
-    background: var(--ocean-deepest);
+    width: 18px; height: 18px; border: 2px solid #cbd5e1; border-radius: 4px;
+    flex-shrink: 0; position: relative; transition: all 0.2s; background: var(--ocean-deepest, #f8fafc);
 }
-.option-checkbox input:checked + .checkmark {
-    background: var(--primary); border-color: var(--primary);
-}
+.option-checkbox input:checked + .checkmark { background: #e63b6f; border-color: #e63b6f; }
 .option-checkbox input:checked + .checkmark::after {
     content: ''; position: absolute; left: 5px; top: 1px;
-    width: 6px; height: 11px; border: solid #fff;
-    border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+    width: 5px; height: 10px; border: solid #fff;
+    border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
-.option-checkbox.main-option { font-weight: 700; font-size: 0.92rem; }
-.option-icon { flex-shrink: 0; }
-.option-label { flex: 1; }
+.option-checkbox.main-option { font-weight: 700; font-size: 0.9rem; }
 
-.advanced-section {
-    border-top: 1px solid var(--border-color); padding-top: 12px; margin-bottom: 4px;
-}
-.advanced-title {
-    font-size: 0.7rem; font-weight: 800; letter-spacing: 1.5px;
-    color: var(--text-muted); margin-bottom: 6px;
-}
+.modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-from .modal-box, .modal-leave-to .modal-box { transform: scale(0.95) translateY(10px); }
 
-.email-option-wrap {
-    padding: 8px 12px; margin: 4px 0 4px 28px;
-    background: #eef2ff; border-radius: 8px;
-}
+.animate-in { animation: fadeSlideUp 0.35s ease both; }
+@keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* Responsive */
 @media (max-width: 768px) {
     .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
     .page-header button { width: 100%; justify-content: center; }
-    
     .filters-bar { flex-direction: column; gap: 12px; align-items: stretch; }
     .search-box { max-width: 100%; }
-    .filter-stats { flex-wrap: wrap; }
-    
+    .bulk-action-bar { flex-direction: column; gap: 10px; align-items: stretch; }
+    .bulk-action-btns { justify-content: flex-end; }
     .modal-box { width: 96%; }
     .form-row { grid-template-columns: 1fr; gap: 8px; }
 }

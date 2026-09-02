@@ -349,7 +349,7 @@ onMounted(() => {
 .dashboard {
   --ocean-blue: var(--primary);
   --ocean-bright: #4fc3f7;
-  --ocean-deepest: #01579b;
+  --ocean-deepest: #f8fafc;
   --seafoam: #26a69a;
   --coral: #ef5350;
   --amber: #ffa726;
@@ -361,6 +361,7 @@ onMounted(() => {
 }
 
 :global(html.dark) .dashboard {
+  --ocean-deepest: #1e293b;
   --text-main: #f0f1f2;
   --text-muted: #b7cbcf;
   --border-color: #2e3132;

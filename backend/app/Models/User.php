@@ -50,11 +50,22 @@ class User extends Authenticatable implements JWTSubject
         'role',
         'status',
         'reward_points',
+        'total_spent',
+        'tier_month_spent',
+        'tier_id',
         'is_affiliate',
         'referral_code',
         'referred_by',
         'affiliate_registered_at',
     ];
+
+    /**
+     * Quan hệ: User thuộc 1 Hạng khách hàng
+     */
+    public function tier()
+    {
+        return $this->belongsTo(CustomerTier::class, 'tier_id', 'id');
+    }
 
     /**
      * The attributes that should be hidden for serialization.
@@ -200,5 +211,15 @@ class User extends Authenticatable implements JWTSubject
         }
 
         return $channels;
+    }
+
+    public function openPlayParticipants()
+    {
+        return $this->hasMany(OpenPlayParticipant::class, 'user_id', 'user_id');
+    }
+
+    public function hostedOpenPlays()
+    {
+        return $this->hasMany(OpenPlay::class, 'host_user_id', 'user_id');
     }
 }
