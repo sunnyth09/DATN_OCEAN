@@ -604,7 +604,7 @@ watch(
                     <router-link
                         to="/courts"
                         class="nav-link"
-                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') || isRouteActive('open-plays-list') || isRouteActive('open-play-detail') }"
                     >
                         Sân thể thao
                     </router-link>
@@ -977,7 +977,7 @@ watch(
                             <router-link
                                 to="/courts"
                                 class="mobile-nav-link"
-                                :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                                :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') || isRouteActive('open-plays-list') || isRouteActive('open-play-detail') }"
                                 @click="closeMobileMenu"
                             >
                                 <span class="mobile-nav-link-left">
@@ -1032,6 +1032,12 @@ watch(
                                 <div class="mobile-account-text">
                                     <strong>{{ userName }}</strong>
                                     <span>{{ userEmail }}</span>
+                                    <div v-if="userTierName" style="margin-top: 4px;">
+                                        <span class="vip-tier-badge" :style="{ backgroundColor: userTierColor || '#e5e7eb' }">
+                                            <AppIcon name="award" size="12" style="margin-right: 2px" />
+                                            Hạng: {{ userTierName }}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="mobile-account-grid">
@@ -1064,81 +1070,6 @@ watch(
                             </div>
                         </template>
                     </div>
-                </div>
-
-                <nav class="mobile-nav-links">
-                    <router-link v-for="cat in topCategories" :key="`mobile-${getCategoryId(cat)}`"
-                        :to="getCategoryRoute(cat)" class="mobile-nav-link" :class="{ active: isCategoryActive(cat) }"
-                        @click="closeMobileMenu">
-                        {{ cat.name }}
-                    </router-link>
-                    <router-link
-                        to="/courts"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
-                        @click="closeMobileMenu"
-                    >
-                        Sân thể thao
-                    </router-link>
-                    <router-link
-                        to="/posts"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('post-list') || isRouteActive('post-detail') }"
-                        @click="closeMobileMenu"
-                    >
-                        Tin tức
-                    </router-link>
-                    <router-link
-                        to="/contact"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('contact') }"
-                        @click="closeMobileMenu"
-                    >
-                        Liên hệ
-                    </router-link>
-                    <router-link to="/coupon" class="mobile-nav-link" :class="{ active: isRouteActive('coupon') }"
-                        @click="closeMobileMenu">
-                        Săn voucher
-                    </router-link>
-                </nav>
-
-                <div class="mobile-nav-account">
-                    <template v-if="isLoggedIn">
-                        <div class="mobile-account-summary">
-                            <img v-if="userAvatar" :src="userAvatar" class="header-user-avatar" />
-                            <div v-else class="header-user-avatar-fallback">
-                                {{ (userName || "?")[0].toUpperCase() }}
-                            </div>
-                            <div class="mobile-account-text">
-                                <strong style="display: flex; align-items: center; gap: 6px;">
-                                    {{ userName }}
-                                </strong>
-                                <span>{{ userEmail }}</span>
-                                <div v-if="userTierName" style="margin-top: 4px;">
-                                    <span class="vip-tier-badge" :style="{ backgroundColor: userTierColor || '#e5e7eb' }">
-                                        <AppIcon name="award" size="12" style="margin-right: 2px" />
-                                        Hạng: {{ userTierName }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <router-link to="/profile" class="mobile-account-link" @click="closeMobileMenu">Tài khoản của
-                            tôi</router-link>
-                        <router-link v-if="isAdmin" to="/admin" class="mobile-account-link"
-                            @click="closeMobileMenu">Quản trị</router-link>
-                        <router-link to="/profile/notifications" class="mobile-account-link"
-                            @click="closeMobileMenu">Thông báo</router-link>
-                        <button type="button" class="mobile-account-link mobile-account-link--danger"
-                            @click="handleLogout">
-                            Đăng xuất
-                        </button>
-                    </template>
-                    <template v-else>
-                        <router-link to="/client/login" class="mobile-account-link" @click="closeMobileMenu">Đăng
-                            nhập</router-link>
-                        <router-link to="/client/register" class="mobile-account-link" @click="closeMobileMenu">Đăng
-                            ký</router-link>
-                    </template>
                 </div>
             </div>
         </div>

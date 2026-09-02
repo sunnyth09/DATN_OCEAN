@@ -51,6 +51,11 @@ const selectedBankId = ref(null);
 const withdrawLoading = ref(false);
 const withdrawResult = ref(null);
 
+const cleanText = (val) => {
+  if (!val) return '';
+  return String(val).replace(/<[^>]*>/g, '').trim();
+};
+
 // Bank accounts
 const bankAccounts = ref([]);
 const showBankModal = ref(false);
@@ -577,7 +582,7 @@ onMounted(async () => {
             <div class="hi-info">
               <span class="hi-label">{{ tx.type_label || getTypeLabel(tx.type) }}</span>
               <span class="hi-code">{{ tx.transaction_code }}</span>
-              <span class="hi-desc" v-if="tx.description">{{ tx.description }}</span>
+              <span class="hi-desc" v-if="tx.description">{{ cleanText(tx.description) }}</span>
               <span class="hi-date">{{ new Date(tx.created_at).toLocaleString('vi-VN') }}</span>
             </div>
             <div class="hi-amount" :class="tx.direction === 'credit' ? 'credit' : 'debit'">

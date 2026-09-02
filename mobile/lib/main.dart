@@ -17,6 +17,7 @@ import 'providers/loyalty_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/favorite_provider.dart';
 import 'providers/coupon_provider.dart';
+import 'providers/open_play_provider.dart';
 import 'services/notification_service.dart';
 import 'widgets/offline_banner.dart';
 import 'router/app_router.dart';
@@ -88,6 +89,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => FavoriteProvider()),
         ChangeNotifierProvider(create: (_) => CouponProvider()),
+        ChangeNotifierProvider(create: (_) => OpenPlayProvider()),
       ],
       child: MaterialApp.router(
         title: 'Ocean Sport',

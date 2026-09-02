@@ -244,7 +244,7 @@ class PosService
      */
     public function findOrderForReceipt($id): ?Order
     {
-        return Order::with('items')->find($id);
+        return Order::with(['items', 'seller', 'user'])->find($id);
     }
 
     private function formatVariantResponse($variant): array

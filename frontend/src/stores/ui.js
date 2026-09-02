@@ -102,6 +102,16 @@ export const useUiStore = defineStore('ui', () => {
     adminPendingOrderCount.value = count;
   };
 
+  const adminPendingCourtBookingCount = ref(0);
+  const setAdminPendingCourtBookingCount = (count) => {
+    adminPendingCourtBookingCount.value = count;
+  };
+
+  const adminPendingWithdrawalCount = ref(0);
+  const setAdminPendingWithdrawalCount = (count) => {
+    adminPendingWithdrawalCount.value = count;
+  };
+
   return {
     isSearchModalOpen,
     isBackofficeDarkMode,
@@ -118,6 +128,8 @@ export const useUiStore = defineStore('ui', () => {
     adminPendingTicketCount,
     adminPendingReturnCount,
     adminPendingOrderCount,
+    adminPendingCourtBookingCount,
+    adminPendingWithdrawalCount,
     setSearchModalOpen,
     toggleSearchModal,
     setBackofficeDarkMode,
@@ -141,6 +153,8 @@ export const useUiStore = defineStore('ui', () => {
     setAdminPendingTicketCount,
     setAdminPendingReturnCount,
     setAdminPendingOrderCount,
+    setAdminPendingCourtBookingCount,
+    setAdminPendingWithdrawalCount,
   };
 });
 

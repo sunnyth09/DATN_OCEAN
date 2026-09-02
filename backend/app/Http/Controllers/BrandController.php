@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use App\Models\Product;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +29,7 @@ class BrandController extends Controller
      * Lấy danh sách tất cả các thương hiệu (Brands).
      * Dữ liệu được cache trong 1 ngày (86400 giây) để tăng hiệu suất.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index()
     {
@@ -45,6 +46,7 @@ class BrandController extends Controller
 
         return response()->json($brands);
     }
+
     /**
      * Store a newly created resource in storage.
      */

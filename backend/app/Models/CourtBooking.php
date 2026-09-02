@@ -70,6 +70,11 @@ class CourtBooking extends Model
         return $this->hasMany(CourtBookingExtension::class, 'booking_id', 'booking_id');
     }
 
+    public function openPlay()
+    {
+        return $this->hasOne(OpenPlay::class, 'booking_id', 'booking_id');
+    }
+
     public function setBookingDateAttribute($value)
     {
         $this->attributes['booking_date'] = $value instanceof \DateTimeInterface

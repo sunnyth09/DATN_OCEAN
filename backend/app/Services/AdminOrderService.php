@@ -498,11 +498,13 @@ class AdminOrderService
                     : (int) $order->grand_total,
             ];
 
-            $result = OceanExpressService::createOrder($orderData);
+            $syncResult = OceanExpressService::createOrderDetailed($orderData);
 
-            if (isset($result['tracking_number'])) {
+            if ($syncResult['success'] && ! empty($syncResult['tracking_number'])) {
+                $trackingNumber = $syncResult['tracking_number'];
+                $result = $syncResult['data'] ?? [];
                 $oldStatus = $order->fulfillment_status;
-                $order->tracking_number = $result['tracking_number'];
+                $order->tracking_number = $trackingNumber;
 
                 if (! $order->tracking_token) {
                     $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
@@ -522,18 +524,25 @@ class AdminOrderService
                     'new_status' => $order->fulfillment_status,
                     'note' => 'Đã đồng bộ đơn hàng sang Ocean Express',
                     'source' => 'system',
-                    'description' => 'Vận đơn: '.$result['tracking_number'].' — Đơn hàng chuyển sang trạng thái Giao hàng',
+                    'description' => 'Vận đơn: '.$trackingNumber.' — Đơn hàng chuyển sang trạng thái Giao hàng',
                     'happened_at' => now(),
                 ]);
-            } else {
-                return ['_status' => 400, 'status' => 'error', 'message' => 'Lỗi tạo đơn vận chuyển: Ocean Express không trả về tracking_number'];
+
+                return [
+                    '_status' => 200,
+                    'status' => 'success',
+                    'message' => "Đã tạo đơn hàng trên Ocean Express thành công! (Mã vận đơn: {$trackingNumber})",
+                    'data' => $result,
+                ];
             }
 
+            $errorMessage = $syncResult['error'] ?? 'Ocean Express không trả về tracking_number';
+
             return [
-                '_status' => 200,
-                'status' => 'success',
-                'message' => 'Đã tạo đơn hàng trên Ocean Express thành công!',
-                'data' => $result,
+                '_status' => 400,
+                'status' => 'error',
+                'message' => "Lỗi tạo đơn vận chuyển: {$errorMessage}",
+                'debug' => $syncResult,
             ];
         } catch (\Throwable $e) {
             Log::error('Lỗi syncOceanExpress: '.$e->getMessage()."\n".$e->getTraceAsString());

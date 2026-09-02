@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AffiliateWithdrawal;
 use App\Models\ChatMessage;
 use App\Models\ChatSession;
 use App\Models\Contact;
+use App\Models\CourtBooking;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductComment;
 use App\Models\ReturnRequest;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Models\WalletTransaction;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -248,6 +251,21 @@ class AdminDashboardController extends Controller
                 $pendingReviews = ProductComment::where('is_approved', false)->count();
             }
 
+            // Đặt sân chờ xác nhận
+            $pendingCourtBookings = 0;
+            if (class_exists('\App\Models\CourtBooking')) {
+                $pendingCourtBookings = CourtBooking::where('status', 'pending')->count();
+            }
+
+            // Yêu cầu rút tiền ví / affiliate chờ duyệt
+            $pendingWithdrawals = 0;
+            if (class_exists('\App\Models\WalletTransaction')) {
+                $pendingWithdrawals += WalletTransaction::where('type', 'withdrawal')->where('status', 'processing')->count();
+            }
+            if (class_exists('\App\Models\AffiliateWithdrawal')) {
+                $pendingWithdrawals += AffiliateWithdrawal::where('status', 'pending')->count();
+            }
+
             return response()->json([
                 'status' => 'success',
                 'data' => [
@@ -258,6 +276,8 @@ class AdminDashboardController extends Controller
                     'unreplied_chats' => $unrepliedChats,
                     'unread_chats' => $unreadChats,
                     'pending_reviews' => $pendingReviews,
+                    'pending_court_bookings' => $pendingCourtBookings,
+                    'pending_withdrawals' => $pendingWithdrawals,
                 ],
             ]);
         } catch (\Throwable $e) {

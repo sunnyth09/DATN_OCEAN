@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '@/axios';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const tickets = ref([]);
 const loading = ref(false);
@@ -111,7 +112,7 @@ onMounted(fetchTickets);
             <span class="reason-val">{{ ticket.reason }}</span>
           </div>
 
-          <p class="ticket-desc">{{ ticket.description }}</p>
+          <div class="ticket-desc" v-html="sanitizeHtml(ticket.description || '')"></div>
 
           <div class="ticket-meta">
             <span v-if="ticket.order" class="meta-item">
@@ -137,7 +138,7 @@ onMounted(fetchTickets);
               </svg>
               <span>Phản hồi từ Ban Quản Trị Ocean Sport:</span>
             </div>
-            <p class="ticket-reply-text">{{ ticket.admin_reply }}</p>
+            <div class="ticket-reply-text" v-html="sanitizeHtml(ticket.admin_reply || '')"></div>
           </div>
         </div>
       </div>
@@ -317,6 +318,13 @@ onMounted(fetchTickets);
   padding: 12px 16px;
   border-radius: 8px;
   border: 1px solid #f1f5f9;
+  word-break: break-word;
+}
+.ticket-desc p {
+  margin: 0 0 8px;
+}
+.ticket-desc p:last-child {
+  margin-bottom: 0;
 }
 
 .ticket-meta {
@@ -388,6 +396,13 @@ onMounted(fetchTickets);
   font-size: 14px;
   color: #334155;
   line-height: 1.6;
+  word-break: break-word;
+}
+.ticket-reply-text p {
+  margin: 0 0 8px;
+}
+.ticket-reply-text p:last-child {
+  margin-bottom: 0;
 }
 
 .lightbox-overlay {

@@ -456,19 +456,23 @@ const handleCreatePosBooking = async () => {
         <!-- ========== STATS BAR ========== -->
         <div class="scheduler-stats">
             <div class="scheduler-stat">
-                <span class="scheduler-stat__value" style="color: #dc3545;">{{ dashboardStats.playing_now || 0 }}</span>
+                <span v-if="store.loading && !courtsData.length" class="skeleton-shimmer d-inline-block rounded-2" style="width: 36px; height: 28px; margin-bottom: 4px;"></span>
+                <span v-else class="scheduler-stat__value" style="color: #dc3545;">{{ dashboardStats.playing_now || 0 }}</span>
                 <span class="scheduler-stat__label">Đang chơi</span>
             </div>
             <div class="scheduler-stat">
-                <span class="scheduler-stat__value" style="color: #ffc107;">{{ dashboardStats.pending || 0 }}</span>
+                <span v-if="store.loading && !courtsData.length" class="skeleton-shimmer d-inline-block rounded-2" style="width: 36px; height: 28px; margin-bottom: 4px;"></span>
+                <span v-else class="scheduler-stat__value" style="color: #ffc107;">{{ dashboardStats.pending || 0 }}</span>
                 <span class="scheduler-stat__label">Chờ duyệt</span>
             </div>
             <div class="scheduler-stat">
-                <span class="scheduler-stat__value" style="color: #198754;">{{ dashboardStats.completed || 0 }}</span>
+                <span v-if="store.loading && !courtsData.length" class="skeleton-shimmer d-inline-block rounded-2" style="width: 36px; height: 28px; margin-bottom: 4px;"></span>
+                <span v-else class="scheduler-stat__value" style="color: #198754;">{{ dashboardStats.completed || 0 }}</span>
                 <span class="scheduler-stat__label">Hoàn thành</span>
             </div>
             <div class="scheduler-stat">
-                <span class="scheduler-stat__value scheduler-stat__value--revenue">{{ formatCurrency(dashboardStats.revenue_today || 0) }}</span>
+                <span v-if="store.loading && !courtsData.length" class="skeleton-shimmer d-inline-block rounded-2" style="width: 90px; height: 28px; margin-bottom: 4px;"></span>
+                <span v-else class="scheduler-stat__value scheduler-stat__value--revenue">{{ formatCurrency(dashboardStats.revenue_today || 0) }}</span>
                 <span class="scheduler-stat__label">Doanh thu</span>
             </div>
             <!-- Live Clock + Day Progress -->
@@ -495,10 +499,38 @@ const handleCreatePosBooking = async () => {
             </div>
         </div>
 
-        <!-- ========== LOADING ========== -->
-        <div v-if="store.loading && !courtsData.length" class="scheduler-loading">
-            <div class="spinner-border text-primary" role="status"></div>
-            <span>Đang tải lịch sân...</span>
+        <!-- ========== SKELETON LOADING GRID ========== -->
+        <div v-if="store.loading && !courtsData.length" class="scheduler-container scheduler-skeleton-container">
+            <!-- Court labels skeleton -->
+            <div class="scheduler-courts-col">
+                <div class="scheduler-courts-col__header">
+                    <div class="skeleton-shimmer" style="width: 36px; height: 14px; border-radius: 4px;"></div>
+                </div>
+                <div v-for="i in 6" :key="'sk-court-' + i" class="scheduler-court-label justify-content-between">
+                    <div class="skeleton-shimmer" style="width: 55px; height: 16px; border-radius: 6px;"></div>
+                    <div class="skeleton-shimmer" style="width: 8px; height: 8px; border-radius: 50%;"></div>
+                </div>
+            </div>
+
+            <!-- Timeline wrapper skeleton -->
+            <div class="scheduler-timeline-wrapper">
+                <div class="scheduler-time-header" :style="{ width: TOTAL_HOURS * 120 + 'px' }">
+                    <div v-for="i in TOTAL_HOURS" :key="'sk-h-' + i" class="scheduler-time-header__cell" style="width: 120px;">
+                        <div class="skeleton-shimmer" style="width: 48px; height: 12px; border-radius: 4px; margin: 0 auto;"></div>
+                    </div>
+                </div>
+                <div class="scheduler-grid-body" :style="{ width: TOTAL_HOURS * 120 + 'px' }">
+                    <div v-for="c in 6" :key="'sk-row-' + c" class="scheduler-row">
+                        <div v-for="h in (TOTAL_HOURS * 2)" :key="'sk-grid-' + h" class="scheduler-row__gridline"
+                             :style="{ left: ((h - 1) / (TOTAL_HOURS * 2) * 100) + '%', width: (100 / (TOTAL_HOURS * 2)) + '%' }">
+                        </div>
+                        <!-- Realistic shimmering block placeholders -->
+                        <div v-if="c % 2 === 1" class="skeleton-booking-block skeleton-shimmer" :style="{ left: '12%', width: '16%' }"></div>
+                        <div v-if="c % 3 === 0" class="skeleton-booking-block skeleton-shimmer" :style="{ left: '42%', width: '22%' }"></div>
+                        <div v-if="c % 2 === 0" class="skeleton-booking-block skeleton-shimmer" :style="{ left: '70%', width: '18%' }"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ========== SCHEDULER GRID ========== -->
@@ -941,14 +973,30 @@ const handleCreatePosBooking = async () => {
     font-weight: 500;
 }
 
-/* Loading */
-.scheduler-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 60px 0;
-    color: var(--text-light, #6c757d);
+/* Loading Skeleton Shimmer */
+.skeleton-shimmer {
+    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite ease-in-out;
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.scheduler-skeleton-container {
+    opacity: 0.85;
+    pointer-events: none;
+}
+
+.skeleton-booking-block {
+    position: absolute;
+    top: 8px;
+    height: 40px;
+    border-radius: 8px;
+    border-left: 3px solid rgba(230, 59, 111, 0.4);
+    opacity: 0.75;
 }
 
 /* ========== SCHEDULER CONTAINER (Split layout) ========== */

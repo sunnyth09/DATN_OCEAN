@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Address;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AddressController extends Controller
 {
@@ -15,7 +17,8 @@ class AddressController extends Controller
      * Chặn quyền truy cập đối với tài khoản nhân viên/quản trị.
      *
      * @return int
-     * @throws \Symfony\Component\HttpKernel\Exception\HttpException
+     *
+     * @throws HttpException
      */
     private function currentUserId()
     {
@@ -32,8 +35,7 @@ class AddressController extends Controller
      * Hỗ trợ phân trang nếu có truyền tham số `page` và `per_page`.
      * (Route: GET /api/profile/addresses)
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -75,9 +77,9 @@ class AddressController extends Controller
      * Tự động set `is_default` nếu là địa chỉ đầu tiên.
      * (Route: POST /api/profile/addresses)
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     * @throws \Illuminate\Validation\ValidationException
+     * @return JsonResponse
+     *
+     * @throws ValidationException
      */
     public function store(Request $request)
     {
@@ -119,10 +121,10 @@ class AddressController extends Controller
      * Nếu set `is_default`, sẽ gỡ trạng thái mặc định của các địa chỉ khác.
      * (Route: PUT /api/profile/addresses/{id})
      *
-     * @param \Illuminate\Http\Request $request
-     * @param int $id ID của địa chỉ cần sửa
-     * @return \Illuminate\Http\JsonResponse
-     * @throws \Illuminate\Validation\ValidationException
+     * @param  int  $id  ID của địa chỉ cần sửa
+     * @return JsonResponse
+     *
+     * @throws ValidationException
      */
     public function update(Request $request, $id)
     {
@@ -165,8 +167,8 @@ class AddressController extends Controller
      * Không cho phép xóa địa chỉ nếu đó là địa chỉ mặc định (phải đổi mặc định trước).
      * (Route: DELETE /api/profile/addresses/{id})
      *
-     * @param int $id ID của địa chỉ cần xóa
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID của địa chỉ cần xóa
+     * @return JsonResponse
      */
     public function destroy($id)
     {

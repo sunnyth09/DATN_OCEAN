@@ -147,19 +147,27 @@ class StatisticsService
         $statusCounts = $this->statsRepository->getOrderStatusCounts($startDate, $endDate);
 
         $statusMapping = [
-            'pending' => ['label' => 'Chờ xác nhận', 'color' => '#ffb74d'],
-            'confirmed' => ['label' => 'Đã xác nhận', 'color' => '#f48fb1'],
-            'processing' => ['label' => 'Đang xử lý', 'color' => '#64b5f6'],
-            'packing' => ['label' => 'Đang xử lý', 'color' => '#90caf9'],
-            'shipping' => ['label' => 'Đang giao hàng', 'color' => '#29b6f6'],
-            'delivered' => ['label' => 'Đã nhận hàng', 'color' => '#4db6ac'],
-            'completed' => ['label' => 'Hoàn thành', 'color' => '#26a69a'],
-            'cancelled' => ['label' => 'Đã hủy', 'color' => '#e57373'],
-            'return_requested' => ['label' => 'Yêu cầu hoàn hàng', 'color' => '#f59e0b'],
-            'return_approved' => ['label' => 'Đã duyệt hoàn hàng', 'color' => '#38bdf8'],
-            'return_rejected' => ['label' => 'Từ chối hoàn hàng', 'color' => '#fb7185'],
-            'returned' => ['label' => 'Đã nhận hàng hoàn', 'color' => '#94a3b8'],
-            'refunded' => ['label' => 'Đã hoàn tiền', 'color' => '#64748b'],
+            // Đơn hàng đang luân chuyển
+            'pending' => ['label' => 'Chờ xác nhận', 'color' => '#f59e0b'],
+            'confirmed' => ['label' => 'Đã xác nhận', 'color' => '#3b82f6'],
+            'processing' => ['label' => 'Đang xử lý', 'color' => '#06b6d4'],
+            'packing' => ['label' => 'Đang đóng gói', 'color' => '#0ea5e9'],
+            'awaiting_pickup' => ['label' => 'Chờ lấy hàng', 'color' => '#6366f1'],
+            'shipping' => ['label' => 'Đang giao hàng', 'color' => '#0284c7'],
+            'delivered' => ['label' => 'Đã giao hàng', 'color' => '#14b8a6'],
+            'completed' => ['label' => 'Hoàn thành', 'color' => '#10b981'],
+            'cancelled' => ['label' => 'Đã hủy', 'color' => '#ef4444'],
+
+            // Đổi trả / Hoàn hàng
+            'return_requested' => ['label' => 'Yêu cầu đổi/trả', 'color' => '#ea580c'],
+            'return_approved' => ['label' => 'Đã duyệt đổi/trả', 'color' => '#4f46e5'],
+            'return_rejected' => ['label' => 'Từ chối đổi/trả', 'color' => '#e11d48'],
+            'returning' => ['label' => 'Khách đang gửi hoàn', 'color' => '#8b5cf6'],
+            'warehouse_received' => ['label' => 'Kho đã nhận hoàn', 'color' => '#7c3aed'],
+            'inspection_failed' => ['label' => 'Hoàn không đạt QC', 'color' => '#be123c'],
+            'inspected_ok' => ['label' => 'Hoàn đạt QC', 'color' => '#059669'],
+            'returned' => ['label' => 'Đã nhận hàng hoàn', 'color' => '#64748b'],
+            'refunded' => ['label' => 'Đã hoàn tiền', 'color' => '#475569'],
         ];
 
         $labels = [];
@@ -167,10 +175,10 @@ class StatisticsService
         $backgroundColors = [];
 
         foreach ($statusCounts as $status) {
-            $key = $status->fulfillment_status;
-            $labels[] = $statusMapping[$key]['label'] ?? ucfirst($key);
-            $data[] = $status->total;
-            $backgroundColors[] = $statusMapping[$key]['color'] ?? '#cfd8dc';
+            $key = (string) $status->fulfillment_status;
+            $labels[] = $statusMapping[$key]['label'] ?? ucfirst(str_replace('_', ' ', $key));
+            $data[] = (int) $status->total;
+            $backgroundColors[] = $statusMapping[$key]['color'] ?? '#94a3b8';
         }
 
         return [

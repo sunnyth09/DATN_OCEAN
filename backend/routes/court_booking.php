@@ -28,9 +28,11 @@ Route::prefix('court-bookings')->group(function () {
 // ADMIN ROUTES
 Route::middleware(['auth:api,admin', 'role:admin,staff'])->prefix('admin/court-bookings')->group(function () {
     // Courts Management
+    Route::post('courts/upload-image', [CourtAdminController::class, 'uploadImage']);
     Route::apiResource('courts', CourtAdminController::class);
     Route::apiResource('court-schedules', CourtScheduleAdminController::class);
     Route::apiResource('court-prices', CourtPriceAdminController::class);
+    Route::post('court-services/upload-image', [CourtServiceAdminController::class, 'uploadImage']);
     Route::apiResource('court-services', CourtServiceAdminController::class);
     Route::apiResource('court-maintenances', CourtMaintenanceAdminController::class);
 

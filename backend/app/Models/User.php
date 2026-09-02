@@ -212,4 +212,14 @@ class User extends Authenticatable implements JWTSubject
 
         return $channels;
     }
+
+    public function openPlayParticipants()
+    {
+        return $this->hasMany(OpenPlayParticipant::class, 'user_id', 'user_id');
+    }
+
+    public function hostedOpenPlays()
+    {
+        return $this->hasMany(OpenPlay::class, 'host_user_id', 'user_id');
+    }
 }

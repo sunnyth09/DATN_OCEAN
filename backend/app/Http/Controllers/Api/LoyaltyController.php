@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Models\Reward;
+use App\Models\User;
 use App\Models\UserReward;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -14,8 +16,8 @@ class LoyaltyController extends Controller
     public function profile(Request $request)
     {
         $user = auth('api')->user() ?? auth('admin')->user() ?? $request->user();
-        if ($user instanceof \App\Models\Admin) {
-            $user = \App\Models\User::firstOrCreate(
+        if ($user instanceof Admin) {
+            $user = User::firstOrCreate(
                 ['email' => $user->email],
                 [
                     'full_name' => $user->full_name,
