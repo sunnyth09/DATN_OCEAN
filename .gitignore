@@ -50,6 +50,13 @@ Thumbs.db
 /backend/storage/app/public/checkins/*
 /backend/storage/app/public/return-requests/*
 /backend/storage/app/public/attendances/*
+/backend/storage/app/public/avatars/*
+/backend/storage/app/public/categories/*
+/backend/storage/app/public/product_comments/*
+/backend/storage/app/public/product_descriptions/*
+/backend/storage/app/public/thumbnails/*
+/backend/storage/app/public/uploads/*
+/backend/storage/app/public/tmp/*
 *.mp4
 /backend/storage/tmp/*
 

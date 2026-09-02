@@ -171,10 +171,16 @@ import { useRouter } from 'vue-router';
 import api from '@/axios';
 import { getAppBaseUrl } from '@/utils/url';
 import BaseInput from '@/components/base/BaseInput.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 // Base URL for profile assets.
 const BASE_URL = getAppBaseUrl();
 const router = useRouter();
+
+// Format currency
+const formatPrice = (price) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
+};
 
 // FIX M2: Allowed file types for avatar upload
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
