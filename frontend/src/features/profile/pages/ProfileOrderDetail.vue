@@ -598,6 +598,33 @@ watch(orderId, (newId) => {
         </div>
       </div>
 
+      <!-- Banner Cảnh Báo Hủy Đơn & Hoàn Tiền -->
+      <div v-if="order.fulfillment_status === 'cancelled'" class="cancelled-detail-banner mb-4">
+        <div class="cancelled-banner-content">
+          <div class="cancelled-icon-box">
+            <AppIcon name="x-circle" size="24" color="#dc2626" />
+          </div>
+          <div class="cancelled-banner-text">
+            <strong class="cancelled-banner-title">Đơn hàng này đã bị hủy</strong>
+            <p class="cancelled-banner-sub" v-if="order.cancel_reason">
+              <strong>Lý do:</strong> {{ order.cancel_reason }}
+            </p>
+          </div>
+        </div>
+        <div v-if="order.payment_status === 'refunded'" class="refund-detail-box">
+          <div class="refund-detail-header">
+            <AppIcon name="check-circle" size="18" color="#059669" />
+            <span>Đã hoàn tiền thành công: <strong>{{ formatPrice(order.grand_total) }}</strong></span>
+          </div>
+          <div class="refund-detail-body">
+            <p>Số tiền đã được hoàn trả vào Ví cá nhân Ocean Sport hoặc tài khoản thanh toán của bạn.</p>
+            <router-link to="/profile/wallet" class="btn-view-wallet">
+              <AppIcon name="credit-card" size="14" /> Xem số dư Ví của bạn
+            </router-link>
+          </div>
+        </div>
+      </div>
+
       <!-- Banner Cảnh Báo Chưa Thanh Toán -->
       <div v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'" class="unpaid-detail-banner">
         <div class="unpaid-banner-content">
@@ -1236,6 +1263,76 @@ watch(orderId, (newId) => {
   background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+}
+
+/* Cancelled & Refund Banner */
+.cancelled-detail-banner {
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.cancelled-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.cancelled-icon-box {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.cancelled-banner-text {
+  flex: 1;
+}
+.cancelled-banner-title {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #dc2626;
+  margin-bottom: 4px;
+}
+.cancelled-banner-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+.refund-detail-box {
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+}
+.refund-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 6px;
+}
+.refund-detail-body p {
+  margin: 0 0 10px 0;
+  font-size: 0.88rem;
+  color: #047857;
+}
+.btn-view-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #059669;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.btn-view-wallet:hover {
+  background: #047857;
+  color: white;
 }
 
 @media (max-width: 640px) {

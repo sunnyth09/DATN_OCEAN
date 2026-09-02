@@ -21,11 +21,17 @@ class OrderCancelledMail extends Mailable implements ShouldQueue
 
     public string $cancelReason;
 
-    public function __construct(Order $order, string $cancelledBy = 'admin', string $cancelReason = '')
+    public float $refundAmount;
+
+    public ?string $refundDestination;
+
+    public function __construct(Order $order, string $cancelledBy = 'admin', string $cancelReason = '', float $refundAmount = 0, ?string $refundDestination = null)
     {
         $this->order = $order->loadMissing(['user', 'items']);
         $this->cancelledBy = $cancelledBy;
         $this->cancelReason = $cancelReason;
+        $this->refundAmount = $refundAmount;
+        $this->refundDestination = $refundDestination;
     }
 
     public function envelope(): Envelope
@@ -44,7 +50,9 @@ class OrderCancelledMail extends Mailable implements ShouldQueue
                 'orderCode' => $this->order->order_code,
                 'orderDate' => Carbon::parse($this->order->created_at)->format('d/m/Y H:i'),
                 'cancelReason' => $this->cancelReason ?: ($this->order->cancel_reason ?? 'Không có lý do'),
-                'totalAmount' => number_format($this->order->total_amount, 0, ',', '.').'đ',
+                'totalAmount' => number_format((float) ($this->order->grand_total ?? $this->order->total_amount), 0, ',', '.').'đ',
+                'refundAmount' => $this->refundAmount > 0 ? number_format($this->refundAmount, 0, ',', '.').'đ' : null,
+                'refundDestination' => $this->refundDestination,
                 'cancelledBy' => $this->cancelledBy,
                 'userName' => $this->order->user?->full_name ?? 'Quý khách',
             ],

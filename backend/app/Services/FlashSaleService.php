@@ -6,6 +6,7 @@ use App\Jobs\OrderProcessingJob;
 use App\Models\FlashSale;
 use App\Models\FlashSaleItem;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 class FlashSaleService
@@ -22,7 +23,7 @@ class FlashSaleService
         $cacheKey = 'flash_sale_public_list_'.($filter ?: 'all');
 
         return Cache::remember($cacheKey, 5, function () use ($now, $filter) {
-            $campaigns = FlashSale::where('status', 'active')
+            $campaigns = FlashSale::whereIn('status', ['active', 'upcoming'])
                 ->where('end_time', '>', $now)
                 ->with(['items.product.category', 'items.product.mainImage', 'items.product.images'])
                 ->orderBy('start_time', 'asc')
@@ -30,8 +31,8 @@ class FlashSaleService
 
             $formatted = [];
             foreach ($campaigns as $fs) {
-                $isOngoing = $fs->start_time->lte($now) && $fs->end_time->gte($now);
-                $isUpcoming = $fs->start_time->gt($now);
+                $isOngoing = $fs->status === 'active' && $fs->start_time->lte($now) && $fs->end_time->gte($now);
+                $isUpcoming = $fs->status === 'upcoming' || $fs->start_time->gt($now);
 
                 foreach ($fs->items as $item) {
                     $product = $item->product;
@@ -337,16 +338,20 @@ class FlashSaleService
      */
     public function syncStockToRedis(FlashSale $flashSale): void
     {
-        foreach ($flashSale->items as $item) {
-            $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
-            $remainingStock = max(0, (int) $item->campaign_stock - (int) $item->sold);
+        try {
+            foreach ($flashSale->items as $item) {
+                $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
+                $remainingStock = max(0, (int) $item->campaign_stock - (int) $item->sold);
 
-            // Set số lượng trên Redis
-            Redis::set($key, $remainingStock);
+                // Set số lượng trên Redis
+                Redis::set($key, $remainingStock);
 
-            // Tính TTL: set thời gian tồn tại của key bằng thời gian kết thúc campaign + 1h dự phòng
-            $ttl = max(60, now()->diffInSeconds($flashSale->end_time) + 3600);
-            Redis::expire($key, (int) $ttl);
+                // Tính TTL: set thời gian tồn tại của key bằng thời gian kết thúc campaign + 1h dự phòng
+                $ttl = max(60, now()->diffInSeconds($flashSale->end_time) + 3600);
+                Redis::expire($key, (int) $ttl);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Redis syncStockToRedis failed: '.$e->getMessage());
         }
     }
 
@@ -355,21 +360,25 @@ class FlashSaleService
      */
     public function revertStockFromRedis(FlashSale $flashSale): void
     {
-        foreach ($flashSale->items as $item) {
-            $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
+        try {
+            foreach ($flashSale->items as $item) {
+                $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
 
-            if (Redis::exists($key)) {
-                $remainingStockOnRedis = (int) Redis::get($key);
+                if (Redis::exists($key)) {
+                    $remainingStockOnRedis = (int) Redis::get($key);
 
-                // Update số lượng thực sự đã bán được tại bảng master-detail
-                $actualSold = $item->campaign_stock - $remainingStockOnRedis;
-                if ($actualSold > $item->sold) {
-                    $item->update(['sold' => $actualSold]);
+                    // Update số lượng thực sự đã bán được tại bảng master-detail
+                    $actualSold = $item->campaign_stock - $remainingStockOnRedis;
+                    if ($actualSold > $item->sold) {
+                        $item->update(['sold' => $actualSold]);
+                    }
+
+                    // Xoá Redis Key
+                    Redis::del($key);
                 }
-
-                // Xoá Redis Key
-                Redis::del($key);
             }
+        } catch (\Throwable $e) {
+            Log::warning('Redis revertStockFromRedis failed: '.$e->getMessage());
         }
     }
 }

@@ -29,7 +29,7 @@ class FlashSaleController extends Controller
 
         $data = $flashSales->map(function ($fs) use ($tz, $now) {
             $calculatedStatus = $fs->status;
-            if ($fs->status === 'active') {
+            if ($fs->status === 'active' || $fs->status === 'upcoming') {
                 if ($fs->end_time && $fs->end_time->lt($now)) {
                     $calculatedStatus = 'ended';
                 } elseif ($fs->start_time && $fs->start_time->gt($now)) {
@@ -135,7 +135,7 @@ class FlashSaleController extends Controller
                 ]);
             }
 
-            if ($flashSale->status === 'active') {
+            if ($flashSale->status === 'active' || $flashSale->status === 'upcoming') {
                 $this->service->syncStockToRedis($flashSale);
             }
 
@@ -187,8 +187,8 @@ class FlashSaleController extends Controller
 
             $flashSale->load('items'); // Load lại relationship
 
-            // Luôn đồng bộ Redis khi chiến dịch đang Active
-            if ($flashSale->status === 'active') {
+            // Luôn đồng bộ Redis khi chiến dịch đang Active hoặc Upcoming
+            if ($flashSale->status === 'active' || $flashSale->status === 'upcoming') {
                 $this->service->syncStockToRedis($flashSale);
             } elseif ($flashSale->status === 'ended') {
                 $this->service->revertStockFromRedis($flashSale);

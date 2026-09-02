@@ -172,14 +172,18 @@ const adminCancelReasons = [
 
 // Cancel modal state
 const showCancelModal = ref(false);
+const cancellingOrder = ref(null);
 const selectedCancelReason = ref('');
 const customCancelReason = ref('');
+const selectedRefundType = ref('wallet'); // 'wallet' hoặc 'manual'
 const cancelValidationError = ref('');
 let cancelReasonResolver = null;
 
-const showCancelReasonModal = () => {
+const showCancelReasonModal = (order) => {
+  cancellingOrder.value = order;
   selectedCancelReason.value = '';
   customCancelReason.value = '';
+  selectedRefundType.value = 'wallet';
   cancelValidationError.value = '';
   showCancelModal.value = true;
   return new Promise((resolve) => { cancelReasonResolver = resolve; });
@@ -196,11 +200,15 @@ const confirmCancelReason = () => {
   }
   const reason = selectedCancelReason.value === 'Lý do khác' ? customCancelReason.value.trim() : selectedCancelReason.value;
   showCancelModal.value = false;
-  if (cancelReasonResolver) cancelReasonResolver(reason);
+  if (cancelReasonResolver) cancelReasonResolver({
+    reason,
+    refund_type: selectedRefundType.value || 'wallet'
+  });
 };
 
 const dismissCancelModal = () => {
   showCancelModal.value = false;
+  cancellingOrder.value = null;
   if (cancelReasonResolver) cancelReasonResolver(null);
 };
 
@@ -247,9 +255,10 @@ const updateOrderStatus = async (order, action) => {
 
   const payload = { fulfillment_status: nextStatus };
   if (nextStatus === 'cancelled') {
-    const cancelReason = await showCancelReasonModal();
-    if (!cancelReason) return;
-    payload.note = cancelReason;
+    const cancelResult = await showCancelReasonModal(order);
+    if (!cancelResult) return;
+    payload.note = cancelResult.reason;
+    payload.refund_type = cancelResult.refund_type;
   } else {
     const confirmResult = await Swal.fire({
       title: 'Xác nhận',
@@ -686,11 +695,38 @@ onUnmounted(() => {
           <div class="cancel-modal-header">
             <h5>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Hủy đơn hàng
+              Hủy đơn hàng <span v-if="cancellingOrder">#{{ cancellingOrder.order_code }}</span>
             </h5>
             <button class="cancel-modal-close" @click="dismissCancelModal">×</button>
           </div>
           <div class="cancel-modal-body">
+            <!-- Cảnh báo hoàn tiền nếu đơn đã thanh toán -->
+            <div v-if="cancellingOrder && (cancellingOrder.payment_status === 'paid' || cancellingOrder.payment_status === 'refunded')" class="refund-alert-box mb-3">
+              <div class="refund-alert-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Đơn hàng đã thanh toán thành công</span>
+              </div>
+              <div class="refund-alert-amount">
+                Số tiền hoàn trả: <strong>{{ formatPrice(cancellingOrder.grand_total) }}</strong>
+              </div>
+              <div class="refund-method-options mt-2">
+                <label class="refund-option" :class="{ active: selectedRefundType === 'wallet' }">
+                  <input type="radio" v-model="selectedRefundType" value="wallet" />
+                  <div class="refund-option-text">
+                    <span class="refund-option-title">⚡ Tự động hoàn vào Ví Ocean Sport</span>
+                    <small class="refund-option-sub">Cộng trực tiếp vào số dư ví của khách để mua sắm lại hoặc rút tiền</small>
+                  </div>
+                </label>
+                <label class="refund-option" :class="{ active: selectedRefundType === 'manual' }">
+                  <input type="radio" v-model="selectedRefundType" value="manual" />
+                  <div class="refund-option-text">
+                    <span class="refund-option-title">🏦 Đã hoàn tiền thủ công</span>
+                    <small class="refund-option-sub">Admin đã chuyển khoản qua STK ngân hàng của khách ngoài hệ thống</small>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             <p class="cancel-modal-desc">Chọn lý do hủy đơn:</p>
             <div class="cancel-reason-list">
               <label v-for="r in adminCancelReasons" :key="r" class="cancel-reason-item" :class="{ selected: selectedCancelReason === r }">
@@ -1013,6 +1049,70 @@ onUnmounted(() => {
 .cancel-modal-close:hover { background: var(--surface-container); color: #dc2626; }
 .cancel-modal-body { padding: 20px 24px; }
 .cancel-modal-desc { color: var(--text-muted); font-size: 0.88rem; margin: 0 0 14px; }
+.refund-alert-box {
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-radius: 12px;
+  padding: 14px;
+}
+.refund-alert-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #b45309;
+  font-size: 0.9rem;
+}
+.refund-alert-amount {
+  font-size: 0.88rem;
+  color: #78350f;
+  margin-top: 4px;
+}
+.refund-alert-amount strong {
+  color: #b91c1c;
+  font-size: 1rem;
+}
+.refund-method-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.refund-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.refund-option:hover {
+  border-color: #f59e0b;
+}
+.refund-option.active {
+  border-color: #f59e0b;
+  background: #fffdf5;
+}
+.refund-option input[type="radio"] {
+  accent-color: #f59e0b;
+  margin-top: 3px;
+}
+.refund-option-text {
+  display: flex;
+  flex-direction: column;
+}
+.refund-option-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: #1f2937;
+}
+.refund-option-sub {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
 .cancel-reason-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
 .cancel-reason-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: var(--card-bg); transition: all 0.15s; font-size: 0.88rem; color: #334155; }
 .cancel-reason-item:hover { border-color: #dc2626; background: #fef2f2; }

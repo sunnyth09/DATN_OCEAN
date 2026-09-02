@@ -302,21 +302,53 @@ const formatDateTimeLocal = (dateString) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+const activeTab = ref('all');
+const searchKeyword = ref('');
+
 const getStatusMeta = (fs) => {
     if (fs.status === 'draft') {
-        return { text: 'Bản nháp', class: 'status-draft' };
+        return { text: 'Bản nháp', class: 'status-draft', key: 'draft' };
+    }
+    if (fs.status === 'ended') {
+        return { text: 'Đã kết thúc', class: 'status-ended', key: 'ended' };
     }
     const now = new Date();
     const start = new Date(fs.start_time);
     const end = new Date(fs.end_time);
-    if (now > end || fs.status === 'ended') {
-        return { text: 'Đã kết thúc', class: 'status-ended' };
+    if (now > end) {
+        return { text: 'Đã kết thúc', class: 'status-ended', key: 'ended' };
     }
-    if (now < start) {
-        return { text: 'Sắp diễn ra', class: 'status-upcoming' };
+    if (fs.status === 'upcoming' || now < start) {
+        return { text: 'Sắp diễn ra', class: 'status-upcoming', key: 'upcoming' };
     }
-    return { text: 'Đang diễn ra', class: 'status-active' };
+    return { text: 'Đang diễn ra', class: 'status-active', key: 'active' };
 };
+
+const filteredFlashSales = computed(() => {
+    return (flashSales.value || []).filter(fs => {
+        const meta = getStatusMeta(fs);
+        if (activeTab.value !== 'all' && meta.key !== activeTab.value) {
+            return false;
+        }
+        if (searchKeyword.value.trim()) {
+            const kw = searchKeyword.value.trim().toLowerCase();
+            const name = (fs.name || '').toLowerCase();
+            return name.includes(kw);
+        }
+        return true;
+    });
+});
+
+const statusCounts = computed(() => {
+    const counts = { all: (flashSales.value || []).length, active: 0, upcoming: 0, draft: 0, ended: 0 };
+    (flashSales.value || []).forEach(fs => {
+        const meta = getStatusMeta(fs);
+        if (counts[meta.key] !== undefined) {
+            counts[meta.key]++;
+        }
+    });
+    return counts;
+});
 
 const openEdit = (fs) => {
     isEditing.value = true;
@@ -506,6 +538,31 @@ onMounted(async () => {
       </div>
     </div>
 
+    <!-- Filter Tabs & Search Toolbar -->
+    <div class="fs-filters-toolbar mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="fs-tabs">
+        <button class="fs-tab-btn" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">
+          Tất cả <span class="tab-count">{{ statusCounts.all }}</span>
+        </button>
+        <button class="fs-tab-btn" :class="{ active: activeTab === 'active' }" @click="activeTab = 'active'">
+          Đang diễn ra <span class="tab-count count-active">{{ statusCounts.active }}</span>
+        </button>
+        <button class="fs-tab-btn" :class="{ active: activeTab === 'upcoming' }" @click="activeTab = 'upcoming'">
+          Sắp diễn ra <span class="tab-count count-upcoming">{{ statusCounts.upcoming }}</span>
+        </button>
+        <button class="fs-tab-btn" :class="{ active: activeTab === 'draft' }" @click="activeTab = 'draft'">
+          Bản nháp <span class="tab-count count-draft">{{ statusCounts.draft }}</span>
+        </button>
+        <button class="fs-tab-btn" :class="{ active: activeTab === 'ended' }" @click="activeTab = 'ended'">
+          Đã kết thúc <span class="tab-count count-ended">{{ statusCounts.ended }}</span>
+        </button>
+      </div>
+      <div class="fs-search-box position-relative">
+        <AppIcon name="search" size="14" class="fs-search-icon" />
+        <input v-model="searchKeyword" type="text" class="fs-search-input" placeholder="Tìm theo tên chiến dịch..." />
+      </div>
+    </div>
+
     <!-- LIST VIEW -->
     <AdminTableSkeleton v-if="isLoading" :columns="6" :rows="5" />
     <div v-else class="ocean-card table-wrapper">
@@ -521,10 +578,10 @@ onMounted(async () => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="flashSales.length === 0">
-            <td colspan="6" class="empty-cell">Chưa có chiến dịch Flash Sale nào.</td>
+          <tr v-if="filteredFlashSales.length === 0">
+            <td colspan="6" class="empty-cell">Không tìm thấy chiến dịch Flash Sale phù hợp.</td>
           </tr>
-          <tr v-else v-for="fs in flashSales" :key="fs.id" class="ws-row">
+          <tr v-else v-for="fs in filteredFlashSales" :key="fs.id" class="ws-row">
             <td>
               <div class="shift-info-cell">
                 <div class="shift-icon" style="background:#fff3e0; color:#e65100;">
@@ -580,6 +637,7 @@ onMounted(async () => {
                     <label>Trạng thái</label>
                     <select v-model="form.status" class="ws-form-control ws-form-select">
                         <option value="draft">Bản nháp</option>
+                        <option value="upcoming">Sắp diễn ra</option>
                         <option value="active">Đang diễn ra</option>
                         <option value="ended">Đã kết thúc</option>
                     </select>
@@ -869,6 +927,80 @@ onMounted(async () => {
   font-family: var(--font-inter, 'Inter', sans-serif);
 }
 .btn-create:hover { background: #d82f65; transform: translateY(-1px); }
+
+/* ===== Filter Toolbar & Tabs ===== */
+.fs-filters-toolbar {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #d9e8f0);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.fs-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.fs-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--ocean-deepest, #f0f7fa);
+  color: var(--text-muted, #627d98);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.fs-tab-btn:hover {
+  background: #e2e8f0;
+  color: var(--text-main, #102a43);
+}
+.fs-tab-btn.active {
+  background: #E63B6F;
+  color: #ffffff;
+}
+.tab-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.08);
+}
+.fs-tab-btn.active .tab-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+.fs-search-box {
+  min-width: 240px;
+}
+.fs-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+.fs-search-input {
+  width: 100%;
+  padding: 7px 12px 7px 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #d9e8f0);
+  background: var(--background, #f8fafc);
+  font-size: 0.82rem;
+  color: var(--text-main, #102a43);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+.fs-search-input:focus {
+  border-color: #E63B6F;
+}
 
 /* ===== Table ===== */
 .table-wrapper { overflow-x: auto; margin-bottom: 20px; }

@@ -326,12 +326,14 @@ const adminCancelReasons = [
 const showCancelModal = ref(false);
 const selectedCancelReason = ref('');
 const customCancelReason = ref('');
+const selectedRefundType = ref('wallet'); // 'wallet' hoặc 'manual'
 const cancelValidationError = ref('');
 let cancelReasonResolver = null;
 
 const showCancelReasonModal = () => {
   selectedCancelReason.value = '';
   customCancelReason.value = '';
+  selectedRefundType.value = 'wallet';
   cancelValidationError.value = '';
   showCancelModal.value = true;
   return new Promise((resolve) => { cancelReasonResolver = resolve; });
@@ -348,7 +350,10 @@ const confirmCancelReason = () => {
   }
   const reason = selectedCancelReason.value === 'Lý do khác' ? customCancelReason.value.trim() : selectedCancelReason.value;
   showCancelModal.value = false;
-  if (cancelReasonResolver) cancelReasonResolver(reason);
+  if (cancelReasonResolver) cancelReasonResolver({
+    reason,
+    refund_type: selectedRefundType.value || 'wallet'
+  });
 };
 
 const dismissCancelModal = () => {
@@ -361,9 +366,10 @@ const updateOrderStatus = async (action) => {
 
   const payload = { fulfillment_status: action.value };
   if (action.value === 'cancelled') {
-    const cancelReason = await showCancelReasonModal();
-    if (!cancelReason) return;
-    payload.note = cancelReason;
+    const cancelResult = await showCancelReasonModal();
+    if (!cancelResult) return;
+    payload.note = cancelResult.reason;
+    payload.refund_type = cancelResult.refund_type;
   } else {
     const confirmResult = await Swal.fire({
       title: 'Xác nhận',
@@ -900,10 +906,18 @@ onMounted(() => fetchOrder());
               <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
             </svg>
           </div>
-          <div>
-            <h3>Đơn hàng đã bị hủy</h3>
-            <p v-if="order.cancel_reason">Lý do: {{ order.cancel_reason }}</p>
-            <p v-if="order.cancelled_at">Thời gian: {{ formatDate(order.cancelled_at) }}</p>
+          <div style="flex: 1">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #dc2626;">Đơn hàng đã bị hủy</h3>
+              <span v-if="order.payment_status === 'refunded'" class="status-badge badge-success sm" style="font-weight: 700;">
+                ✓ Đã hoàn tiền: {{ formatPrice(order.grand_total) }}
+              </span>
+            </div>
+            <p v-if="order.cancel_reason" style="margin: 6px 0 2px; font-size: 0.92rem; color: var(--text-main);"><strong>Lý do hủy:</strong> {{ order.cancel_reason }}</p>
+            <p v-if="order.cancelled_at" style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">Thời gian hủy: {{ formatDate(order.cancelled_at) }}</p>
+            <div v-if="order.payment_status === 'refunded'" class="mt-2 p-2 rounded" style="background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; font-size: 0.85rem; color: #065f46;">
+              💰 <strong>Xử lý hoàn tiền:</strong> Số tiền <strong>{{ formatPrice(order.grand_total) }}</strong> đã được hoàn trả lại vào Ví cá nhân của khách hàng / Chuyển khoản.
+            </div>
           </div>
         </div>
       </div>
@@ -1205,6 +1219,33 @@ onMounted(() => fetchOrder());
             </button>
           </div>
           <div class="cancel-modal-body">
+            <!-- Cảnh báo hoàn tiền nếu đơn đã thanh toán -->
+            <div v-if="order && (order.payment_status === 'paid' || order.payment_status === 'refunded')" class="refund-alert-box mb-3">
+              <div class="refund-alert-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>Đơn hàng đã thanh toán thành công</span>
+              </div>
+              <div class="refund-alert-amount">
+                Số tiền hoàn trả: <strong>{{ formatPrice(order.grand_total) }}</strong>
+              </div>
+              <div class="refund-method-options mt-2">
+                <label class="refund-option" :class="{ active: selectedRefundType === 'wallet' }">
+                  <input type="radio" v-model="selectedRefundType" value="wallet" />
+                  <div class="refund-option-text">
+                    <span class="refund-option-title">⚡ Tự động hoàn vào Ví Ocean Sport</span>
+                    <small class="refund-option-sub">Cộng trực tiếp vào số dư ví của khách để mua sắm lại hoặc rút tiền</small>
+                  </div>
+                </label>
+                <label class="refund-option" :class="{ active: selectedRefundType === 'manual' }">
+                  <input type="radio" v-model="selectedRefundType" value="manual" />
+                  <div class="refund-option-text">
+                    <span class="refund-option-title">🏦 Đã hoàn tiền thủ công</span>
+                    <small class="refund-option-sub">Admin đã chuyển khoản qua STK ngân hàng của khách ngoài hệ thống</small>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             <p class="cancel-modal-desc">Chọn lý do hủy đơn:</p>
             <div class="cancel-reason-list">
               <label v-for="r in adminCancelReasons" :key="r" class="cancel-reason-item" :class="{ selected: selectedCancelReason === r }">
@@ -2310,6 +2351,70 @@ onMounted(() => fetchOrder());
 .cancel-modal-close:hover { background: var(--hover-bg); color: #dc2626; }
 .cancel-modal-body { padding: 20px 24px; }
 .cancel-modal-desc { color: var(--text-secondary); font-size: 0.88rem; margin: 0 0 14px; }
+.refund-alert-box {
+  background: #fffbeb;
+  border: 1.5px solid #fde68a;
+  border-radius: 12px;
+  padding: 14px;
+}
+.refund-alert-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #b45309;
+  font-size: 0.9rem;
+}
+.refund-alert-amount {
+  font-size: 0.88rem;
+  color: #78350f;
+  margin-top: 4px;
+}
+.refund-alert-amount strong {
+  color: #b91c1c;
+  font-size: 1rem;
+}
+.refund-method-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.refund-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.refund-option:hover {
+  border-color: #f59e0b;
+}
+.refund-option.active {
+  border-color: #f59e0b;
+  background: #fffdf5;
+}
+.refund-option input[type="radio"] {
+  accent-color: #f59e0b;
+  margin-top: 3px;
+}
+.refund-option-text {
+  display: flex;
+  flex-direction: column;
+}
+.refund-option-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: #1f2937;
+}
+.refund-option-sub {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
 .cancel-reason-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
 .cancel-reason-item {
   display: flex; align-items: center; gap: 10px;

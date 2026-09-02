@@ -18,7 +18,7 @@ class FlashSaleRequest extends FormRequest
             'name' => 'required|string|max:255',
             'start_time' => 'required|date',
             'end_time' => 'required|date|after:start_time',
-            'status' => 'required|in:draft,active,ended',
+            'status' => 'required|in:draft,upcoming,active,ended',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,product_id',
             'items.*.campaign_price' => 'required|numeric|min:0',

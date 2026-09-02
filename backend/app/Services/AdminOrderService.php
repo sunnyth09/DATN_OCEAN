@@ -7,6 +7,7 @@ use App\Enums\PaymentStatus;
 use App\Mail\OrderCancelledMail;
 use App\Mail\OrderShippingMail;
 use App\Models\Order;
+use App\Models\User;
 use App\Notifications\SystemNotification;
 use App\Repositories\AdminOrderRepository;
 use App\StateMachines\OrderStateMachine;
@@ -160,25 +161,39 @@ class AdminOrderService
 
                 if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
                     $updates['cancel_reason'] = $data['note'] ?? 'Hủy bởi Admin';
+                    $refundType = $data['refund_type'] ?? 'wallet'; // 'wallet' hoặc 'manual'
 
-                    if (in_array($order->payment_method, ['vnpay', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
-                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
-                    }
+                    $paidAmount = 0;
+                    $refundDestination = null;
 
-                    if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
+                    // Kiểm tra xem đơn hàng đã được thanh toán chưa
+                    $isPaidOrder = ($oldPaymentStatus === PaymentStatus::PAID->value || $oldPaymentStatus === 'paid');
+
+                    if ($isPaidOrder) {
+                        if ($order->payment_method === 'wallet') {
+                            $paidAmount = (float) ($order->wallet_spent ?? $order->grand_total ?? 0);
+                        } else {
+                            $paidAmount = (float) ($order->grand_total ?? 0);
+                        }
+
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
-                        $walletSpent = (float) ($order->wallet_spent ?? $order->grand_total ?? 0);
-                        if ($walletSpent > 0) {
+
+                        // Nếu khách hàng có tài khoản và chọn hoàn vào ví (mặc định)
+                        if ($order->user_id && $paidAmount > 0 && $refundType !== 'manual') {
                             $this->walletService->refund(
                                 $order->user_id,
-                                $walletSpent,
+                                $paidAmount,
                                 "Hoàn tiền hủy đơn hàng #{$order->order_code}",
                                 $order->order_id,
                                 Order::class
                             );
+                            $refundDestination = 'Ví Ocean Sport';
+                        } elseif ($refundType === 'manual' || ! $order->user_id) {
+                            $refundDestination = 'Chuyển khoản / Thủ công';
                         }
                     }
 
+                    // Hoàn lại phần tiền ví đã dùng để GIẢM GIÁ (nếu có)
                     $walletDeposit = (float) ($order->wallet_deposit_discount ?? 0);
                     $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
                     if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
@@ -190,14 +205,35 @@ class AdminOrderService
                         );
                     }
 
+                    // Hoàn lại Điểm thưởng Loyalty (nếu có dùng điểm giảm giá)
+                    if ($order->user_id) {
+                        try {
+                            $userObj = $order->user ?? User::find($order->user_id);
+                            if ($userObj) {
+                                $this->loyaltyService->refundPoints($userObj, $order);
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning("Loyalty refundPoints failed for order #{$order->order_id}: ".$e->getMessage());
+                        }
+                    }
+
+                    // Khôi phục tồn kho sản phẩm
                     $this->orderRepository->restoreStock($order->items);
 
+                    // Trừ chi tiêu tích lũy nếu có
                     if ($order->user) {
                         $this->customerTierService->subtractSpendingAndDowngradeTier($order->user, (float) $order->grand_total);
                     }
 
+                    // Gửi Email thông báo chi tiết
                     if ($order->user && $order->user->email) {
-                        Mail::to($order->user->email)->queue(new OrderCancelledMail($order, 'admin', $updates['cancel_reason']));
+                        Mail::to($order->user->email)->queue(new OrderCancelledMail(
+                            $order,
+                            'admin',
+                            $updates['cancel_reason'],
+                            $paidAmount,
+                            $refundDestination
+                        ));
                     }
                 }
             }
@@ -214,19 +250,31 @@ class AdminOrderService
                     ]);
 
                     if ($order->user) {
-                        $statusLabel = OrderStatus::tryFrom($updates['fulfillment_status'])?->label() ?? $updates['fulfillment_status'];
-                        $title = "Cập nhật đơn hàng #{$order->order_code}";
-                        $message = "Đơn hàng của bạn đã được cập nhật sang trạng thái: {$statusLabel}.";
+                        if ($updates['fulfillment_status'] === OrderStatus::CANCELLED->value) {
+                            $refundMsg = ($paidAmount > 0)
+                                ? ' Số tiền '.number_format($paidAmount, 0, ',', '.').'đ đã được hoàn vào Ví cá nhân của bạn.'
+                                : '';
+                            $title = "Đơn hàng #{$order->order_code} đã bị hủy";
+                            $message = "Đơn hàng của bạn đã bị hủy bởi Cửa hàng. Lý do: {$updates['cancel_reason']}.{$refundMsg}";
+                        } else {
+                            $statusLabel = OrderStatus::tryFrom($updates['fulfillment_status'])?->label() ?? $updates['fulfillment_status'];
+                            $title = "Cập nhật đơn hàng #{$order->order_code}";
+                            $message = "Đơn hàng của bạn đã được cập nhật sang trạng thái: {$statusLabel}.";
+                        }
                         Notification::sendNow($order->user, new SystemNotification($title, $message, "/profile/orders/{$order->order_id}", 'package'));
                     }
                 }
 
                 if (isset($updates['payment_status']) && $updates['payment_status'] !== $oldPaymentStatus) {
+                    $paymentHistoryNote = ($updates['payment_status'] === PaymentStatus::REFUNDED->value && isset($paidAmount) && $paidAmount > 0)
+                        ? '[Hoàn tiền] Đã hoàn '.number_format($paidAmount, 0, ',', '.')."đ vào {$refundDestination}"
+                        : '[Thanh toán] Tự động cập nhật theo trạng thái đơn hàng';
+
                     $this->orderRepository->createStatusHistory([
                         'order_id' => $order->order_id,
                         'old_status' => $oldPaymentStatus,
                         'new_status' => $updates['payment_status'],
-                        'note' => '[Thanh toán] Tự động cập nhật theo trạng thái đơn hàng',
+                        'note' => $paymentHistoryNote,
                     ]);
                 }
             }

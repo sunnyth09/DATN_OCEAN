@@ -43,9 +43,10 @@ class AdminOrderController extends Controller
         $request->validate([
             'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,awaiting_pickup,completed,cancelled,return_requested,return_approved,return_rejected,warehouse_received,inspected_ok,inspection_failed,returned,refunded',
             'note' => 'nullable|string|max:500',
+            'refund_type' => 'nullable|string|in:wallet,manual',
         ]);
 
-        $result = $this->adminOrderService->updateStatus($id, $request->only(['fulfillment_status', 'note']));
+        $result = $this->adminOrderService->updateStatus($id, $request->only(['fulfillment_status', 'note', 'refund_type']));
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
 

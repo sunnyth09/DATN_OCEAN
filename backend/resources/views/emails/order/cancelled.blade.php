@@ -19,11 +19,21 @@ Chúng tôi rất tiếc phải thông báo rằng đơn hàng của bạn đã 
 | **Ngày đặt** | {{ $orderDate }} |
 | **Tổng tiền** | {{ $totalAmount }} |
 | **Lý do hủy** | {{ $cancelReason }} |
+@if(!empty($refundAmount))
+| **Tiền hoàn lại** | **{{ $refundAmount }}** |
+| **Nơi nhận hoàn** | {{ $refundDestination ?? 'Ví Ocean Sport' }} |
+@endif
+
+@if(!empty($refundAmount))
+@component('mail::panel')
+💰 **Thông tin hoàn tiền:** Số tiền **{{ $refundAmount }}** đã được xử lý hoàn trả về **{{ $refundDestination ?? 'Ví Ocean Sport' }}** của bạn. Bạn có thể sử dụng số dư này để đặt đơn hàng mới hoặc rút về tài khoản ngân hàng bất cứ lúc nào.
+@endcomponent
+@endif
 
 ---
 
-@component('mail::button', ['url' => rtrim(config('app.frontend_url', 'http://localhost:3302'), '/') . '/product', 'color' => 'primary'])
-🛍️ Khám phá sản phẩm khác
+@component('mail::button', ['url' => rtrim(config('app.frontend_url', 'http://localhost:3302'), '/') . '/profile/wallet', 'color' => 'success'])
+💳 Xem số dư Ví của bạn
 @endcomponent
 
 Chúng tôi xin lỗi vì sự bất tiện này và mong sớm có cơ hội được phục vụ bạn!
