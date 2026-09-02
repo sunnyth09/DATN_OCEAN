@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue';
+import { ref, reactive, computed, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
@@ -456,6 +456,25 @@ const downloadPosReceipt = async () => {
   }
 };
 
+const copyToClipboard = async (text, label) => {
+  if (!text) return;
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+    toast.success(`Đã sao chép ${label || 'thông tin'}!`);
+  } catch (e) {
+    toast.error('Không thể tự động sao chép');
+  }
+};
+
 const formatDate = (dateString) => {
   if (!dateString) return '—';
   const date = new Date(dateString);
@@ -561,50 +580,74 @@ const isSyncingGhn = ref(false);
 const isPrinting = ref(false);
 const isCanceling = ref(false);
 
-const syncGhn = async () => {
-  isSyncingGhn.value = true;
+// Multi-carrier dispatch state
+const showDispatchModal = ref(false);
+const isDispatching = ref(false);
+const dispatchForm = reactive({
+  carrier: 'ocean_express',
+  weight: 500,
+  length: 20,
+  width: 15,
+  height: 10,
+  required_note: 'CHOXEMHANGKHONGTHU',
+  cod_amount: 0,
+});
+
+// Shipping Label Print state
+const showShippingLabelModal = ref(false);
+const isFetchingLabel = ref(false);
+const shippingLabelData = ref(null);
+
+const openDispatchModal = () => {
+  if (!order.value) return;
+  const isPaid = order.value.payment_status === 'paid';
+  const calculatedWeight = (order.value.items || []).reduce((sum, item) => sum + (Number(item.quantity || 1) * 300), 200);
+
+  dispatchForm.carrier = 'ocean_express';
+  dispatchForm.weight = calculatedWeight;
+  dispatchForm.length = 20;
+  dispatchForm.width = 15;
+  dispatchForm.height = 10;
+  dispatchForm.required_note = 'CHOXEMHANGKHONGTHU';
+  dispatchForm.cod_amount = isPaid ? 0 : Number(order.value.grand_total || 0);
+
+  showDispatchModal.value = true;
+};
+
+const closeDispatchModal = () => {
+  showDispatchModal.value = false;
+};
+
+const submitDispatchShipping = async () => {
+  if (!order.value) return;
+  isDispatching.value = true;
   try {
-    const res = await api.post(`/admin/orders/${order.value.order_id}/ghn-sync`);
+    const res = await api.post(`/admin/orders/${order.value.order_id}/dispatch-shipping`, {
+      carrier: dispatchForm.carrier,
+      weight: dispatchForm.weight,
+      length: dispatchForm.length,
+      width: dispatchForm.width,
+      height: dispatchForm.height,
+      required_note: dispatchForm.required_note,
+      cod_amount: dispatchForm.cod_amount,
+    });
+
     if (res.data.status === 'success') {
-      toast.success(res.data.message || 'Đã đẩy đơn thành công!');
-      fetchOrder();
+      toast.success(res.data.message || 'Đã tạo vận đơn vận chuyển thành công!');
+      showDispatchModal.value = false;
+      window.dispatchEvent(new Event('admin-order-updated'));
+      await fetchOrder();
     }
   } catch (error) {
-    const errorMsg = error.response?.data?.message || 'Không thể đồng bộ vận chuyển';
+    const errorMsg = error.response?.data?.message || 'Không thể tạo vận đơn vận chuyển';
     toast.error(errorMsg);
-
-    Swal.fire({
-      title: 'Đẩy Đơn Vận Chuyển Thất Bại',
-      html: `
-        <div class="text-start">
-          <p class="text-danger fw-bold mb-2 small">Chi tiết lỗi từ Ocean Express:</p>
-          <div class="p-2.5 bg-light border border-danger-subtle rounded small text-dark mb-3" style="font-size: 0.85rem; line-height: 1.4;">
-            ${errorMsg}
-          </div>
-          <div class="small text-muted">
-            <strong class="text-dark">💡 Hướng dẫn vá lỗi kịp thời:</strong>
-            <ul class="mb-0 ps-3 mt-1">
-              <li>Kiểm tra lại SĐT người nhận (10 chữ số).</li>
-              <li>Kiểm tra mã địa chỉ phường/xã (ward_code) có hợp lệ không.</li>
-              <li>Hoặc bấm <strong>"Tự Giao Hàng"</strong> để đẩy đơn sang Đang Giao ngay lập tức!</li>
-            </ul>
-          </div>
-        </div>
-      `,
-      icon: 'error',
-      showCancelButton: true,
-      confirmButtonColor: '#28a745',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Chuyển sang Tự Giao Hàng',
-      cancelButtonText: 'Đóng & Kiểm tra lại'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        confirmSelfDelivery();
-      }
-    });
   } finally {
-    isSyncingGhn.value = false;
+    isDispatching.value = false;
   }
+};
+
+const syncGhn = async () => {
+  openDispatchModal();
 };
 
 const isSelfDelivering = ref(false);
@@ -659,22 +702,25 @@ const lookupGhnStatus = async (sync = true, silent = false) => {
 };
 
 const printLabel = async () => {
-  if (!order.value?.tracking_number) return;
-  isPrinting.value = true;
+  if (!order.value) return;
+  isFetchingLabel.value = true;
   try {
-    const res = await api.post('/ghn/print-label', { order_code: order.value.tracking_number });
-    if (res.data.code === 200 && res.data.data?.token) {
-      const printUrl = res.data.data.print_url;
-      if (printUrl) window.open(printUrl, '_blank');
-      else toast.error('Không thể lấy link in vận đơn');
+    const res = await api.get(`/admin/orders/${order.value.order_id}/shipping-label`);
+    if (res.data.status === 'success') {
+      shippingLabelData.value = res.data.data;
+      showShippingLabelModal.value = true;
     } else {
-      toast.error('Không thể in vận đơn');
+      toast.error('Không thể lấy thông tin phiếu giao hàng');
     }
   } catch (error) {
-    toast.error('Lỗi khi in vận đơn');
+    toast.error('Lỗi khi tải thông tin phiếu giao hàng');
   } finally {
-    isPrinting.value = false;
+    isFetchingLabel.value = false;
   }
+};
+
+const triggerPrintWindow = () => {
+  window.print();
 };
 
 const cancelGhnOrder = async () => {
@@ -851,50 +897,73 @@ onMounted(() => fetchOrder());
         <div class="timeline-card-header">
           <div class="timeline-title-group">
             <div class="timeline-title-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             </div>
-            <h3 class="card-title">Tiến trình đơn hàng</h3>
+            <div class="timeline-title-text">
+              <div class="timeline-title-row">
+                <h3 class="card-title">Tiến trình đơn hàng</h3>
+                <span class="timeline-step-indicator">Bước {{ (timelineSteps.findIndex(s => getStepStatus(s.key) === 'active') + 1) || 3 }}/{{ timelineSteps.length }}</span>
+              </div>
+              <span class="timeline-subtitle">Theo dõi trạng thái xử lý và vận chuyển theo thời gian thực</span>
+            </div>
           </div>
           <span class="timeline-badge" :class="getStatusBadgeClass(order.fulfillment_status)">
+            <span class="status-indicator-dot"></span>
             {{ getStatusLabel(order.fulfillment_status) }}
           </span>
         </div>
-        <div class="timeline">
-          <div v-for="(step, idx) in timelineSteps" :key="step.key" class="timeline-step" :class="getStepStatus(step.key)">
-            <div class="step-connector" v-if="idx > 0"></div>
-            <div class="step-dot">
-              <div class="step-dot-inner">
-                <!-- Đặt hàng -->
-                <svg v-if="step.key === 'pending'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-                </svg>
-                <!-- Xác nhận -->
-                <svg v-else-if="step.key === 'confirmed'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-                <!-- Đóng gói -->
-                <svg v-else-if="step.key === 'packing'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
-                </svg>
-                <!-- Vận chuyển -->
-                <svg v-else-if="step.key === 'shipping'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-                </svg>
-                <!-- Đã giao -->
-                <svg v-else-if="step.key === 'delivered'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                </svg>
-                <!-- Hoàn thành -->
-                <svg v-else-if="step.key === 'completed'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
-                </svg>
+        <div class="timeline-wrapper">
+          <div class="timeline">
+            <div v-for="(step, idx) in timelineSteps" :key="step.key" class="timeline-step" :class="getStepStatus(step.key)">
+              <div class="step-connector" v-if="idx > 0"></div>
+              <div class="step-top-meta">
+                <span class="step-index">0{{ idx + 1 }}</span>
               </div>
-              <div class="step-pulse" v-if="getStepStatus(step.key) === 'active'"></div>
-            </div>
-            <div class="step-info">
-              <span class="step-label">{{ step.label }}</span>
-              <span class="step-time" v-if="getStepTimestamp(step)">{{ formatDate(getStepTimestamp(step)) }}</span>
-              <span class="step-time" v-else-if="getStepStatus(step.key) === 'active'">Đang xử lý...</span>
+              <div class="step-dot">
+                <div class="step-dot-inner">
+                  <!-- Đặt hàng -->
+                  <svg v-if="step.key === 'pending'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                  </svg>
+                  <!-- Xác nhận -->
+                  <svg v-else-if="step.key === 'confirmed'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  <!-- Đóng gói -->
+                  <svg v-else-if="step.key === 'packing'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+                  </svg>
+                  <!-- Vận chuyển -->
+                  <svg v-else-if="step.key === 'shipping'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                  </svg>
+                  <!-- Đã giao -->
+                  <svg v-else-if="step.key === 'delivered'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <!-- Hoàn thành -->
+                  <svg v-else-if="step.key === 'completed'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+                  </svg>
+                </div>
+                <div class="step-check-badge" v-if="getStepStatus(step.key) === 'done'">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="step-pulse" v-if="getStepStatus(step.key) === 'active'"></div>
+              </div>
+              <div class="step-info">
+                <span class="step-label">{{ step.label }}</span>
+                <span class="step-time is-timestamp" v-if="getStepTimestamp(step)">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  {{ formatDate(getStepTimestamp(step)) }}
+                </span>
+                <span class="step-time is-active-pulse" v-else-if="getStepStatus(step.key) === 'active'">
+                  <span class="live-dot"></span> Đang xử lý...
+                </span>
+                <span class="step-time is-waiting" v-else>
+                  Chờ xử lý
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -979,19 +1048,115 @@ onMounted(() => fetchOrder());
 
         <!-- RIGHT SIDEBAR -->
         <div class="detail-sidebar">
-          <!-- Cập nhật trạng thái -->
-          <div class="info-card action-card">
-            <h3 class="card-title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Cập nhật trạng thái
-            </h3>
-            <div class="action-group">
-              <label class="action-label mb-2">Thao tác khả dụng</label>
-              
-              <div v-if="order.tracking_number && order.tracking_number !== 'SELF-DELIVERY' && !getCurrentOrderStatusActions().length" class="alert alert-info py-2 px-3 mb-0" style="font-size: 0.85rem">
-                Trạng thái đang được đồng bộ tự động từ hãng vận chuyển.
+          <!-- CARD 1: Điều phối & Thao tác đơn hàng -->
+          <div class="info-card action-hub-card">
+            <div class="action-hub-header">
+              <div class="action-hub-title-group">
+                <div class="action-hub-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="action-hub-title">Thao tác đơn hàng</h3>
+                  <span class="action-hub-subtitle">Xử lý tiến trình & giao vận</span>
+                </div>
               </div>
 
+              <!-- Trạng thái thanh toán Pill ở góc phải Header -->
+              <div class="payment-auto-pill" :class="'ps-' + order.payment_status">
+                <span class="payment-pill-dot"></span>
+                <span class="payment-pill-text">{{ paymentLabels[order.payment_status] || order.payment_status }}</span>
+                <span class="payment-pill-sub">(Tự động)</span>
+              </div>
+            </div>
+
+            <!-- CỤM THAO TÁC GIAO VẬN CHÍNH (PRIMARY FULFILLMENT CTAs) -->
+            <div class="fulfillment-actions-box">
+              <!-- Trường hợp A: Chưa đẩy đơn & Có thể giao hàng -->
+              <div v-if="!order.tracking_number && ['confirmed', 'processing', 'packing', 'awaiting_pickup'].includes(order.fulfillment_status)" class="dispatch-cta-group">
+                <button
+                  class="btn-cta-dispatch-primary"
+                  @click="syncGhn"
+                  :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'"
+                >
+                  <div class="btn-cta-icon-wrap">
+                    <AppIcon name="truck" size="22" stroke-width="2.5" />
+                  </div>
+                  <div class="btn-cta-text-wrap">
+                    <span class="btn-cta-main-text">{{ isSyncingGhn ? 'Đang kết nối nhà vận chuyển...' : 'Đẩy đơn cho nhà vận chuyển' }}</span>
+                    <span class="btn-cta-sub-text">Hệ thống Ocean Express / GHN tự động</span>
+                  </div>
+                </button>
+
+                <div class="dispatch-secondary-row">
+                  <button
+                    class="btn-cta-self-delivery"
+                    @click="confirmSelfDelivery"
+                    :disabled="isSelfDelivering || order.fulfillment_status === 'cancelled'"
+                  >
+                    <AppIcon name="user-check" size="16" class="me-1" />
+                    <span>{{ isSelfDelivering ? 'Đang xử lý...' : 'Shop tự đi giao' }}</span>
+                  </button>
+
+                  <button v-if="isPosOrder" class="btn-cta-pos-receipt" @click="downloadPosReceipt" :disabled="isDownloadingPosPdf">
+                    <AppIcon name="printer" size="16" class="me-1" />
+                    <span>{{ isDownloadingPosPdf ? 'Đang tải...' : 'In hóa đơn POS' }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Trường hợp B: Đã đẩy đơn sang Hãng vận chuyển (Có tracking code) -->
+              <div v-else-if="order.tracking_number && order.tracking_number !== 'SELF-DELIVERY'" class="waybill-cta-group">
+                <div class="waybill-badge-banner">
+                  <div class="waybill-badge-left">
+                    <div class="waybill-carrier-dot"></div>
+                    <div>
+                      <span class="waybill-lbl">Mã vận đơn đối tác</span>
+                      <strong class="waybill-code">{{ order.tracking_number }}</strong>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-copy-chip" @click="copyToClipboard(order.tracking_number, 'Mã vận đơn')" title="Sao chép mã">
+                    <AppIcon name="copy" size="12" />
+                  </button>
+                </div>
+
+                <div class="waybill-action-buttons">
+                  <button class="btn-lookup-ghn" @click="lookupGhnStatus(true)" :disabled="isLookingUpGhn">
+                    <AppIcon name="search" size="15" class="me-1" />
+                    <span>{{ isLookingUpGhn ? 'Đang tra...' : 'Tra cứu đơn' }}</span>
+                  </button>
+                  <button class="btn-print" @click="printLabel" :disabled="isFetchingLabel">
+                    <AppIcon name="printer" size="15" class="me-1" />
+                    <span>{{ isFetchingLabel ? 'Đang tải...' : 'In phiếu vận đơn' }}</span>
+                  </button>
+                  <button class="btn-cancel-ghn" @click="cancelGhnOrder" :disabled="isCanceling">
+                    <AppIcon name="x-circle" size="15" class="me-1" />
+                    <span>Hủy vận đơn</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Trường hợp C: Shop tự giao -->
+              <div v-else-if="order.tracking_number === 'SELF-DELIVERY'" class="self-delivery-banner">
+                <div class="self-delivery-info">
+                  <AppIcon name="user-check" size="20" class="text-success" />
+                  <div>
+                    <strong class="text-success">Đơn do Shop tự giao</strong>
+                    <p class="mb-0 text-muted" style="font-size: 0.8rem">Nhân viên cửa hàng giao hàng trực tiếp cho khách</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- THÔNG BÁO TỰ ĐỘNG NẾU CÓ VẬN ĐƠN -->
+            <div v-if="order.tracking_number && order.tracking_number !== 'SELF-DELIVERY' && !getCurrentOrderStatusActions().length" class="alert alert-info py-2 px-3 mt-3 mb-0" style="font-size: 0.84rem">
+              <AppIcon name="info" size="14" class="me-1" /> Trạng thái đang được đồng bộ tự động từ hãng vận chuyển.
+            </div>
+
+            <!-- CÁC THAO TÁC TRẠNG THÁI KHÁC (HỦY ĐƠN, DUYỆT ĐƠN...) -->
+            <div class="status-other-section" v-if="getCurrentOrderStatusActions().length">
+              <div class="section-micro-title">Thao tác trạng thái</div>
               <div class="status-action-buttons">
                 <button
                   v-for="action in getCurrentOrderStatusActions()"
@@ -1002,104 +1167,73 @@ onMounted(() => fetchOrder());
                   :disabled="isStatusActionLoading"
                   :title="action.label"
                 >
-                  <AppIcon :name="action.icon" size="18" stroke-width="2.5" />
+                  <AppIcon :name="action.icon" size="16" stroke-width="2.5" />
                   <span>{{ action.label }}</span>
                 </button>
               </div>
             </div>
-            <div class="action-group">
-              <label class="action-label">Thanh toán</label>
-              <div class="payment-auto-badge" :class="'ps-' + order.payment_status">
-                <span class="payment-auto-icon">
-                  <svg v-if="order.payment_status === 'paid'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  <svg v-else-if="order.payment_status === 'refunded'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                  <svg v-else-if="order.payment_status === 'failed'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </span>
-                <span class="payment-auto-text">{{ paymentLabels[order.payment_status] || order.payment_status }}</span>
-                <span class="payment-auto-hint">(Tự động)</span>
-              </div>
-            </div>
           </div>
 
-          <!-- Thông tin khách hàng -->
-          <div class="info-card">
-            <h3 class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="display: flex; align-items: center; gap: 8px;">
+          <!-- CARD 2: Khách hàng & Giao nhận -->
+          <div class="info-card customer-shipping-card">
+            <div class="card-header-flex">
+              <h3 class="card-title mb-0">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Khách hàng
-              </div>
+                Khách hàng & Nhận hàng
+              </h3>
               <span v-if="isPosOrder" class="status-badge badge-info sm">Đơn tại quầy (POS)</span>
-            </h3>
-            <div class="info-rows">
-              <div class="info-row">
-                <span class="info-label">Tên</span>
-                <span class="info-value fw-bold">{{ isPosGuest ? (order.recipient_name || 'Khách lẻ') : (order.user?.full_name || order.user?.name || order.recipient_name || 'Khách lẻ') }}</span>
+            </div>
+
+            <!-- Dải thông tin khách hàng đặt đơn -->
+            <div class="customer-profile-strip">
+              <div class="customer-avatar-badge">
+                {{ (order.recipient_name || order.user?.name || 'K').charAt(0).toUpperCase() }}
               </div>
-              <div class="info-row">
-                <span class="info-label">Email</span>
-                <span class="info-value">{{ isPosGuest ? '—' : (order.user?.email || '—') }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Điện thoại</span>
-                <span class="info-value">{{ order.recipient_phone || (isPosGuest ? '—' : order.user?.phone) || '—' }}</span>
-              </div>
-              <div class="info-row" v-if="order.seller">
-                <span class="info-label">Thu ngân</span>
-                <span class="info-value">{{ order.seller.full_name || order.seller.name }}</span>
+              <div class="customer-meta-info">
+                <div class="customer-name-row">
+                  <strong class="customer-name">{{ isPosGuest ? (order.recipient_name || 'Khách lẻ') : (order.user?.full_name || order.user?.name || order.recipient_name || 'Khách lẻ') }}</strong>
+                  <span v-if="order.user_id && !isPosGuest" class="member-chip">Khách hàng</span>
+                </div>
+                <div class="customer-sub-contacts">
+                  <span v-if="order.user?.email && !isPosGuest" class="contact-email">
+                    <AppIcon name="mail" size="12" class="me-1" />{{ order.user.email }}
+                  </span>
+                  <span v-if="order.seller" class="contact-seller">
+                    <AppIcon name="user" size="12" class="me-1" />Thu ngân: {{ order.seller.full_name || order.seller.name }}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Thông tin giao hàng -->
-          <div class="info-card">
-            <h3 class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
-              <div style="display:flex; align-items:center; gap: 10px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                Giao hàng
-                <span v-if="order.tracking_number === 'SELF-DELIVERY'" class="status-badge badge-success sm ms-2">
-                  <AppIcon name="user-check" size="14" class="me-1" /> Shop tự giao
-                </span>
-                <span v-else-if="order.tracking_number" class="status-badge badge-info sm ms-2">Mã vận đơn: {{ order.tracking_number }}</span>
-              </div>
-              
-              <!-- Khối thao tác đẩy đơn/tự giao -->
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="!order.tracking_number && ['confirmed', 'processing', 'packing', 'awaiting_pickup'].includes(order.fulfillment_status)">
-                <button class="btn-lookup-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
-                   <AppIcon name="truck" size="16" class="me-1" />
-                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy đơn cho nhà vận chuyển' }}
-                </button>
-                <button class="btn-print" style="background-color: #28a745" @click="confirmSelfDelivery" :disabled="isSelfDelivering || order.fulfillment_status === 'cancelled'">
-                   <AppIcon name="user" size="16" class="me-1" />
-                   {{ isSelfDelivering ? 'Đang xử lý...' : 'Shop tự đi giao' }}
-                </button>
-              </div>
-              
-              <!-- Khối tracking đối tác -->
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="order.tracking_number && order.tracking_number !== 'SELF-DELIVERY'">
-                <button class="btn-lookup-ghn" @click="lookupGhnStatus(true)" :disabled="isLookingUpGhn">
-                   {{ isLookingUpGhn ? 'Đang tra...' : 'Tra cứu đơn' }}
-                </button>
-                <button class="btn-print" @click="printLabel" :disabled="isPrinting">
-                   {{ isPrinting ? 'Đang tạo...' : 'In vận đơn' }}
-                </button>
-                <button class="btn-cancel-ghn" @click="cancelGhnOrder" :disabled="isCanceling">
-                   Hủy vận đơn
-                </button>
-              </div>
-            </h3>
+            <!-- Phân cách sang thông tin giao hàng -->
+            <div class="shipping-section-divider">
+              <span class="shipping-divider-label">
+                <AppIcon name="map-pin" size="13" class="me-1 text-primary" /> Thông tin giao nhận
+              </span>
+            </div>
+
             <div class="info-rows">
               <div class="info-row">
                 <span class="info-label">Người nhận</span>
                 <span class="info-value fw-bold">{{ order.recipient_name }}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">SĐT</span>
-                <span class="info-value">{{ order.recipient_phone }}</span>
+                <span class="info-label">Điện thoại</span>
+                <span class="info-value text-phone-highlight">
+                  <a :href="'tel:' + order.recipient_phone" class="phone-link">{{ order.recipient_phone || '—' }}</a>
+                  <button v-if="order.recipient_phone" type="button" class="btn-copy-chip ms-2" @click="copyToClipboard(order.recipient_phone, 'Số điện thoại')" title="Sao chép SĐT">
+                    <AppIcon name="copy" size="12" />
+                  </button>
+                </span>
               </div>
               <div class="info-row">
-                <span class="info-label">Địa chỉ</span>
-                <span class="info-value">{{ order.shipping_address }}</span>
+                <span class="info-label">Địa chỉ giao</span>
+                <span class="info-value address-highlight">
+                  <span>{{ order.shipping_address }}</span>
+                  <button v-if="order.shipping_address" type="button" class="btn-copy-chip ms-2" @click="copyToClipboard(order.shipping_address, 'Địa chỉ giao hàng')" title="Sao chép địa chỉ">
+                    <AppIcon name="copy" size="12" />
+                  </button>
+                </span>
               </div>
               <div class="info-row">
                 <span class="info-label">PT Thanh toán</span>
@@ -1205,13 +1339,184 @@ onMounted(() => fetchOrder());
       </div>
     </template>
 
+    <!-- Shipping Dispatch Modal -->
+    <Transition name="modal">
+      <div v-if="showDispatchModal" class="cancel-modal-overlay" @click.self="closeDispatchModal">
+        <div class="dispatch-modal-box">
+          <div class="cancel-modal-header">
+            <h5>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              Điều phối Vận chuyển Đơn hàng
+            </h5>
+            <button class="cancel-modal-close" @click="closeDispatchModal">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="dispatch-modal-body">
+            <!-- Carrier Selection -->
+            <label class="dispatch-section-label">1. Chọn Đối tác Vận chuyển</label>
+            <div class="carrier-selector-grid">
+              <label class="carrier-card" :class="{ active: dispatchForm.carrier === 'ocean_express' }">
+                <input type="radio" v-model="dispatchForm.carrier" value="ocean_express" />
+                <div class="carrier-card-content">
+                  <div class="carrier-badge oe">Ocean Express</div>
+                  <strong class="carrier-title">Logistics Tích Hợp</strong>
+                  <span class="carrier-desc">Đồng bộ tự động theo tọa độ phường/xã và quản trị nội bộ</span>
+                </div>
+              </label>
+
+              <label class="carrier-card" :class="{ active: dispatchForm.carrier === 'ghn' }">
+                <input type="radio" v-model="dispatchForm.carrier" value="ghn" />
+                <div class="carrier-card-content">
+                  <div class="carrier-badge ghn">GHN Express</div>
+                  <strong class="carrier-title">Giao Hàng Nhanh</strong>
+                  <span class="carrier-desc">Đối tác vận tải liên tỉnh phủ sóng 63 tỉnh thành</span>
+                </div>
+              </label>
+
+              <label class="carrier-card" :class="{ active: dispatchForm.carrier === 'self_delivery' }">
+                <input type="radio" v-model="dispatchForm.carrier" value="self_delivery" />
+                <div class="carrier-card-content">
+                  <div class="carrier-badge self">Shop tự giao</div>
+                  <strong class="carrier-title">Nội bộ / Shipper riêng</strong>
+                  <span class="carrier-desc">Giao hỏa tốc nội thành bởi đội ngũ nhân viên cửa hàng</span>
+                </div>
+              </label>
+            </div>
+
+            <!-- Package Specs -->
+            <label class="dispatch-section-label mt-3">2. Thông số Kiện hàng & Thu hộ (COD)</label>
+            <div class="package-specs-grid">
+              <div class="spec-field">
+                <label>Trọng lượng (gram)</label>
+                <input v-model.number="dispatchForm.weight" type="number" min="10" class="dispatch-input" />
+              </div>
+              <div class="spec-field">
+                <label>Dài x Rộng x Cao (cm)</label>
+                <div class="dimensions-input-group">
+                  <input v-model.number="dispatchForm.length" type="number" min="1" placeholder="D" />
+                  <span>×</span>
+                  <input v-model.number="dispatchForm.width" type="number" min="1" placeholder="R" />
+                  <span>×</span>
+                  <input v-model.number="dispatchForm.height" type="number" min="1" placeholder="C" />
+                </div>
+              </div>
+              <div class="spec-field full">
+                <label>Tiền thu hộ COD (0 đ nếu khách đã thanh toán trước)</label>
+                <input v-model.number="dispatchForm.cod_amount" type="number" min="0" class="dispatch-input text-danger fw-bold" />
+              </div>
+              <div class="spec-field full">
+                <label>Lưu ý giao hàng</label>
+                <select v-model="dispatchForm.required_note" class="dispatch-select">
+                  <option value="CHOXEMHANGKHONGTHU">Cho xem hàng không cho thử</option>
+                  <option value="CHOTHUHANG">Cho thử hàng</option>
+                  <option value="KHONGCHOXEMHANG">Không cho xem hàng</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="cancel-modal-footer">
+            <button class="btn-cancel-dismiss" @click="closeDispatchModal">Hủy bỏ</button>
+            <button class="btn-dispatch-submit" :disabled="isDispatching" @click="submitDispatchShipping">
+              {{ isDispatching ? 'Đang tạo vận đơn...' : 'Xác nhận Đẩy Vận Đơn' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Shipping Label (Waybill) Print Modal -->
+    <Transition name="modal">
+      <div v-if="showShippingLabelModal" class="cancel-modal-overlay" @click.self="showShippingLabelModal = false">
+        <div class="waybill-modal-box">
+          <div class="cancel-modal-header no-print">
+            <h5 style="display: flex; align-items: center; gap: 8px;">
+              <AppIcon name="file-text" size="18" />
+              <span>Phiếu Giao Hàng & Mã Vận Đơn</span>
+            </h5>
+            <div class="d-flex gap-2">
+              <button class="btn-print-action" @click="triggerPrintWindow">
+                <AppIcon name="printer" size="16" />
+                In phiếu ngay
+              </button>
+              <button class="cancel-modal-close" @click="showShippingLabelModal = false">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Printable Waybill Document -->
+          <div v-if="shippingLabelData" class="printable-waybill-content" id="printable-waybill">
+            <div class="waybill-header">
+              <div class="waybill-brand">
+                <h2>OCEAN SPORT</h2>
+                <p>Hotline: 1900 8888 · Website: oceansport.vn</p>
+              </div>
+              <div class="waybill-carrier-badge">
+                <strong>{{ shippingLabelData.carrier }}</strong>
+                <span class="waybill-barcode-text">{{ shippingLabelData.tracking_number }}</span>
+              </div>
+            </div>
+
+            <div class="waybill-addresses-grid">
+              <div class="address-box sender">
+                <span class="box-title">TỪ (GỬI):</span>
+                <strong>{{ shippingLabelData.sender?.name || 'Ocean Sport Store' }}</strong>
+                <p>{{ shippingLabelData.sender?.phone }}</p>
+                <p>{{ shippingLabelData.sender?.address }}</p>
+              </div>
+              <div class="address-box receiver">
+                <span class="box-title">ĐẾN (NHẬN):</span>
+                <strong>{{ shippingLabelData.receiver?.name }}</strong>
+                <p class="font-bold text-danger">{{ shippingLabelData.receiver?.phone }}</p>
+                <p>{{ shippingLabelData.receiver?.address }}</p>
+              </div>
+            </div>
+
+            <div class="waybill-items-table">
+              <table class="table-compact">
+                <thead>
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th>Phân loại</th>
+                    <th class="text-center">SL</th>
+                    <th class="text-right">Đơn giá</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(it, i) in shippingLabelData.items" :key="i">
+                    <td><strong>{{ it.name }}</strong></td>
+                    <td>{{ it.variant || 'Tiêu chuẩn' }}</td>
+                    <td class="text-center">{{ it.quantity }}</td>
+                    <td class="text-right">{{ formatPrice(it.price) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="waybill-footer-grid">
+              <div class="cod-settlement-box">
+                <span class="cod-title">TIỀN THU HỘ (COD):</span>
+                <strong class="cod-amount">{{ formatPrice(shippingLabelData.cod_amount) }}</strong>
+                <span v-if="shippingLabelData.is_paid" class="badge-paid">ĐÃ THANH TOÁN TRƯỚC (0 đ)</span>
+              </div>
+              <div class="signature-box">
+                <p>Chữ ký người nhận</p>
+                <span>(Xác nhận nguyên vẹn, đủ hàng)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Cancel Reason Modal -->
     <Transition name="modal">
       <div v-if="showCancelModal" class="cancel-modal-overlay" @click.self="dismissCancelModal">
         <div class="cancel-modal-box">
           <div class="cancel-modal-header">
             <h5>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               Hủy đơn hàng
             </h5>
             <button class="cancel-modal-close" @click="dismissCancelModal">
@@ -1438,53 +1743,110 @@ onMounted(() => fetchOrder());
 .badge-danger { background: rgba(239, 83, 80, 0.15); color: #e57373; }
 .badge-secondary { background: rgba(158, 158, 158, 0.15); color: #b0bec5; }
  
-/* ====== Timeline Card — Premium Design ====== */
+/* ====== Timeline Card — Ultra Premium Stepper Design ====== */
 .timeline-card {
-  background: var(--card-bg);
-  border-radius: 16px;
-  padding: 28px 32px;
+  background: var(--card-bg, #ffffff);
+  border-radius: 20px;
+  padding: 28px 32px 32px;
   margin-bottom: 24px;
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-color, rgba(226, 232, 240, 0.8));
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
- 
+.timeline-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3.5px;
+  background: linear-gradient(90deg, #e63b6f 0%, #fb7185 50%, #f43f5e 100%);
+}
+
 .timeline-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 28px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-color, rgba(241, 245, 249, 0.9));
 }
 .timeline-title-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 .timeline-title-icon {
-  width: 38px; height: 38px;
-  background: rgba(230, 59, 111, 0.08);
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, rgba(230, 59, 111, 0.12) 0%, rgba(244, 63, 94, 0.2) 100%);
+  border: 1px solid rgba(230, 59, 111, 0.2);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
+  color: #e63b6f;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.12);
+}
+.timeline-title-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.timeline-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .timeline-card-header .card-title {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--text-main);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main, #0f172a);
+  letter-spacing: -0.2px;
 }
-.timeline-badge {
-  padding: 5px 14px;
-  border-radius: 20px;
-  font-size: 0.78rem;
+.timeline-step-indicator {
+  font-size: 0.72rem;
   font-weight: 700;
+  background: rgba(230, 59, 111, 0.08);
+  color: #e63b6f;
+  border: 1px solid rgba(230, 59, 111, 0.2);
+  padding: 2px 10px;
+  border-radius: 999px;
   letter-spacing: 0.3px;
 }
- 
+.timeline-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-light, #64748b);
+  font-weight: 500;
+}
+.timeline-badge {
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.status-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+  animation: liveDotBlink 1.4s ease-in-out infinite alternate;
+}
+
+.timeline-wrapper {
+  position: relative;
+  width: 100%;
+}
 .timeline {
   display: flex;
   align-items: flex-start;
@@ -1497,109 +1859,252 @@ onMounted(() => fetchOrder());
   flex-direction: column;
   align-items: center;
   flex: 1;
-  min-width: 110px;
+  min-width: 125px;
   position: relative;
+  transition: transform 0.25s ease;
 }
- 
-/* Connector line */
+.timeline-step:hover {
+  transform: translateY(-2px);
+}
+
+/* Step top meta (01, 02, 03) */
+.step-top-meta {
+  height: 20px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.step-index {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-light, #94a3b8);
+  font-family: 'Inter', system-ui, sans-serif;
+  transition: all 0.3s ease;
+}
+.timeline-step.done .step-index {
+  color: var(--text-main, #0f172a);
+  font-weight: 800;
+}
+.timeline-step.active .step-index {
+  color: #e63b6f;
+  font-weight: 900;
+}
+
+/* Connector line - Strictly spans between circles, never crossing inside */
 .step-connector {
   position: absolute;
-  top: 23px;
-  right: 50%;
-  width: 100%;
-  height: 3px;
-  background: var(--border-color);
+  top: 54px;
+  left: calc(-50% + 28px);
+  right: calc(50% + 28px);
+  height: 4px;
+  background: var(--border-color, #eef2f6);
   z-index: 0;
-  border-radius: 2px;
+  border-radius: 999px;
+  transition: all 0.4s ease;
 }
 .timeline-step.done .step-connector {
-  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+  background: linear-gradient(90deg, #e63b6f, #f43f5e);
+  box-shadow: 0 1px 4px rgba(230, 59, 111, 0.25);
 }
 .timeline-step.active .step-connector {
-  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+  left: calc(-50% + 28px);
+  right: calc(50% + 32px);
+  background: linear-gradient(90deg, #e63b6f, #f43f5e);
+  box-shadow: 0 1px 4px rgba(230, 59, 111, 0.25);
 }
- 
+.timeline-step.active + .timeline-step .step-connector {
+  left: calc(-50% + 32px);
+  right: calc(50% + 28px);
+  background: linear-gradient(90deg, rgba(230, 59, 111, 0.35) 0%, var(--border-color, #eef2f6) 100%);
+}
+
 /* Step dot */
 .step-dot {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-container-low);
-  border: 2.5px solid var(--border-color);
-  z-index: 1;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--card-bg, #ffffff);
+  border: 2px solid var(--border-color, #e2e8f0);
+  z-index: 2;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 .step-dot-inner {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-light);
-  transition: color 0.3s;
+  color: var(--text-light, #94a3b8);
+  transition: all 0.3s ease;
 }
- 
+.step-dot-inner svg {
+  transition: all 0.3s ease;
+}
+
 /* Done state */
 .timeline-step.done .step-dot {
-  background: rgba(230, 59, 111, 0.08);
-  border-color: var(--primary);
-  box-shadow: 0 2px 8px rgba(230, 59, 111, 0.15);
+  background: var(--card-bg, #ffffff);
+  border-color: #e63b6f;
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.16);
 }
-.timeline-step.done .step-dot-inner { color: var(--primary); }
- 
-/* Active state */
+.timeline-step.done .step-dot-inner {
+  color: #e63b6f;
+}
+
+/* Checkmark badge */
+.step-check-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #10b981;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+  animation: checkPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 3;
+}
+@keyframes checkPop {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+
+/* Active state - Centerpiece */
 .timeline-step.active .step-dot {
-  background: rgba(230, 59, 111, 0.15);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 6px rgba(230, 59, 111, 0.1), 0 4px 12px rgba(230, 59, 111, 0.2);
-  transform: scale(1.08);
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #e63b6f 0%, #ff4778 50%, #f43f5e 100%);
+  border: 3.5px solid #ffffff;
+  box-shadow: 0 0 0 4px rgba(230, 59, 111, 0.2), 0 10px 24px -2px rgba(230, 59, 111, 0.45);
+  transform: translateY(-3px);
+  z-index: 2;
 }
-.timeline-step.active .step-dot-inner { color: var(--primary); }
- 
-/* Pulse animation for active step */
+.timeline-step.active .step-dot-inner {
+  color: #ffffff;
+}
+.timeline-step.active .step-dot-inner svg {
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+  animation: iconGlow 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes iconGlow {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); }
+}
+
+/* Pulse aura for active step */
 .step-pulse {
   position: absolute;
-  top: 50%; left: 50%;
+  top: 50%;
+  left: 50%;
   transform: translate(-50%, -50%);
-  width: 48px; height: 48px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  border: 2px solid var(--primary);
-  animation: pulseRing 2s ease-out infinite;
+  background: radial-gradient(circle, rgba(230, 59, 111, 0.25) 0%, rgba(230, 59, 111, 0.08) 55%, transparent 75%);
+  animation: pulseAura 2.4s ease-out infinite;
   pointer-events: none;
+  z-index: -1;
 }
-@keyframes pulseRing {
-  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
-  70% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
-  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+@keyframes pulseAura {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.9; }
+  60% { transform: translate(-50%, -50%) scale(1.45); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1.45); opacity: 0; }
 }
- 
+
 /* Step info */
 .step-info {
   text-align: center;
   margin-top: 14px;
-  min-height: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 56px;
 }
 .step-label {
   font-weight: 600;
-  font-size: 0.82rem;
-  color: var(--text-light);
+  font-size: 0.88rem;
+  color: var(--text-light, #64748b);
   display: block;
-  transition: color 0.3s;
+  transition: all 0.3s ease;
   letter-spacing: 0.1px;
 }
-.timeline-step.done .step-label { color: var(--primary); font-weight: 700; }
-.timeline-step.active .step-label { color: var(--primary); font-weight: 800; }
+.timeline-step.done .step-label {
+  color: var(--text-main, #0f172a);
+  font-weight: 700;
+}
+.timeline-step.active .step-label {
+  color: #e63b6f;
+  font-weight: 800;
+  font-size: 0.94rem;
+}
+
+/* Harmonized Step Time Capsules */
 .step-time {
-  font-size: 0.7rem;
-  color: var(--text-light);
-  margin-top: 3px;
-  display: block;
+  height: 26px;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+  line-height: 1;
+}
+.step-time.is-timestamp {
+  color: var(--text-main, #334155);
+  background: var(--surface-container-low, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+.timeline-step.active .step-time.is-timestamp {
+  color: #e63b6f;
+  background: rgba(230, 59, 111, 0.08);
+  border-color: rgba(230, 59, 111, 0.25);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(230, 59, 111, 0.15);
+}
+.step-time.is-active-pulse {
+  color: #e63b6f;
+  background: rgba(230, 59, 111, 0.08);
+  border: 1px solid rgba(230, 59, 111, 0.25);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(230, 59, 111, 0.15);
+}
+.step-time.is-waiting {
+  color: var(--text-light, #94a3b8);
+  background: var(--surface-container-low, #f8fafc);
+  border: 1px dashed var(--border-color, #cbd5e1);
   font-weight: 500;
 }
-.timeline-step.active .step-time { color: var(--primary); font-weight: 600; font-style: italic; }
-.timeline-step.done .step-time { color: var(--primary-dark); }
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e63b6f;
+  display: inline-block;
+  animation: liveDotBlink 1.4s ease-in-out infinite alternate;
+}
+@keyframes liveDotBlink {
+  0% { opacity: 0.3; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.2); }
+}
  
 /* ====== Cancelled Banner ====== */
 .cancelled-banner {
@@ -1649,51 +2154,263 @@ onMounted(() => fetchOrder());
 }
 .card-title svg { color: var(--primary); }
  
-/* Action Card */
-.action-card { }
-.action-group { margin-bottom: 16px; }
-.action-group:last-child { margin-bottom: 0; }
-.action-label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block; }
-.status-inline-row {
+/* ====== ACTION HUB CARD ====== */
+.action-hub-card {
+  border-top: 3.5px solid #e63b6f;
+  position: relative;
+}
+.action-hub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color, #eef2f6);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.action-hub-title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
+  gap: 12px;
 }
-.status-readonly-badge {
-  display: inline-flex;
+.action-hub-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff0f4 0%, #ffe4ec 100%);
+  color: #e63b6f;
+  display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  padding: 7px 12px;
-  font-size: 0.85rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-.btn-status-action {
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 50%;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.95rem;
-  line-height: 1;
-  font-weight: 900;
-  cursor: pointer;
-  transition: all 0.2s;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(230, 59, 111, 0.15);
 }
-.btn-status-action.confirmed,
-.btn-status-action.completed { background: #dcfce7; color: #15803d; }
-.btn-status-action.processing { background: #e0f2fe; color: #0369a1; }
-.btn-status-action.packing { background: #ede9fe; color: #6d28d9; }
-.btn-status-action.shipping,
-.btn-status-action.delivered { background: #dbeafe; color: #1d4ed8; }
-.btn-status-action.cancelled { background: #fee2e2; color: #b91c1c; }
-.btn-status-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(0.96); }
+.action-hub-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-main, #0f172a);
+  line-height: 1.25;
+}
+.action-hub-subtitle {
+  font-size: 0.76rem;
+  color: var(--text-light, #64748b);
+  font-weight: 500;
+  display: block;
+}
+
+/* Payment Status Compact Pill */
+.payment-auto-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: 1px solid;
+}
+.payment-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+  animation: liveDotBlink 1.4s ease-in-out infinite alternate;
+}
+.payment-pill-sub {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+/* Primary Dispatch Button */
+.fulfillment-actions-box {
+  margin-bottom: 12px;
+}
+.btn-cta-dispatch-primary {
+  width: 100%;
+  padding: 13px 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 60%, #3b82f6 100%);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.32);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+.btn-cta-dispatch-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 22px rgba(37, 99, 235, 0.45);
+  filter: brightness(1.04);
+}
+.btn-cta-dispatch-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-cta-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  backdrop-filter: blur(4px);
+}
+.btn-cta-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.btn-cta-main-text {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  line-height: 1.25;
+}
+.btn-cta-sub-text {
+  font-size: 0.74rem;
+  opacity: 0.85;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* Secondary Dispatch Buttons */
+.dispatch-secondary-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+.btn-cta-self-delivery {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1.5px solid #bbf7d0;
+  font-weight: 700;
+  font-size: 0.86rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-cta-self-delivery:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: #86efac;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.15);
+}
+.btn-cta-self-delivery:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-cta-pos-receipt {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  border: 1.5px solid #e2e8f0;
+  font-weight: 700;
+  font-size: 0.86rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-cta-pos-receipt:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+.btn-cta-pos-receipt:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Waybill Status Banner (When dispatched) */
+.waybill-cta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.waybill-badge-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1.5px solid #bae6fd;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.waybill-badge-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.waybill-carrier-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);
+}
+.waybill-lbl {
+  font-size: 0.74rem;
+  color: #0369a1;
+  font-weight: 600;
+  display: block;
+}
+.waybill-code {
+  font-size: 0.94rem;
+  font-family: monospace;
+  color: #0c4a6e;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.waybill-action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Self Delivery Banner */
+.self-delivery-banner {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 14px;
+}
+.self-delivery-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Status Other Actions (Cancel, Confirmed, etc.) */
+.status-other-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border-color, #e2e8f0);
+}
+.section-micro-title {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-light, #94a3b8);
+  margin-bottom: 10px;
+}
 
 .status-action-buttons {
   display: flex;
@@ -1722,7 +2439,136 @@ onMounted(() => fetchOrder());
 .btn-status-large.btn-delivered { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
 .btn-status-large.btn-cancelled { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
 .btn-status-large:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); filter: brightness(0.96); }
-.btn-status-large:disabled { opacity: 0.6; cursor: not-allowed; }.btn-status-action:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn-status-large:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ====== CUSTOMER & SHIPPING CARD ====== */
+.customer-shipping-card {
+  position: relative;
+}
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.customer-profile-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-container-low, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  margin-bottom: 16px;
+}
+.customer-avatar-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e63b6f 0%, #f43f5e 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(230, 59, 111, 0.25);
+}
+.customer-meta-info {
+  flex: 1;
+  min-width: 0;
+}
+.customer-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.customer-name {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: var(--text-main, #0f172a);
+}
+.member-chip {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(230, 59, 111, 0.1);
+  color: #e63b6f;
+}
+.customer-sub-contacts {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.78rem;
+  color: var(--text-light, #64748b);
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+.contact-email, .contact-seller {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Shipping Section Divider */
+.shipping-section-divider {
+  display: flex;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed var(--border-color, #e2e8f0);
+}
+.shipping-divider-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary, #475569);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Copy chip button */
+.btn-copy-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--card-bg, #ffffff);
+  color: var(--text-light, #64748b);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+.btn-copy-chip:hover {
+  color: #e63b6f;
+  border-color: #e63b6f;
+  background: rgba(230, 59, 111, 0.08);
+  transform: scale(1.08);
+}
+.phone-link {
+  color: #0284c7;
+  text-decoration: none;
+  font-weight: 700;
+}
+.phone-link:hover {
+  text-decoration: underline;
+}
+.text-phone-highlight {
+  display: inline-flex;
+  align-items: center;
+}
+.address-highlight {
+  display: inline-flex;
+  align-items: center;
+  text-align: right;
+  line-height: 1.4;
+}
 
 /* Info Rows */
 .info-rows { display: flex; flex-direction: column; gap: 14px; }
@@ -2568,4 +3414,357 @@ onMounted(() => fetchOrder());
   color: #90a4ae;
 }
 .ps-partially_refunded .payment-auto-text { color: #90a4ae; }
+
+/* ===== Dispatch Modal ===== */
+.dispatch-modal-box {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 620px;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.dispatch-modal-body {
+  padding: 20px 24px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.dispatch-section-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.carrier-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .carrier-selector-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.carrier-card {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  transition: all 0.2s ease;
+  background: #f8fafc;
+}
+
+.carrier-card input {
+  margin-top: 4px;
+}
+
+.carrier-card.active {
+  border-color: #e63b6f;
+  background: #fff1f2;
+}
+
+.carrier-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.carrier-badge.oe { background: #0284c7; color: white; }
+.carrier-badge.ghn { background: #ea580c; color: white; }
+.carrier-badge.self { background: #16a34a; color: white; }
+
+.carrier-title {
+  font-size: 0.82rem;
+  color: #0f172a;
+  display: block;
+}
+
+.carrier-desc {
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.3;
+  display: block;
+  margin-top: 2px;
+}
+
+.package-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.spec-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spec-field.full {
+  grid-column: 1 / -1;
+}
+
+.spec-field label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.dispatch-input, .dispatch-select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.85rem;
+  outline: none;
+  background: #ffffff;
+}
+
+.dispatch-input:focus, .dispatch-select:focus {
+  border-color: #e63b6f;
+}
+
+.dimensions-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dimensions-input-group input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  text-align: center;
+  font-size: 0.85rem;
+  background: #ffffff;
+}
+
+.btn-dispatch-submit {
+  padding: 10px 20px;
+  background: #e63b6f;
+  color: #ffffff;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-dispatch-submit:hover {
+  background: #d0295d;
+}
+
+/* ===== Waybill Modal & Print ===== */
+.waybill-modal-box {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 680px;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.btn-print-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.printable-waybill-content {
+  padding: 24px;
+  background: #ffffff;
+  color: #000000;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+}
+
+.waybill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #000;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.waybill-brand h2 {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+.waybill-brand p {
+  margin: 2px 0 0 0;
+  font-size: 11px;
+  color: #444;
+}
+
+.waybill-carrier-badge {
+  text-align: right;
+}
+
+.waybill-carrier-badge strong {
+  display: block;
+  font-size: 1.1rem;
+}
+
+.waybill-barcode-text {
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  border: 1px dashed #000;
+  padding: 2px 8px;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.waybill-addresses-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+
+.address-box {
+  background: #fdfdfd;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.box-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: #666;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.address-box p {
+  margin: 2px 0;
+  font-size: 12px;
+}
+
+.waybill-items-table {
+  margin-bottom: 14px;
+}
+
+.table-compact {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-compact th, .table-compact td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.table-compact th {
+  background: #f3f3f3;
+  font-weight: 700;
+}
+
+.waybill-footer-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+  border-top: 2px solid #000;
+  padding-top: 12px;
+}
+
+.cod-settlement-box {
+  border: 1px dashed #000;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.cod-title {
+  font-size: 11px;
+  font-weight: 800;
+  display: block;
+}
+
+.cod-amount {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #dc2626;
+  display: block;
+  margin: 4px 0;
+}
+
+.badge-paid {
+  display: inline-block;
+  background: #16a34a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.signature-box {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  min-height: 80px;
+}
+
+.signature-box p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.signature-box span {
+  font-size: 10px;
+  color: #666;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-waybill, #printable-waybill * {
+    visibility: visible;
+  }
+  #printable-waybill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
 </style>
+

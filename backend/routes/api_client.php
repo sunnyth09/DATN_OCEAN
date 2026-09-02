@@ -127,6 +127,7 @@ Route::middleware('auth:api,admin')->group(function () {
     Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
     Route::get('/my/return-requests', [ReturnRequestController::class, 'myIndex']);
     Route::get('/my/return-requests/{id}', [ReturnRequestController::class, 'myShow']);
+    Route::get('/my/return-requests/{id}/tracking', [ReturnRequestController::class, 'myTracking']);
 
     // Device token
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);

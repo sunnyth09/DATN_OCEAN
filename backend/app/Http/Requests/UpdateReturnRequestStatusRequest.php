@@ -56,6 +56,7 @@ class UpdateReturnRequestStatusRequest extends FormRequest
                 'admin_note' => 'nullable|string|max:1000',
                 'refund_amount' => 'nullable|numeric|min:0',
                 'refund_method' => ['nullable', $refundMethods],
+                'bank_reference_code' => 'nullable|string|max:120',
                 'idempotency_key' => 'nullable|string|max:160',
             ],
             default => [

@@ -13,6 +13,18 @@ import { useAuthStore } from './stores/auth';
 import { useCartStore } from './stores/cart';
 import { useUiStore } from './stores/ui';
 
+// Bỏ qua các lỗi ngoại lai từ Browser Extensions (như Web Vitals, DevTools injected scripts)
+window.addEventListener('error', (event) => {
+    if (
+        !event.filename ||
+        event.filename.includes('chrome-extension://') ||
+        event.message?.includes("reading 'startTime'") ||
+        event.message?.includes('reportAllChanges')
+    ) {
+        event.preventDefault();
+    }
+});
+
 // Khởi tạo session sync trước khi mount app
 // Đảm bảo tab mới có thể nhận session từ tab cũ trong ~150ms
 initSessionSync().then(() => {

@@ -19,6 +19,7 @@ use App\Models\ReturnRequest;
 use App\Models\ReturnRequestItem;
 use App\Repositories\OrderRepository;
 use App\Repositories\ReturnRequestRepository;
+use App\Services\OceanExpressService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -237,32 +238,40 @@ class ReturnRequestService
                 'status' => ReturnRequestStatus::APPROVED->value,
                 'admin_note' => $data['admin_note'] ?? null,
                 'return_tracking_code' => $data['return_tracking_code'] ?? $returnRequest->return_tracking_code,
-                'return_carrier' => $data['return_carrier'] ?? $returnRequest->return_carrier,
+                'return_carrier' => $data['return_carrier'] ?? ($returnRequest->return_carrier ?: 'ocean_express'),
                 'approved_at' => now(),
             ]);
 
             if ($returnRequest->return_shipping_method === 'pickup_original_address' && ! $returnRequest->return_tracking_code) {
                 try {
-                    $ghnResponse = GHNService::createReturnOrder($returnRequest->fresh(['items.orderItem.product', 'items.product', 'order']));
-                    $ghnOrderCode = data_get($ghnResponse, 'data.order_code')
-                        ?? data_get($ghnResponse, 'order_code')
-                        ?? data_get($ghnResponse, 'data.orderCode');
+                    $orderData = $this->buildOceanExpressOrderPayload($returnRequest);
+                    $oeResult = OceanExpressService::createOrderDetailed($orderData);
 
-                    $returnRequest->update([
-                        'return_carrier' => 'GHN',
-                        'return_tracking_code' => $ghnOrderCode,
-                        'return_ghn_order_code' => $ghnOrderCode,
-                        'return_ghn_response' => $ghnResponse,
-                        'return_label_created_at' => now(),
-                    ]);
+                    if ($oeResult['success'] && ! empty($oeResult['tracking_number'])) {
+                        $trackingCode = $oeResult['tracking_number'];
+                        $returnRequest->update([
+                            'return_carrier' => 'ocean_express',
+                            'return_tracking_code' => $trackingCode,
+                            'return_ghn_order_code' => $trackingCode,
+                            'return_ghn_response' => $oeResult['data'] ?? [],
+                            'return_label_created_at' => now(),
+                        ]);
 
-                    $message = 'Đã duyệt yêu cầu hoàn hàng và tạo vận đơn lấy hàng hoàn.';
+                        $message = "Đã duyệt yêu cầu hoàn hàng và tạo vận đơn thu hồi Ocean Express ({$trackingCode}).";
+                    } else {
+                        $errorMsg = $oeResult['error'] ?? 'Không nhận được mã vận đơn từ Ocean Express';
+                        Log::warning('Không thể tạo vận đơn hoàn hàng Ocean Express khi duyệt', [
+                            'return_request_id' => $returnRequest->id,
+                            'error' => $errorMsg,
+                        ]);
+                        $message = "Đã duyệt yêu cầu hoàn hàng. Lưu ý: {$errorMsg}. Bạn có thể đẩy lại vận đơn trong trang chi tiết.";
+                    }
                 } catch (\Throwable $e) {
-                    Log::warning('Không thể tạo vận đơn hoàn hàng khi duyệt yêu cầu', [
+                    Log::warning('Lỗi ngoại lệ khi tạo vận đơn hoàn hàng Ocean Express', [
                         'return_request_id' => $returnRequest->id,
                         'error' => $e->getMessage(),
                     ]);
-                    $message = 'Đã duyệt yêu cầu hoàn hàng. Chưa tạo được vận đơn lấy hàng, vui lòng xử lý thủ công.';
+                    $message = 'Đã duyệt yêu cầu hoàn hàng. Chưa tạo được vận đơn thu hồi Ocean Express, vui lòng đẩy lại sau.';
                 }
             } elseif ($returnRequest->return_shipping_method === 'dropoff_post_office') {
                 $message = 'Đã duyệt yêu cầu hoàn hàng. Khách sẽ tự gửi hàng lên bưu cục.';
@@ -485,7 +494,8 @@ class ReturnRequestService
                 }
 
                 $method = $data['refund_method'] ?? $returnRequest->refund_method;
-                $idempotencyKey = $data['idempotency_key'] ?? "return_request:{$returnRequest->id}:refund:{$method}:{$refundAmount}";
+                $bankRef = ! empty($data['bank_reference_code']) ? trim((string) $data['bank_reference_code']) : null;
+                $idempotencyKey = $data['idempotency_key'] ?? ("return_request:{$returnRequest->id}:refund:{$method}:{$refundAmount}".($bankRef ? ":{$bankRef}" : ''));
 
                 $transaction = RefundTransaction::firstOrCreate(
                     ['idempotency_key' => $idempotencyKey],
@@ -497,6 +507,7 @@ class ReturnRequestService
                         'method' => $method,
                         'amount' => $refundAmount,
                         'status' => 'processing',
+                        'gateway_refund_id' => $bankRef,
                         'attempt_count' => 0,
                         'requested_by' => auth('admin')->id(),
                     ]
@@ -506,7 +517,7 @@ class ReturnRequestService
                     return;
                 }
 
-                $transaction->update(['status' => 'processing']);
+                $transaction->update(['status' => 'processing', 'gateway_refund_id' => $bankRef ?: $transaction->gateway_refund_id]);
                 $transaction->increment('attempt_count');
                 $returnRequest->update([
                     'status' => ReturnRequestStatus::REFUNDING->value,
@@ -539,6 +550,7 @@ class ReturnRequestService
                     'refund_method' => $method,
                     'refund_transaction_id' => $transaction->id,
                     'return_request_id' => $returnRequest->id,
+                    'bank_reference_code' => $bankRef,
                 ]);
 
                 if (! $refundResult['success']) {
@@ -563,11 +575,16 @@ class ReturnRequestService
                     'processed_at' => now(),
                 ]);
 
+                $finalAdminNote = $data['admin_note'] ?? $returnRequest->admin_note;
+                if ($bankRef && ! str_contains((string) $finalAdminNote, $bankRef)) {
+                    $finalAdminNote = $finalAdminNote ? "{$finalAdminNote} | [Mã GD Ngân hàng: {$bankRef}]" : "[Mã GD Ngân hàng: {$bankRef}]";
+                }
+
                 $returnRequest->update([
                     'status' => ReturnRequestStatus::COMPLETED->value,
                     'refund_status' => RefundStatus::SUCCESS->value,
                     'refund_amount' => $refundAmount,
-                    'admin_note' => $data['admin_note'] ?? $returnRequest->admin_note,
+                    'admin_note' => $finalAdminNote,
                     'refunded_at' => now(),
                     'completed_at' => now(),
                 ]);
@@ -590,6 +607,290 @@ class ReturnRequestService
         }
 
         return $this->success($message);
+    }
+
+    public function buildOceanExpressOrderPayload(ReturnRequest $returnRequest, array $data = []): array
+    {
+        $returnRequest->loadMissing(['items.orderItem.product', 'items.product', 'order']);
+
+        $customerWardCode = trim((string) ($returnRequest->return_pickup_ward_code ?: ($returnRequest->order?->ward_code ?? '')));
+        $customerAddress = trim((string) ($returnRequest->return_pickup_address ?: ($returnRequest->order?->shipping_address ?? 'Địa chỉ khách hàng')));
+        $customerName = trim((string) ($returnRequest->return_pickup_name ?: ($returnRequest->order?->recipient_name ?? 'Khách Hàng')));
+        
+        $rawPhone = (string) ($returnRequest->return_pickup_phone ?: ($returnRequest->order?->recipient_phone ?? ''));
+        $customerPhone = preg_replace('/[^\d]/', '', $rawPhone);
+        if (str_starts_with($customerPhone, '84') && strlen($customerPhone) === 11) {
+            $customerPhone = '0'.substr($customerPhone, 2);
+        }
+
+        $warehouseWardCode = config('ocean_express.warehouse_ward_code')
+            ?: (config('ghn.sender.ward_code') ?: $customerWardCode);
+        $warehouseAddress = config('ocean_express.warehouse_address')
+            ?: (config('ghn.sender.address') ?: 'Kho Tổng Ocean Sport, TP. Hồ Chí Minh');
+        $warehouseName = config('ocean_express.warehouse_name')
+            ?: (config('ghn.sender.name') ?: 'Kho Tổng Ocean Sport');
+        
+        $rawWarehousePhone = (string) (config('ocean_express.warehouse_phone') ?: '0901234567');
+        $warehousePhone = preg_replace('/[^\d]/', '', $rawWarehousePhone);
+        if (str_starts_with($warehousePhone, '84') && strlen($warehousePhone) === 11) {
+            $warehousePhone = '0'.substr($warehousePhone, 2);
+        }
+
+        $defaultWeight = (int) config('ocean_express.default_weight', 500);
+        $minWeight = (int) config('ocean_express.min_weight', 100);
+        $calculatedWeight = 0;
+
+        foreach ($returnRequest->items as $item) {
+            $product = $item->product ?: $item->orderItem?->product;
+            $w = max((int) ($product?->weight ?? $defaultWeight), $minWeight);
+            $calculatedWeight += $w * max((int) $item->requested_quantity, 1);
+        }
+
+        $weight = (int) ($data['weight'] ?? max($calculatedWeight, $minWeight));
+        $length = (int) ($data['length'] ?? 20);
+        $width = (int) ($data['width'] ?? 15);
+        $height = (int) ($data['height'] ?? 10);
+
+        // Chuẩn hóa thông tin người nhận sang Khách Hàng kèm nhãn [THU HỒI]:
+        // Nhờ vậy tài xế Ocean Express có số điện thoại khách để gọi và bản đồ dẫn đường chỉ thẳng đến nhà khách
+        $displayName = "[THU HỒI] {$customerName}";
+
+        $customNote = ! empty($data['required_note']) ? trim((string) $data['required_note']) : 'Thu hồi kiện hàng hoàn từ khách';
+        $dispatchNote = "[ĐƠN THU HỒI #{$returnRequest->return_code}] {$customNote} | Shipper liên hệ khách {$customerName} ({$customerPhone}) tại {$customerAddress} để nhận lại kiện hàng. Sau khi lấy xong bàn giao về {$warehouseName} ({$warehouseAddress} - SĐT: {$warehousePhone}). COD: 0đ.";
+
+        return [
+            'receiver_name' => $displayName,
+            'receiver_phone' => $customerPhone,
+            'receiver_location_id' => (string) ($customerWardCode ?: $warehouseWardCode),
+            'receiver_address_detail' => $customerAddress ?: $warehouseAddress,
+            'weight' => max(100, $weight),
+            'length' => max(1, $length),
+            'width' => max(1, $width),
+            'height' => max(1, $height),
+            'cod_amount' => 0,
+            'note' => $dispatchNote,
+        ];
+    }
+
+    public function dispatchShipping(int $id, array $data = []): array
+    {
+        $returnRequest = $this->returnRequestRepository->findForAdmin($id);
+        if (! $returnRequest) {
+            return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
+        }
+
+        if (! in_array($this->normalizeStatus($returnRequest->status), [
+            ReturnRequestStatus::PENDING->value,
+            ReturnRequestStatus::APPROVED->value,
+            ReturnRequestStatus::RETURNING->value,
+        ], true)) {
+            return $this->error('Chỉ có thể điều phối vận đơn cho yêu cầu đang chờ, đã duyệt hoặc đang gửi hoàn.', 422);
+        }
+
+        $carrier = $data['carrier'] ?? 'ocean_express';
+
+        if ($carrier === 'dropoff_post_office' || $carrier === 'self_delivery') {
+            $trackingCode = trim((string) ($data['tracking_code'] ?? $data['return_tracking_code'] ?? ''));
+            $returnRequest->update([
+                'return_carrier' => $carrier,
+                'return_tracking_code' => $trackingCode ?: $returnRequest->return_tracking_code,
+                'admin_note' => $data['admin_note'] ?? $returnRequest->admin_note,
+                'status' => ReturnRequestStatus::RETURNING->value,
+                'returning_at' => $returnRequest->returning_at ?: now(),
+            ]);
+
+            $this->updateOrderStatus($returnRequest->order, OrderStatus::RETURNING->value, 'Khách tự gửi hàng hoàn qua bưu cục/tự vận chuyển.');
+
+            return $this->success('Đã ghi nhận phương thức khách tự gửi hàng hoàn.');
+        }
+
+        // Ocean Express dispatch
+        try {
+            $orderData = $this->buildOceanExpressOrderPayload($returnRequest, $data);
+            $oeResult = OceanExpressService::createOrderDetailed($orderData);
+
+            if (! $oeResult['success'] || empty($oeResult['tracking_number'])) {
+                $errMsg = $oeResult['error'] ?? 'Ocean Express không thể tạo vận đơn thu hồi.';
+
+                return $this->error($errMsg, 400);
+            }
+
+            $trackingNumber = $oeResult['tracking_number'];
+
+            $returnRequest->update([
+                'status' => ReturnRequestStatus::APPROVED->value,
+                'return_carrier' => 'ocean_express',
+                'return_tracking_code' => $trackingNumber,
+                'return_ghn_order_code' => $trackingNumber,
+                'return_ghn_response' => $oeResult['data'] ?? [],
+                'return_label_created_at' => now(),
+                'admin_note' => $data['admin_note'] ?? $returnRequest->admin_note,
+                'approved_at' => $returnRequest->approved_at ?: now(),
+            ]);
+
+            $this->updateOrderStatus($returnRequest->order, OrderStatus::RETURN_APPROVED->value, 'Đã tạo vận đơn thu hồi Ocean Express: '.$trackingNumber);
+
+            return $this->success("Đã đẩy vận đơn thu hồi sang Ocean Express thành công! (Mã: {$trackingNumber})", [
+                'tracking_code' => $trackingNumber,
+                'carrier' => 'ocean_express',
+                'carrier_label' => 'Ocean Express',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('dispatchShipping return error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            return $this->error('Lỗi khi đẩy vận đơn sang Ocean Express: '.$e->getMessage(), 500);
+        }
+    }
+
+    public function getShippingLabelData(int $id): array
+    {
+        $returnRequest = $this->returnRequestRepository->findForAdmin($id);
+        if (! $returnRequest) {
+            return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
+        }
+
+        if (! $returnRequest->return_tracking_code) {
+            return $this->error('Yêu cầu này chưa có mã vận đơn thu hồi để in phiếu.', 422);
+        }
+
+        $trackingNumber = $returnRequest->return_tracking_code;
+        $labelRes = OceanExpressService::printLabel($trackingNumber);
+
+        $printUrl = data_get($labelRes, 'data.print_url')
+            ?? data_get($labelRes, 'data.label_url')
+            ?? data_get($labelRes, 'data.pdf_url');
+
+        $warehouseName = config('ocean_express.warehouse_name') ?: (config('ghn.sender.name') ?: 'Kho Tổng Ocean Sport');
+        $warehousePhone = config('ocean_express.warehouse_phone') ?: (config('ghn.sender.phone') ?: '0901234567');
+        $warehouseAddress = config('ocean_express.warehouse_address') ?: (config('ghn.sender.address') ?: 'Kho Ocean Sport, TP. Hồ Chí Minh');
+
+        return $this->success('Lấy thông tin in phiếu vận đơn thu hồi thành công.', [
+            'tracking_code' => $trackingNumber,
+            'carrier' => $returnRequest->return_carrier ?: 'ocean_express',
+            'carrier_label' => 'Ocean Express',
+            'print_url' => $printUrl,
+            'return_code' => $returnRequest->return_code,
+            'pickup_name' => $returnRequest->return_pickup_name ?: ($returnRequest->order?->recipient_name ?? 'Khách Hàng'),
+            'pickup_phone' => $returnRequest->return_pickup_phone ?: ($returnRequest->order?->recipient_phone ?? ''),
+            'pickup_address' => $returnRequest->return_pickup_address ?: ($returnRequest->order?->shipping_address ?? ''),
+            'warehouse_name' => $warehouseName,
+            'warehouse_phone' => $warehousePhone,
+            'warehouse_address' => $warehouseAddress,
+            'items' => $returnRequest->items->map(fn ($item) => [
+                'name' => $item->orderItem?->product_name ?? $item->product?->name ?? 'Sản phẩm',
+                'quantity' => $item->requested_quantity,
+            ]),
+        ]);
+    }
+
+    public function getTrackingData(int $id, ?int $userId = null): array
+    {
+        $query = ReturnRequest::with(['items.orderItem', 'order']);
+        if ($userId) {
+            $query->where('user_id', $userId);
+        }
+        $returnRequest = $query->find($id);
+
+        if (! $returnRequest) {
+            return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
+        }
+
+        if (! $returnRequest->return_tracking_code) {
+            return $this->error('Yêu cầu chưa có mã vận đơn thu hồi.', 422);
+        }
+
+        $trackingNumber = $returnRequest->return_tracking_code;
+        $trackingData = OceanExpressService::getTracking($trackingNumber);
+
+        $customerAddress = $returnRequest->return_pickup_address ?: ($returnRequest->order?->shipping_address ?? 'Địa chỉ khách hàng');
+        $customerName = $returnRequest->return_pickup_name ?: ($returnRequest->order?->recipient_name ?? 'Khách Hàng');
+        $customerPhone = $returnRequest->return_pickup_phone ?: ($returnRequest->order?->recipient_phone ?? '');
+
+        $warehouseAddress = config('ocean_express.warehouse_address') ?: 'Kho Tổng Ocean Sport, TP. Hồ Chí Minh';
+        $warehouseName = config('ocean_express.warehouse_name') ?: 'Kho Tổng Ocean Sport';
+        $warehousePhone = config('ocean_express.warehouse_phone') ?: '0901234567';
+
+        $logs = $trackingData['logs'] ?? ($trackingData['tracking_logs'] ?? []);
+
+        return $this->success('Tra cứu hành trình vận chuyển Ocean Express.', [
+            'tracking_code' => $trackingNumber,
+            'carrier' => $returnRequest->return_carrier ?: 'ocean_express',
+            'carrier_label' => 'Ocean Express',
+            'status' => $returnRequest->status,
+            'sender_name' => $customerName,
+            'sender_phone' => $customerPhone,
+            'sender_address' => $customerAddress,
+            'receiver_name' => $warehouseName,
+            'receiver_phone' => $warehousePhone,
+            'receiver_address' => $warehouseAddress,
+            'tracking_data' => $trackingData,
+            'logs' => $logs,
+        ]);
+    }
+
+    public function syncFromOceanExpressWebhook(ReturnRequest $returnRequest, array $payload): void
+    {
+        $oeStatus = strtolower(trim((string) ($payload['status'] ?? '')));
+        $note = $payload['note'] ?? $payload['description'] ?? "Cập nhật từ Ocean Express ({$oeStatus})";
+
+        Log::info('Syncing ReturnRequest from Ocean Express webhook', [
+            'return_request_id' => $returnRequest->id,
+            'return_code' => $returnRequest->return_code,
+            'status' => $oeStatus,
+        ]);
+
+        DB::transaction(function () use ($returnRequest, $oeStatus, $note) {
+            $currentStatus = $this->normalizeStatus($returnRequest->status);
+
+            // 1. Giai đoạn bưu tá lấy hàng / đang trên đường về kho
+            $returningStatuses = [
+                'picking', 'picked', 'picked_up', 'stored', 'storing',
+                'in_hub', 'hub_inbound', 'hub_outbound', 'transporting',
+                'in_transit', 'shipping', 'delivering',
+            ];
+
+            if (in_array($oeStatus, $returningStatuses, true)) {
+                if (in_array($currentStatus, [ReturnRequestStatus::APPROVED->value, ReturnRequestStatus::PENDING->value], true)) {
+                    $returnRequest->update([
+                        'status' => ReturnRequestStatus::RETURNING->value,
+                        'returning_at' => $returnRequest->returning_at ?: now(),
+                        'admin_note' => $returnRequest->admin_note ? $returnRequest->admin_note." | {$note}" : $note,
+                    ]);
+
+                    $this->updateOrderStatus($returnRequest->order, OrderStatus::RETURNING->value, 'Ocean Express: Shipper đã nhận kiện hàng hoàn.');
+                }
+
+                return;
+            }
+
+            // 2. Giai đoạn kiện hàng hoàn đã về tới kho shop
+            if (in_array($oeStatus, ['delivered', 'completed', 'returned'], true)) {
+                if (in_array($currentStatus, [
+                    ReturnRequestStatus::APPROVED->value,
+                    ReturnRequestStatus::RETURNING->value,
+                    ReturnRequestStatus::PENDING->value,
+                ], true)) {
+                    $returnRequest->update([
+                        'status' => ReturnRequestStatus::WAREHOUSE_RECEIVED->value,
+                        'received_at' => $returnRequest->received_at ?: now(),
+                        'warehouse_received_at' => $returnRequest->warehouse_received_at ?: now(),
+                        'admin_note' => $returnRequest->admin_note ? $returnRequest->admin_note." | {$note}" : $note,
+                    ]);
+
+                    $this->updateOrderStatus($returnRequest->order, OrderStatus::WAREHOUSE_RECEIVED->value, 'Ocean Express: Kiện hàng hoàn đã được giao về kho Shop.');
+                }
+
+                return;
+            }
+
+            // 3. Sự cố / Huỷ
+            if (in_array($oeStatus, ['cancelled', 'delivery_fail', 'damaged', 'lost'], true)) {
+                Log::warning("Ocean Express báo trạng thái bất thường cho đơn hoàn {$returnRequest->return_code}: {$oeStatus}");
+                $returnRequest->update([
+                    'admin_note' => $returnRequest->admin_note ? $returnRequest->admin_note." | [Cảnh báo vận chuyển: {$oeStatus}] {$note}" : "[Cảnh báo vận chuyển: {$oeStatus}] {$note}",
+                ]);
+            }
+        });
     }
 
     public function getLatestOrderReturnRequest(int $orderId)

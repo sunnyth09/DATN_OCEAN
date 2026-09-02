@@ -25,6 +25,22 @@ export const returnRequestService = {
     return api.get(`/admin/return-requests/${id}`);
   },
 
+  dispatchShipping(id, payload = {}) {
+    return api.post(`/admin/return-requests/${id}/dispatch-shipping`, payload);
+  },
+
+  getShippingLabel(id) {
+    return api.get(`/admin/return-requests/${id}/shipping-label`);
+  },
+
+  getTracking(id) {
+    return api.get(`/admin/return-requests/${id}/tracking`);
+  },
+
+  getMyTracking(id) {
+    return api.get(`/my/return-requests/${id}/tracking`);
+  },
+
   approveReturnRequest(id, payload = {}) {
     return api.patch(`/admin/return-requests/${id}/approve`, payload);
   },

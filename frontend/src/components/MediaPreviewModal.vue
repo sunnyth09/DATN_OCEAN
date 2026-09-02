@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { getStorageUrl } from '@/utils/url';
 
 const props = defineProps({
   show: {
@@ -33,16 +34,17 @@ const items = computed(() => {
     return props.mediaList.map((item) => {
       if (typeof item === 'string') {
         const isVid = /\.(mp4|mov|avi|webm)$/i.test(item);
-        return { url: item, type: isVid ? 'video' : 'image' };
+        return { url: getStorageUrl(item), type: isVid ? 'video' : 'image' };
       }
+      const rawUrl = item.url || item.src || '';
       return {
-        url: item.url || item.src || '',
-        type: item.type || (/\.(mp4|mov|avi|webm)$/i.test(item.url || '') ? 'video' : 'image')
+        url: getStorageUrl(rawUrl),
+        type: item.type || (/\.(mp4|mov|avi|webm)$/i.test(rawUrl) ? 'video' : 'image')
       };
     });
   }
   if (props.mediaUrl) {
-    return [{ url: props.mediaUrl, type: props.mediaType || 'image' }];
+    return [{ url: getStorageUrl(props.mediaUrl), type: props.mediaType || 'image' }];
   }
   return [];
 });

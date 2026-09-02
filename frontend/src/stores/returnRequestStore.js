@@ -73,6 +73,26 @@ export const useReturnRequestStore = defineStore('returnRequests', {
       }
     },
 
+    async dispatchReturnShipping(id, payload = {}) {
+      const response = await returnRequestService.dispatchShipping(id, payload);
+      return response.data;
+    },
+
+    async getReturnShippingLabel(id) {
+      const response = await returnRequestService.getShippingLabel(id);
+      return response.data;
+    },
+
+    async getReturnTracking(id) {
+      const response = await returnRequestService.getTracking(id);
+      return response.data;
+    },
+
+    async getMyReturnTracking(id) {
+      const response = await returnRequestService.getMyTracking(id);
+      return response.data;
+    },
+
     async approveReturnRequest(id, payload = {}) {
       const response = await returnRequestService.approveReturnRequest(id, payload);
       return response.data;

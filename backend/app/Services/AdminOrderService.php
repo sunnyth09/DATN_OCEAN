@@ -502,48 +502,95 @@ class AdminOrderService
     }
 
     /**
-     * Đồng bộ đơn hàng lên Ocean Express
+     * Điều phối tạo vận đơn vận chuyển chuyên nghiệp (Multi-carrier)
      */
-    public function syncGHN(int $id): array
+    public function dispatchShipping(int $id, array $data = []): array
     {
-        $lock = Cache::lock("oe_sync_order_{$id}", 30);
+        $carrier = $data['carrier'] ?? 'ocean_express';
+        $order = Order::with(['items.variant.product', 'address'])->where('order_id', $id)->first();
 
+        if (! $order) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        }
+
+        if ($order->tracking_number) {
+            return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã có mã vận đơn (Tracking: '.$order->tracking_number.')!'];
+        }
+
+        if ($carrier === 'self_delivery') {
+            return $this->selfDelivery($id);
+        }
+
+        $lock = Cache::lock("shipping_dispatch_order_{$id}", 30);
         if (! $lock->get()) {
-            return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đang được đồng bộ. Vui lòng thử lại sau!'];
+            return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đang được điều phối vận chuyển. Vui lòng thử lại sau!'];
         }
 
         try {
-            $order = Order::with(['items.variant.product', 'address'])->where('order_id', $id)->first();
-            if (! $order) {
-                return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+            $totalWeight = (int) ($data['weight'] ?? app(ShippingService::class)->calculateWeight($order->items));
+            $codAmount = isset($data['cod_amount'])
+                ? (int) $data['cod_amount']
+                : ($order->payment_status === 'paid' ? 0 : (int) $order->grand_total);
+
+            if ($carrier === 'ghn') {
+                $ghnResponse = GHNService::createOrder($order);
+                $ghnOrderCode = data_get($ghnResponse, 'data.order_code')
+                    ?? data_get($ghnResponse, 'order_code')
+                    ?? data_get($ghnResponse, 'data.orderCode');
+
+                if (empty($ghnOrderCode)) {
+                    throw new \Exception(data_get($ghnResponse, 'message') ?? 'GHN không trả về mã đơn hàng!');
+                }
+
+                $oldStatus = $order->fulfillment_status;
+                $order->tracking_number = $ghnOrderCode;
+                $order->ghn_order_code = $ghnOrderCode;
+
+                if (! $order->tracking_token) {
+                    $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
+                }
+
+                $order->fulfillment_status = OrderStatus::SHIPPING->value;
+                $order->shipped_at = now();
+                $order->save();
+
+                $this->sendOrderShippingMail($order->fresh(['address']));
+
+                $this->orderRepository->createStatusHistory([
+                    'order_id' => $order->order_id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $order->fulfillment_status,
+                    'note' => 'Đã tạo vận đơn giao hàng GHN Express',
+                    'source' => 'system',
+                    'description' => 'Vận đơn: '.$ghnOrderCode.' — Đơn hàng chuyển sang trạng thái Giao hàng',
+                    'happened_at' => now(),
+                ]);
+
+                return [
+                    '_status' => 200,
+                    'status' => 'success',
+                    'message' => "Đã tạo vận đơn GHN thành công! (Mã: {$ghnOrderCode})",
+                    'data' => [
+                        'tracking_number' => $ghnOrderCode,
+                        'carrier' => 'GHN Express',
+                        'raw' => $ghnResponse,
+                    ],
+                ];
             }
 
-            if ($order->tracking_number) {
-                return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ vận chuyển (Tracking: '.$order->tracking_number.')!'];
-            }
-
-            // receiver_location_id = ward_code (Ocean Express location ID, e.g. 'VN-01-00004')
+            // Default: Ocean Express
             $receiverLocationId = $order->ward_code;
-
             if (empty($receiverLocationId)) {
                 return ['_status' => 422, 'status' => 'error', 'message' => 'Đơn hàng thiếu thông tin địa chỉ (ward_code). Không thể tạo vận đơn!'];
             }
 
-            // Trọng lượng dùng CHUNG công thức với ShippingService để phí báo cho
-            // khách ở checkout và phí vận đơn thực tế không lệch nhau.
-            $totalWeight = app(ShippingService::class)->calculateWeight($order->items);
-
-            // Ocean Express API spec: POST /api/v1/orders
             $orderData = [
                 'receiver_name' => $order->recipient_name,
                 'receiver_phone' => $order->recipient_phone,
                 'receiver_location_id' => $receiverLocationId,
                 'receiver_address_detail' => $order->shipping_address,
-                'weight' => (int) $totalWeight,
-                // cod_amount: số tiền thu hộ — 0 nếu đã thanh toán trước
-                'cod_amount' => $order->payment_status === 'paid'
-                    ? 0
-                    : (int) $order->grand_total,
+                'weight' => max(10, $totalWeight),
+                'cod_amount' => $codAmount,
             ];
 
             $syncResult = OceanExpressService::createOrderDetailed($orderData);
@@ -558,10 +605,8 @@ class AdminOrderService
                     $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
                 }
 
-                // Tự động chuyển sang trạng thái shipping
                 $order->fulfillment_status = OrderStatus::SHIPPING->value;
                 $order->shipped_at = now();
-
                 $order->save();
 
                 $this->sendOrderShippingMail($order->fresh(['address']));
@@ -570,7 +615,7 @@ class AdminOrderService
                     'order_id' => $order->order_id,
                     'old_status' => $oldStatus,
                     'new_status' => $order->fulfillment_status,
-                    'note' => 'Đã đồng bộ đơn hàng sang Ocean Express',
+                    'note' => 'Đã tạo vận đơn trên Ocean Express',
                     'source' => 'system',
                     'description' => 'Vận đơn: '.$trackingNumber.' — Đơn hàng chuyển sang trạng thái Giao hàng',
                     'happened_at' => now(),
@@ -580,7 +625,11 @@ class AdminOrderService
                     '_status' => 200,
                     'status' => 'success',
                     'message' => "Đã tạo đơn hàng trên Ocean Express thành công! (Mã vận đơn: {$trackingNumber})",
-                    'data' => $result,
+                    'data' => [
+                        'tracking_number' => $trackingNumber,
+                        'carrier' => 'Ocean Express',
+                        'raw' => $result,
+                    ],
                 ];
             }
 
@@ -593,12 +642,68 @@ class AdminOrderService
                 'debug' => $syncResult,
             ];
         } catch (\Throwable $e) {
-            Log::error('Lỗi syncOceanExpress: '.$e->getMessage()."\n".$e->getTraceAsString());
+            Log::error('Lỗi dispatchShipping: '.$e->getMessage()."\n".$e->getTraceAsString());
 
             return ['_status' => 400, 'status' => 'error', 'message' => $e->getMessage()];
         } finally {
             optional($lock)->release();
         }
+    }
+
+    /**
+     * Xuất dữ liệu in phiếu giao hàng / vận đơn (Shipping Label)
+     */
+    public function getShippingLabelData(int $id): array
+    {
+        $order = Order::with(['items.variant.product', 'address', 'user'])->where('order_id', $id)->first();
+        if (! $order) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        }
+
+        $sender = config('ghn.sender', [
+            'name' => 'Ocean Sport Store',
+            'phone' => '0988888888',
+            'address' => 'Tòa nhà Ocean Sport, Hà Nội',
+        ]);
+
+        return [
+            '_status' => 200,
+            'status' => 'success',
+            'data' => [
+                'order_code' => $order->order_code,
+                'tracking_number' => $order->tracking_number ?: $order->ghn_order_code ?: 'CHUA-CO-VAN-DON',
+                'carrier' => $order->ghn_order_code ? 'GHN Express' : ($order->tracking_number === 'SELF-DELIVERY' ? 'Tự giao hàng' : 'Ocean Express'),
+                'created_at' => $order->created_at ? $order->created_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i'),
+                'sender' => $sender,
+                'receiver' => [
+                    'name' => $order->recipient_name,
+                    'phone' => $order->recipient_phone,
+                    'address' => $order->shipping_address,
+                ],
+                'items' => $order->items->map(function ($item) {
+                    return [
+                        'name' => $item->product_name ?: ($item->product?->name ?? 'Sản phẩm'),
+                        'variant' => $item->variant_name ?: ($item->variant?->variant_name ?? ''),
+                        'quantity' => (int) $item->quantity,
+                        'price' => (float) $item->unit_price,
+                        'total' => (float) $item->total_price,
+                    ];
+                }),
+                'cod_amount' => $order->payment_status === 'paid' ? 0 : (float) $order->grand_total,
+                'is_paid' => $order->payment_status === 'paid',
+                'payment_method' => $order->payment_method,
+                'note' => $order->note,
+                'grand_total' => (float) $order->grand_total,
+            ],
+        ];
+    }
+
+    /**
+     * Đồng bộ đơn hàng lên Ocean Express (Legacy support)
+     */
+    public function syncGHN(int $id): array
+    {
+        return $this->dispatchShipping($id, ['carrier' => 'ocean_express']);
     }
 
     public function selfDelivery(int $id): array

@@ -83,6 +83,39 @@ class ReturnRequestController extends Controller
         return response()->json($result['body'], $result['status_code']);
     }
 
+    public function dispatchShipping(Request $request, int $id)
+    {
+        $result = $this->returnRequestService->dispatchShipping($id, $request->all());
+
+        return response()->json($result['body'], $result['status_code']);
+    }
+
+    public function shippingLabel(int $id)
+    {
+        $result = $this->returnRequestService->getShippingLabelData($id);
+
+        return response()->json($result['body'], $result['status_code']);
+    }
+
+    public function tracking(int $id)
+    {
+        $result = $this->returnRequestService->getTrackingData($id);
+
+        return response()->json($result['body'], $result['status_code']);
+    }
+
+    public function myTracking(int $id)
+    {
+        $user = auth('api')->user();
+        if (! $user) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        $result = $this->returnRequestService->getTrackingData($id, $user->user_id);
+
+        return response()->json($result['body'], $result['status_code']);
+    }
+
     public function approve(UpdateReturnRequestStatusRequest $request, int $id)
     {
         $result = $this->returnRequestService->approve($id, $request->validated());

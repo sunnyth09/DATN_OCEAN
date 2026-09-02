@@ -75,7 +75,31 @@ class AdminOrderController extends Controller
     }
 
     /**
-     * POST — Đồng bộ đơn hàng lên GHN
+     * POST — Điều phối tạo vận đơn vận chuyển chuyên nghiệp (Multi-carrier)
+     */
+    public function dispatchShipping(Request $request, $id)
+    {
+        $result = $this->adminOrderService->dispatchShipping($id, $request->all());
+        $status = $result['_status'] ?? 200;
+        unset($result['_status']);
+
+        return response()->json($result, $status);
+    }
+
+    /**
+     * GET — Lấy dữ liệu in phiếu giao hàng / vận đơn
+     */
+    public function shippingLabel($id)
+    {
+        $result = $this->adminOrderService->getShippingLabelData($id);
+        $status = $result['_status'] ?? 200;
+        unset($result['_status']);
+
+        return response()->json($result, $status);
+    }
+
+    /**
+     * POST — Đồng bộ đơn hàng lên GHN (Legacy support)
      */
     public function syncGHN($id)
     {

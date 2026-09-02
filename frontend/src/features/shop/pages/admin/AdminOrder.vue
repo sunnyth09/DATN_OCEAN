@@ -296,28 +296,39 @@ const updateOrderStatus = async (order, action) => {
 
 const syncingOrderId = ref(null);
 const syncGhn = async (order) => {
-  const confirmResult = await Swal.fire({
-    title: 'Đẩy đơn vận chuyển',
-    text: `Tạo vận đơn và đẩy đơn hàng #${order.order_code} sang đối tác Ocean Express?`,
-    icon: 'question',
+  const { value: carrier } = await Swal.fire({
+    title: 'Điều phối Vận chuyển',
+    html: `
+      <div class="text-start">
+        <p class="mb-2">Chọn đơn vị vận chuyển cho đơn <strong>#${order.order_code}</strong>:</p>
+      </div>
+    `,
+    input: 'select',
+    inputOptions: {
+      ocean_express: '🌊 Ocean Express (Tích hợp)',
+      ghn: '⚡ GHN Express (Giao Hàng Nhanh)',
+      self_delivery: '🛵 Shop tự đi giao (Nội bộ)'
+    },
+    inputValue: 'ocean_express',
     showCancelButton: true,
     confirmButtonColor: '#E63B6F',
     cancelButtonColor: '#6c757d',
-    confirmButtonText: 'Đồng ý đẩy đơn',
+    confirmButtonText: 'Xác nhận tạo vận đơn',
     cancelButtonText: 'Hủy'
   });
-  if (!confirmResult.isConfirmed) return;
+
+  if (!carrier) return;
 
   syncingOrderId.value = order.order_id;
   try {
-    const res = await api.post(`/admin/orders/${order.order_id}/ghn-sync`);
+    const res = await api.post(`/admin/orders/${order.order_id}/dispatch-shipping`, { carrier });
     if (res.data.status === 'success') {
-      toast.success(res.data.message || 'Đã tạo vận đơn trên Ocean Express thành công!');
+      toast.success(res.data.message || 'Đã tạo vận đơn thành công!');
       window.dispatchEvent(new Event('admin-order-updated'));
       await fetchOrders(pagination.value.current_page, false);
     }
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Không thể đẩy đơn sang nhà vận chuyển');
+    toast.error(error.response?.data?.message || 'Không thể tạo vận đơn');
   } finally {
     syncingOrderId.value = null;
   }

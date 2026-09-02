@@ -153,6 +153,9 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     // Return requests (Admin only)
     Route::get('/return-requests', [ReturnRequestController::class, 'adminIndex']);
     Route::get('/return-requests/{id}', [ReturnRequestController::class, 'adminShow']);
+    Route::post('/return-requests/{id}/dispatch-shipping', [ReturnRequestController::class, 'dispatchShipping']);
+    Route::get('/return-requests/{id}/shipping-label', [ReturnRequestController::class, 'shippingLabel']);
+    Route::get('/return-requests/{id}/tracking', [ReturnRequestController::class, 'tracking']);
     Route::patch('/return-requests/{id}/approve', [ReturnRequestController::class, 'approve']);
     Route::patch('/return-requests/{id}/reject', [ReturnRequestController::class, 'reject']);
     Route::patch('/return-requests/{id}/returning', [ReturnRequestController::class, 'returning']);
@@ -201,6 +204,8 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
     Route::put('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
     Route::get('/orders/{id}/available-transitions', [AdminOrderController::class, 'availableTransitions']);
+    Route::post('/orders/{id}/dispatch-shipping', [AdminOrderController::class, 'dispatchShipping']);
+    Route::get('/orders/{id}/shipping-label', [AdminOrderController::class, 'shippingLabel']);
     Route::post('/orders/{id}/ghn-sync', [AdminOrderController::class, 'syncGHN']);
     Route::post('/orders/{id}/self-delivery', [AdminOrderController::class, 'selfDelivery']);
 
