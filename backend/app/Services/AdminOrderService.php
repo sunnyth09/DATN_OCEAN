@@ -37,6 +37,7 @@ class AdminOrderService
         protected AffiliateService $affiliateService,
         protected LoyaltyService $loyaltyService,
         protected WalletService $walletService,
+        protected CustomerTierService $customerTierService,
     ) {}
 
     /**
@@ -191,6 +192,10 @@ class AdminOrderService
 
                     $this->orderRepository->restoreStock($order->items);
 
+                    if ($order->user) {
+                        $this->customerTierService->subtractSpendingAndDowngradeTier($order->user, (float) $order->grand_total);
+                    }
+
                     if ($order->user && $order->user->email) {
                         Mail::to($order->user->email)->queue(new OrderCancelledMail($order, 'admin', $updates['cancel_reason']));
                     }
@@ -236,6 +241,7 @@ class AdminOrderService
                     OrderStatus::COMPLETED->value,
                 ], true) && $order->user) {
                     try {
+                        $this->customerTierService->addSpendingAndUpgradeTier($order->user, (float) $order->grand_total);
                         $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
 
                         $isFirstOrder = Order::where('user_id', $order->user_id)
@@ -492,11 +498,13 @@ class AdminOrderService
                     : (int) $order->grand_total,
             ];
 
-            $result = OceanExpressService::createOrder($orderData);
+            $syncResult = OceanExpressService::createOrderDetailed($orderData);
 
-            if (isset($result['tracking_number'])) {
+            if ($syncResult['success'] && ! empty($syncResult['tracking_number'])) {
+                $trackingNumber = $syncResult['tracking_number'];
+                $result = $syncResult['data'] ?? [];
                 $oldStatus = $order->fulfillment_status;
-                $order->tracking_number = $result['tracking_number'];
+                $order->tracking_number = $trackingNumber;
 
                 if (! $order->tracking_token) {
                     $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
@@ -516,18 +524,25 @@ class AdminOrderService
                     'new_status' => $order->fulfillment_status,
                     'note' => 'Đã đồng bộ đơn hàng sang Ocean Express',
                     'source' => 'system',
-                    'description' => 'Vận đơn: '.$result['tracking_number'].' — Đơn hàng chuyển sang trạng thái Giao hàng',
+                    'description' => 'Vận đơn: '.$trackingNumber.' — Đơn hàng chuyển sang trạng thái Giao hàng',
                     'happened_at' => now(),
                 ]);
-            } else {
-                return ['_status' => 400, 'status' => 'error', 'message' => 'Lỗi tạo đơn vận chuyển: Ocean Express không trả về tracking_number'];
+
+                return [
+                    '_status' => 200,
+                    'status' => 'success',
+                    'message' => "Đã tạo đơn hàng trên Ocean Express thành công! (Mã vận đơn: {$trackingNumber})",
+                    'data' => $result,
+                ];
             }
 
+            $errorMessage = $syncResult['error'] ?? 'Ocean Express không trả về tracking_number';
+
             return [
-                '_status' => 200,
-                'status' => 'success',
-                'message' => 'Đã tạo đơn hàng trên Ocean Express thành công!',
-                'data' => $result,
+                '_status' => 400,
+                'status' => 'error',
+                'message' => "Lỗi tạo đơn vận chuyển: {$errorMessage}",
+                'debug' => $syncResult,
             ];
         } catch (\Throwable $e) {
             Log::error('Lỗi syncOceanExpress: '.$e->getMessage()."\n".$e->getTraceAsString());

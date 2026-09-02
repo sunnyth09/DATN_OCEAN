@@ -29,6 +29,15 @@ class UserProfileResource extends JsonResource
             'date_of_birth' => $this->date_of_birth,
             'status' => $this->status ?? 'active',
             'role' => $this->role ?? 'customer',
+            'total_spent' => (float) ($this->total_spent ?? 0),
+            'tier_id' => $this->tier_id,
+            'tier' => $this->tier ? [
+                'name' => $this->tier->name,
+                'min_spent' => (float) $this->tier->min_spent,
+                'discount_percent' => (float) $this->tier->discount_percent,
+                'color' => $this->tier->color,
+                'icon_url' => $this->tier->icon_url,
+            ] : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

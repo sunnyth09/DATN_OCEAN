@@ -12,8 +12,10 @@ use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
 use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
 use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
 use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
+use App\Http\Controllers\Api\Admin\OpenPlayAdminController;
 use App\Http\Controllers\Api\CourtBookingController;
 use App\Http\Controllers\Api\CourtController;
+use App\Http\Controllers\Api\OpenPlayController;
 use App\Http\Controllers\GhnWebhookController;
 use App\Http\Controllers\OceanExpressWebhookController;
 use App\Http\Controllers\SepayController;
@@ -195,9 +197,11 @@ Route::middleware('auth:api,admin')->group(function () {
 // ADMIN ROUTES
 Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin')->group(function () {
     // Courts Management
+    Route::post('courts/upload-image', [CourtAdminController::class, 'uploadImage']);
     Route::apiResource('courts', CourtAdminController::class);
     Route::apiResource('court-schedules', CourtScheduleAdminController::class);
     Route::apiResource('court-prices', CourtPriceAdminController::class);
+    Route::post('court-services/upload-image', [CourtServiceAdminController::class, 'uploadImage']);
     Route::apiResource('court-services', CourtServiceAdminController::class);
     Route::apiResource('court-maintenances', CourtMaintenanceAdminController::class);
 
@@ -217,7 +221,46 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
     Route::get('/courts-calendar', [CourtBookingAdminController::class, 'calendar']);
     Route::get('/courts-dashboard', [CourtBookingAdminController::class, 'dashboard']);
     Route::get('/courts-stats', [CourtBookingAdminController::class, 'stats']);
+
+    // Admin Open Play Management
+    Route::get('/open-plays', [OpenPlayAdminController::class, 'index']);
+    Route::get('/open-plays/{id}', [OpenPlayAdminController::class, 'show']);
+    Route::post('/open-plays/scan-qr', [OpenPlayAdminController::class, 'scanQr']);
 });
+
+// OPEN PLAY ROUTES (Public, Guest & Member)
+Route::prefix('open-plays')->group(function () {
+    Route::get('/', [OpenPlayController::class, 'index']);
+    Route::post('/guest/send-otp', [OpenPlayController::class, 'sendGuestOtp'])->middleware('throttle:5,1');
+    Route::post('/guest/verify-otp', [OpenPlayController::class, 'verifyGuestOtp'])->middleware('throttle:10,1');
+    Route::get('/by-booking/{bookingId}', [OpenPlayController::class, 'byBooking'])->where('bookingId', '[0-9]+');
+    Route::get('/{id}', [OpenPlayController::class, 'show'])->where('id', '[0-9]+');
+
+    Route::middleware('auth:api,admin')->group(function () {
+        Route::get('/eligible-bookings', [OpenPlayController::class, 'eligibleBookings']);
+        Route::get('/search-invitees', [OpenPlayController::class, 'searchInvitees']);
+        Route::get('/my-plays', [OpenPlayController::class, 'myOpenPlays']);
+        Route::get('/my-open-plays', [OpenPlayController::class, 'myOpenPlays']);
+        Route::post('/init-for-booking/{bookingId}', [OpenPlayController::class, 'initForBooking'])->where('bookingId', '[0-9]+');
+        Route::post('/{id}/invite-users', [OpenPlayController::class, 'inviteUsers'])->where('id', '[0-9]+');
+        Route::post('/', [OpenPlayController::class, 'store']);
+        Route::put('/{id}', [OpenPlayController::class, 'update'])->where('id', '[0-9]+');
+        Route::post('/{id}/join', [OpenPlayController::class, 'join'])->where('id', '[0-9]+');
+        Route::post('/{id}/leave', [OpenPlayController::class, 'leave'])->where('id', '[0-9]+');
+        Route::post('/{id}/waitlist', [OpenPlayController::class, 'joinWaitlist'])->where('id', '[0-9]+');
+        Route::post('/{id}/waitlist/leave', [OpenPlayController::class, 'leaveWaitlist'])->where('id', '[0-9]+');
+        Route::post('/{id}/approve', [OpenPlayController::class, 'approve'])->where('id', '[0-9]+');
+        Route::post('/{id}/reject', [OpenPlayController::class, 'reject'])->where('id', '[0-9]+');
+        Route::post('/{id}/remove-participant', [OpenPlayController::class, 'removeParticipant'])->where('id', '[0-9]+');
+        Route::post('/{id}/close', [OpenPlayController::class, 'close'])->where('id', '[0-9]+');
+        Route::post('/{id}/cancel', [OpenPlayController::class, 'cancel'])->where('id', '[0-9]+');
+        Route::post('/{id}/pay', [OpenPlayController::class, 'pay'])->where('id', '[0-9]+');
+        Route::get('/{id}/qr', [OpenPlayController::class, 'qr'])->where('id', '[0-9]+');
+        Route::post('/{id}/check-in', [OpenPlayController::class, 'checkIn'])->where('id', '[0-9]+');
+    });
+});
+
+Route::middleware('auth:api,admin')->get('/my-open-plays', [OpenPlayController::class, 'myOpenPlays']);
 
 // ==========================================
 // GHN Integration routes

@@ -14,11 +14,18 @@ class AdminUserController extends Controller
     ) {}
 
     /**
-     * Danh sách tất cả users.
+     * Danh sách tất cả users (hỗ trợ lọc trạng thái, role, tìm kiếm và thùng rác).
      */
     public function index(Request $request)
     {
-        $users = $this->adminUserService->paginate($request->input('search', ''), $request->input('per_page', 10));
+        $filters = [
+            'search' => $request->input('search', ''),
+            'role' => $request->input('role', ''),
+            'status' => $request->input('status', ''),
+            'trashed' => $request->input('trashed', ''),
+        ];
+
+        $users = $this->adminUserService->paginate($filters, (int) $request->input('per_page', 10));
 
         return response()->json([
             'status' => 'success',
@@ -26,6 +33,19 @@ class AdminUserController extends Controller
             'total' => $users->total(),
             'current_page' => $users->currentPage(),
             'last_page' => $users->lastPage(),
+        ]);
+    }
+
+    /**
+     * Thống kê số lượng khách hàng theo từng trạng thái.
+     */
+    public function counts()
+    {
+        $counts = $this->adminUserService->getCounts();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $counts,
         ]);
     }
 
@@ -122,6 +142,62 @@ class AdminUserController extends Controller
         return response()->json([
             'status' => $result['ok'] ? 'success' : 'error',
             'message' => $result['message'],
+        ], $result['code']);
+    }
+
+    /**
+     * Khôi phục user đã xóa mềm.
+     */
+    public function restore($id)
+    {
+        $result = $this->adminUserService->restore($id);
+
+        return response()->json([
+            'status' => $result['ok'] ? 'success' : 'error',
+            'message' => $result['message'],
+        ], $result['code']);
+    }
+
+    /**
+     * Xóa vĩnh viễn user khỏi hệ thống.
+     */
+    public function forceDelete($id)
+    {
+        $result = $this->adminUserService->forceDelete($id, $this->currentUserId());
+
+        return response()->json([
+            'status' => $result['ok'] ? 'success' : 'error',
+            'message' => $result['message'],
+        ], $result['code']);
+    }
+
+    /**
+     * Khôi phục hàng loạt users.
+     */
+    public function bulkRestore(Request $request)
+    {
+        $ids = (array) $request->input('ids', []);
+        $result = $this->adminUserService->bulkRestore($ids);
+
+        return response()->json([
+            'status' => $result['ok'] ? 'success' : 'error',
+            'message' => $result['message'],
+            'count' => $result['count'] ?? 0,
+        ], $result['code']);
+    }
+
+    /**
+     * Xóa vĩnh viễn hàng loạt users.
+     */
+    public function bulkForceDelete(Request $request)
+    {
+        $ids = (array) $request->input('ids', []);
+        $result = $this->adminUserService->bulkForceDelete($ids, $this->currentUserId());
+
+        return response()->json([
+            'status' => $result['ok'] ? 'success' : 'error',
+            'message' => $result['message'],
+            'count' => $result['count'] ?? 0,
         ], $result['code']);
     }
 

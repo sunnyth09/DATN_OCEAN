@@ -498,8 +498,16 @@ const loyaltyDiscount = computed(() => {
     return (inputPoints.value || 0) * 100;
 });
 
+const tierDiscount = computed(() => {
+    const tier = authStore.user?.tier;
+    if (tier && tier.discount_percent > 0) {
+        return Math.round((subtotal.value * tier.discount_percent) / 100);
+    }
+    return 0;
+});
+
 const total = computed(() => {
-    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value);
+    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value - tierDiscount.value);
     return Math.max(0, base - walletDiscount.value);
 });
 
@@ -509,7 +517,7 @@ const walletDiscount = computed(() => {
     let sum = 0;
     if (useDeposit.value) sum += walletPreview.value.deposit_used || 0;
     if (useCommission.value) sum += walletPreview.value.commission_used || 0;
-    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value;
+    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value - tierDiscount.value;
     return Math.min(sum, Math.max(0, maxDiscount));
 });
 
@@ -1291,7 +1299,11 @@ onMounted(async () => {
                                     </div>
                                 </div>
 
-                                <div class="coupon-section">
+                                <div v-if="isFlashSale" class="flash-sale-notice" style="margin-bottom: 12px; padding: 10px 14px; background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border: 1px solid #fda4af; border-radius: 8px; font-size: 0.85rem; color: #be123c; display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 1.2rem;">⚡</span>
+                                    <span><strong>Đơn hàng Flash Sale</strong> — Không áp dụng mã giảm giá, điểm thưởng, ví và hoa hồng.</span>
+                                </div>
+                                <div class="coupon-section" v-if="!isFlashSale">
                                     <template v-if="authStore.isAuthenticated">
                                         <div class="coupon-input-group" v-if="!appliedCoupon">
                                             <input type="text" v-model="couponCode" placeholder="Nhập mã khuyến mãi"
@@ -1331,7 +1343,7 @@ onMounted(async () => {
                                 </div>
 
                                 <!-- Tiêu điểm thưởng -->
-                                <div v-if="authStore.isAuthenticated" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
+                                <div v-if="authStore.isAuthenticated && !isFlashSale" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                                         <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
                                             <input type="checkbox" v-model="useLoyaltyPoints" :disabled="loyaltyPoints < 100" style="width: 16px; height: 16px; accent-color: #ef4444;" />
@@ -1388,12 +1400,16 @@ onMounted(async () => {
                                         <span>Điểm thưởng ({{ inputPoints }} điểm)</span>
                                         <span class="discount-val" style="color: #ef4444;">- {{ formatPrice(loyaltyDiscount) }}</span>
                                     </div>
+                                    <div class="total-row" v-if="tierDiscount > 0">
+                                        <span>Ưu đãi hạng {{ authStore.user?.tier?.name }} (-{{ authStore.user?.tier?.discount_percent }}%)</span>
+                                        <span class="discount-val" style="color: #ef4444;">- {{ formatPrice(tierDiscount) }}</span>
+                                    </div>
 
 
                                     <div class="summary-divider variant-dashed"></div>
 
                                     <!-- WALLET DISCOUNT WIDGET -->
-                                    <div v-if="authStore.isAuthenticated && walletPreview" class="wallet-checkout-widget">
+                                    <div v-if="authStore.isAuthenticated && walletPreview && !isFlashSale" class="wallet-checkout-widget">
                                         <label class="wallet-toggle" :class="{ 'disabled-toggle': walletPreview.deposit_balance <= 0 }">
                                             <input type="checkbox" v-model="useDeposit" :disabled="walletPreview.deposit_balance <= 0" />
                                             <div class="wt-switch">
@@ -1419,7 +1435,7 @@ onMounted(async () => {
                                         </div>
                                     </div>
 
-                                    <div v-if="authStore.isAuthenticated && walletPreview" class="wallet-checkout-widget mt-3">
+                                    <div v-if="authStore.isAuthenticated && walletPreview && !isFlashSale" class="wallet-checkout-widget mt-3">
                                         <label class="wallet-toggle" :class="{ 'disabled-toggle': walletPreview.commission_balance <= 0 }" style="border-color: #10b981; background: #ecfdf5;">
                                             <input type="checkbox" v-model="useCommission" :disabled="walletPreview.commission_balance <= 0" />
                                             <div class="wt-switch" :style="{ backgroundColor: useCommission ? '#10b981' : '#d1d5db' }">

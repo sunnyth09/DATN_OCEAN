@@ -16,6 +16,7 @@ import '../widgets/app_toast.dart';
 import 'court_booking/widgets/booking_card.dart';
 import 'court_booking/widgets/booking_summary_bar.dart';
 import 'court_booking/widgets/court_header.dart';
+import 'court_booking/widgets/court_player_invite_sheet.dart';
 import 'court_booking/widgets/qr_check_in_dialog.dart';
 import 'court_booking/widgets/slot_grid.dart';
 import 'court_booking/widgets/stepper_counter.dart';
@@ -439,11 +440,6 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
 
       if (!mounted) return;
 
-      AppToast.showSuccess(
-        context,
-        message: 'Đặt sân thành công! Mã đơn: #${booking.code}',
-      );
-
       setState(() {
         _selectedSlotIndexes.clear();
         _serviceQuantities.clear();
@@ -456,6 +452,78 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
         _loadMyBookings(),
         if (_isStaff) _loadStaffBookings(),
       ]);
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.sports_tennis_rounded, color: AppColors.primary),
+                SizedBox(width: 8),
+                Text('Đặt sân thành công!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Mã đơn: #${booking.code}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                Text(
+                  '$_dateParam • $startTime - $endTime',
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF0F5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFFD1DC)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.lightbulb_outline, color: AppColors.primary, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Bạn muốn rủ thêm bạn bè hoặc mở quyền cho người khác chơi cùng vào lịch đặt này?',
+                          style: TextStyle(fontSize: 11.5, color: Color(0xFF334155)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Xem lịch đặt', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  CourtPlayerInviteSheet.show(
+                    context,
+                    booking: booking,
+                    onUpdated: _loadMyBookings,
+                  );
+                },
+                icon: const Icon(Icons.people_alt, size: 15),
+                label: const Text('Mời bạn bè chơi cùng'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         AppToast.showError(
@@ -491,11 +559,13 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         body: _loading
-            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
             : _error != null
                 ? AppEmptyState(
                     icon: Icons.error_outline_rounded,
-                    title: 'Lỗi tải dữ liệu sân',
+                    title: 'Lỗi tải dữ liệu',
                     message: _error!,
                     buttonText: 'Thử lại',
                     onAction: _bootstrap,

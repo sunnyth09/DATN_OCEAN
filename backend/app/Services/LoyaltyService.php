@@ -522,6 +522,8 @@ class LoyaltyService
                 $newBalance = $currentBalance - $points;
             }
 
+            $cleanDesc = trim(strip_tags($description));
+
             return LoyaltyTransaction::create([
                 'user_id' => $userId,
                 'type' => $type,
@@ -530,7 +532,7 @@ class LoyaltyService
                 'balance_after' => $newBalance,
                 'reference_type' => 'admin',
                 'reference_id' => $adminId,
-                'description' => $description.($delta < 0 ? " (-{$points}đ)" : " (+{$points}đ)"),
+                'description' => $cleanDesc.($delta < 0 ? " (-{$points}đ)" : " (+{$points}đ)"),
             ]);
         });
     }

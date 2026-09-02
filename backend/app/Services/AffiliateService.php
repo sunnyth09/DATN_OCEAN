@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
-use App\Exceptions\OrderException;
 use App\Models\AffiliateConversion;
 use App\Models\AffiliateWithdrawal;
 use App\Models\Order;
@@ -164,8 +163,6 @@ class AffiliateService
 
         return $this->success('Lấy danh sách đơn affiliate thành công!', $conversions);
     }
-
-
 
     /**
      * Lịch sử rút tiền

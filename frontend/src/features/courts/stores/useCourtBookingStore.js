@@ -88,6 +88,7 @@ export const useCourtBookingStore = defineStore('courtBooking', () => {
     if (data) courts.value = data.data || data;
     return data;
   };
+  const uploadCourtImage = (formData) => wrapAction(() => courtBookingService.uploadCourtImage(formData));
   const createAdminCourt = (payload) => wrapAction(() => courtBookingService.createAdminCourt(payload));
   const updateAdminCourt = (id, payload) => wrapAction(() => courtBookingService.updateAdminCourt(id, payload));
   const deleteAdminCourt = (id) => wrapAction(() => courtBookingService.deleteAdminCourt(id));
@@ -178,6 +179,7 @@ export const useCourtBookingStore = defineStore('courtBooking', () => {
     if (data) services.value = data.data || data;
     return data;
   };
+  const uploadCourtServiceImage = (formData) => wrapAction(() => courtBookingService.uploadCourtServiceImage(formData));
   const createService = (payload) => wrapAction(() => courtBookingService.createService(payload));
   const updateService = (id, payload) => wrapAction(() => courtBookingService.updateService(id, payload));
   const deleteService = (id) => wrapAction(() => courtBookingService.deleteService(id));
@@ -203,7 +205,7 @@ export const useCourtBookingStore = defineStore('courtBooking', () => {
     fetchUserBookings, fetchUserBookingDetail, cancelBooking, payBooking, getBookingQr, fetchPublicServices,
     
     // Admin Courts Methods
-    fetchAdminCourts, createAdminCourt, updateAdminCourt, deleteAdminCourt,
+    fetchAdminCourts, uploadCourtImage, createAdminCourt, updateAdminCourt, deleteAdminCourt,
     
     // Admin Bookings Methods
     fetchAdminBookings, fetchAdminBookingDetail, createAdminBooking,
@@ -216,7 +218,7 @@ export const useCourtBookingStore = defineStore('courtBooking', () => {
     // Admin Config Methods
     fetchSchedules, createSchedule, updateSchedule, deleteSchedule,
     fetchPrices, createPrice, updatePrice, deletePrice,
-    fetchServices, createService, updateService, deleteService,
+    fetchServices, uploadCourtServiceImage, createService, updateService, deleteService,
     fetchMaintenances, createMaintenance, updateMaintenance, deleteMaintenance
   };
 });

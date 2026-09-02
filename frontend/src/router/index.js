@@ -74,6 +74,7 @@ const routes = [
                     { path: "wallet", name: "profile-wallet", component: () => import("@/features/profile/pages/ProfileWallet.vue"), meta: { title: 'Ví của tôi' } },
                     { path: "loyalty", name: "profile-loyalty", component: () => import("@/features/profile/pages/ProfileLoyalty.vue"), meta: { title: 'Điểm thưởng' } },
                     { path: "court-bookings", name: "profile-court-bookings", component: () => import("@/features/courts/pages/client/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
+                    { path: "open-plays", name: "profile-open-plays", component: () => import("@/features/courts/pages/client/MyOpenPlays.vue"), meta: { title: 'Trận đấu của tôi' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("@/features/profile/pages/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                 ],
             },
@@ -93,6 +94,10 @@ const routes = [
             // Court Booking Pages
             { path: "courts", name: "courts-list", component: () => import("@/features/courts/pages/client/CourtsList.vue"), meta: { title: 'Đặt sân cầu lông' } },
             { path: "courts/:slug", name: "court-detail", component: () => import("@/features/courts/pages/client/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
+            // Open Play / Giao lưu Pages
+            { path: "open-plays", name: "open-plays-list", component: () => import("@/features/courts/pages/client/OpenPlayList.vue"), meta: { title: 'Kèo giao lưu / Open Play' } },
+            { path: "open-plays/create", redirect: { name: 'courts-list' } },
+            { path: "open-plays/:id", name: "open-play-detail", component: () => import("@/features/courts/pages/client/OpenPlayDetail.vue"), meta: { title: 'Chi tiết kèo giao lưu' } },
 
         ],
     },

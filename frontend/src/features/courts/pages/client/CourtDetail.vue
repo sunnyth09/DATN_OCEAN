@@ -40,6 +40,70 @@ let lockTimer = null;
 let bookingChannel = null;
 const timelineWrapper = ref(null);
 
+// ─── Real-time Live Clock & Now Tracker ───
+const liveHours = ref(new Date().getHours());
+const liveMinutes = ref(new Date().getMinutes());
+const liveSeconds = ref(new Date().getSeconds());
+let clockInterval = null;
+
+const startLiveClock = () => {
+    const update = () => {
+        const d = new Date();
+        liveHours.value = d.getHours();
+        liveMinutes.value = d.getMinutes();
+        liveSeconds.value = d.getSeconds();
+    };
+    update();
+    clockInterval = setInterval(update, 1000);
+};
+
+const isToday = computed(() => selectedDate.value === toLocalDateString(new Date()));
+
+const stripHtml = (html) => {
+    if (!html) return '';
+    return String(html).replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim();
+};
+
+const liveClockDisplay = computed(() => {
+    const h = String(liveHours.value).padStart(2, '0');
+    const m = String(liveMinutes.value).padStart(2, '0');
+    const s = String(liveSeconds.value).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+});
+
+const isCurrentSlot = (slot) => {
+    if (!isToday.value || !slot) return false;
+    const nowTimeStr = `${String(liveHours.value).padStart(2, '0')}:${String(liveMinutes.value).padStart(2, '0')}:${String(liveSeconds.value).padStart(2, '0')}`;
+    return slot.start_time <= nowTimeStr && slot.end_time > nowTimeStr;
+};
+
+const isPeakHour = (slot) => {
+    if (!slot) return false;
+    const st = slot.start_time;
+    return st >= '17:00:00' && st <= '21:30:00';
+};
+
+// ─── View Mode & Session Filtering ───
+const viewMode = ref('grid'); // 'grid' | 'timeline'
+const activeSession = ref('all'); // 'all' | 'morning' | 'afternoon' | 'evening'
+
+const getSlotSession = (slot) => {
+    const hour = parseInt(slot.start_time.split(':')[0], 10);
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    return 'evening';
+};
+
+const filteredSlots = computed(() => {
+    if (activeSession.value === 'all') return availableSlots.value;
+    return availableSlots.value.filter(s => getSlotSession(s) === activeSession.value);
+});
+
+const morningCount = computed(() => availableSlots.value.filter(s => getSlotSession(s) === 'morning' && (s.status === 'available' || s.is_my_lock)).length);
+const afternoonCount = computed(() => availableSlots.value.filter(s => getSlotSession(s) === 'afternoon' && (s.status === 'available' || s.is_my_lock)).length);
+const eveningCount = computed(() => availableSlots.value.filter(s => getSlotSession(s) === 'evening' && (s.status === 'available' || s.is_my_lock)).length);
+const allAvailableCount = computed(() => availableSlots.value.filter(s => s.status === 'available' || s.is_my_lock).length);
+
 const DEFAULT_COURT_IMAGE = 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=800&auto=format&fit=crop';
 
 const handleImgError = (event) => {
@@ -112,6 +176,7 @@ const bookingSummary = computed(() => {
 });
 
 onMounted(async () => {
+    startLiveClock();
     await store.fetchCourtDetail(courtId);
     await fetchServices();
     await fetchAvailableSlots();
@@ -119,6 +184,7 @@ onMounted(async () => {
 });
 
 onUnmounted(async () => {
+    if (clockInterval) clearInterval(clockInterval);
     clearLockTimer();
     await releaseActiveLock();
     leaveRealtime();
@@ -470,20 +536,37 @@ const proceedBooking = async () => {
         }
         payload.lock_token = lockToken;
 
-        await store.bookCourt(payload);
+        const res = await store.bookCourt(payload);
+        const newBooking = res?.data || res;
+        const newBookingId = newBooking?.booking_id || newBooking?.id;
+
         activeLock.value = null;
         clearLockTimer();
         await Swal.fire({
             icon: 'success',
-            title: 'Đặt sân thành công!',
-            text: `Sân ${courtName.value} • ${selectedDate.value} • ${startTime} - ${endTime}`,
-            confirmButtonText: 'Xem đơn đặt sân',
+            title: '🏸 Đặt sân thành công!',
+            html: `
+                <div style="font-size: 14px; margin-bottom: 10px;">
+                    <strong>Sân:</strong> ${courtName.value} <br>
+                    <strong>Thời gian:</strong> ${selectedDate.value} • ${startTime} - ${endTime}
+                </div>
+                <div style="font-size: 13px; color: #64748b; background: #fff0f5; padding: 10px 14px; border-radius: 10px; border: 1px dashed #fbcfe8;">
+                    💡 Bạn muốn rủ thêm bạn bè hoặc mở quyền cho người khác chơi cùng?
+                </div>
+            `,
+            confirmButtonText: '👥 Mời người chơi cùng',
+            showDenyButton: true,
+            denyButtonText: '📋 Xem đơn đặt sân',
             showCancelButton: true,
             cancelButtonText: 'Tiếp tục đặt',
-            confirmButtonColor: '#e63b6f'
+            confirmButtonColor: '#e63b6f',
+            denyButtonColor: '#0f172a',
+            cancelButtonColor: '#6c757d'
         }).then((result) => {
             if (result.isConfirmed) {
-                router.push({ name: 'profile-court-bookings' });
+                router.push({ name: 'profile-court-bookings', query: { booking_id: newBookingId, invite: '1' } });
+            } else if (result.isDenied) {
+                router.push({ name: 'profile-court-bookings', query: { booking_id: newBookingId } });
             } else {
                 // Reset state
                 selectedSlots.value = [];
@@ -627,7 +710,7 @@ onUnmounted(() => {
                             </span>
                         </div>
                         <p class="text-muted mb-0" style="font-size: 0.9rem; line-height: 1.6;">
-                            {{ store.currentCourt.description || 'Sân cầu lông đạt chuẩn thi đấu, bề mặt thảm chất lượng cao chống trơn trượt.' }}
+                            {{ stripHtml(store.currentCourt.description) || 'Sân cầu lông đạt chuẩn thi đấu, bề mặt thảm chất lượng cao chống trơn trượt.' }}
                         </p>
                     </div>
                 </div>
@@ -635,18 +718,42 @@ onUnmounted(() => {
                 <!-- Date & Time Selection -->
                 <div class="card border-0 rounded-4 mb-4" style="box-shadow: var(--court-ambient-shadow);">
                     <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-                            <h5 class="fw-bold mb-0">
-                                <i class="bi bi-calendar-check me-2" style="color: var(--court-primary);"></i>Chọn Ngày
-                                & Giờ
-                            </h5>
-                            <input type="date" class="form-control w-auto fw-semibold" v-model="selectedDate"
-                                :min="toLocalDateString()"
-                                style="border-radius: 10px; border-color: rgba(0,0,0,0.08); background: var(--court-section-bg, #f8f9fb);">
+                        <!-- Card Header: Title, Live Clock, Date Picker & View Mode -->
+                        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h5 class="fw-bold mb-0">
+                                    <i class="bi bi-calendar-check me-2" style="color: var(--court-primary);"></i>Chọn Ngày & Giờ
+                                </h5>
+                                <!-- Real-time Live Clock Badge -->
+                                <span v-if="isToday" class="court-live-clock">
+                                    <span class="live-pulse-dot"></span>
+                                    Bây giờ: {{ liveClockDisplay }}
+                                </span>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2">
+                                <!-- View Mode Toggle (Grid / Timeline) -->
+                                <div class="view-mode-toggle">
+                                    <button class="view-mode-btn"
+                                        :class="{ 'view-mode-btn--active': viewMode === 'grid' }"
+                                        @click="viewMode = 'grid'" title="Xem dạng lưới thẻ">
+                                        <i class="bi bi-grid-fill"></i> Lưới
+                                    </button>
+                                    <button class="view-mode-btn"
+                                        :class="{ 'view-mode-btn--active': viewMode === 'timeline' }"
+                                        @click="viewMode = 'timeline'" title="Xem dạng dòng thời gian">
+                                        <i class="bi bi-bar-chart-steps"></i> Timeline
+                                    </button>
+                                </div>
+
+                                <input type="date" class="form-control w-auto fw-semibold" v-model="selectedDate"
+                                    :min="toLocalDateString()"
+                                    style="border-radius: 10px; border-color: rgba(0,0,0,0.08); background: var(--court-section-bg, #f8f9fb);">
+                            </div>
                         </div>
 
                         <!-- Quick Date Selector -->
-                        <div class="d-flex gap-2 mb-4 overflow-auto pb-2" style="scrollbar-width: thin;">
+                        <div class="d-flex gap-2 mb-3 overflow-auto pb-2" style="scrollbar-width: thin;">
                             <button v-for="qd in quickDates" :key="qd.value"
                                 class="btn flex-shrink-0 d-flex flex-column align-items-center px-3 py-2 rounded-3"
                                 :class="selectedDate === qd.value ? 'quick-date--selected' : 'quick-date'"
@@ -655,6 +762,34 @@ onUnmounted(() => {
                                     style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">{{
                                     qd.day }}</span>
                                 <span style="font-size: 1.1rem; font-weight: 800;">{{ qd.date }}</span>
+                            </button>
+                        </div>
+
+                        <!-- Session Filter Tabs -->
+                        <div v-if="availableSlots.length > 0" class="slot-session-nav mb-3">
+                            <button class="session-tab-btn"
+                                :class="{ 'session-tab-btn--active': activeSession === 'all' }"
+                                @click="activeSession = 'all'">
+                                <i class="bi bi-grid-3x3-gap"></i> Tất cả
+                                <span class="badge">{{ allAvailableCount }}</span>
+                            </button>
+                            <button class="session-tab-btn"
+                                :class="{ 'session-tab-btn--active': activeSession === 'morning' }"
+                                @click="activeSession = 'morning'">
+                                <i class="bi bi-brightness-alt-high"></i> Sáng (05h - 12h)
+                                <span class="badge">{{ morningCount }}</span>
+                            </button>
+                            <button class="session-tab-btn"
+                                :class="{ 'session-tab-btn--active': activeSession === 'afternoon' }"
+                                @click="activeSession = 'afternoon'">
+                                <i class="bi bi-sun"></i> Chiều (12h - 17h)
+                                <span class="badge">{{ afternoonCount }}</span>
+                            </button>
+                            <button class="session-tab-btn"
+                                :class="{ 'session-tab-btn--active': activeSession === 'evening' }"
+                                @click="activeSession = 'evening'">
+                                <i class="bi bi-moon-stars"></i> Tối (17h - 23h <i class="bi bi-star-fill text-warning" style="font-size: 0.75rem;"></i>)
+                                <span class="badge">{{ eveningCount }}</span>
                             </button>
                         </div>
 
@@ -674,50 +809,95 @@ onUnmounted(() => {
                                 thiết lập lịch.</div>
                         </div>
 
-                        <!-- Time Slots Grid -->
+                        <!-- Time Slots Content -->
                         <div v-else>
                             <!-- Legend -->
                             <div class="d-flex gap-3 mb-3 flex-wrap">
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span
-                                        style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-available);"></span>
+                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-available);"></span>
                                     Trống
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span
-                                        style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-primary);"></span>
+                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-primary);"></span>
                                     Đã chọn
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span
-                                        style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-closed);"></span>
+                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-closed);"></span>
                                     Đã đặt
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span
-                                        style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-pending);"></span>
+                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-pending);"></span>
                                     Đang giữ
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span
-                                        style="width: 12px; height: 12px; border-radius: 4px; background: #adb5bd;"></span>
-                                    Không khả dụng
+                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: #adb5bd;"></span>
+                                    Đã qua
                                 </span>
                             </div>
 
-                            <div class="client-timeline-wrapper" ref="timelineWrapper">
-                                <div class="client-timeline">
+                            <!-- 1. MODE: SMART GRID VIEW -->
+                            <div v-if="viewMode === 'grid'">
+                                <div v-if="filteredSlots.length === 0" class="text-center py-4 text-muted" style="font-size: 0.88rem;">
+                                    Không có khung giờ nào trong buổi này.
+                                </div>
+                                <div v-else class="smart-slot-grid">
+                                    <div v-for="slot in filteredSlots" :key="slot.start_time"
+                                        class="slot-card-item"
+                                        :class="{
+                                            'slot-card--selected': isSlotSelected(slot),
+                                            'slot-card--available': slot.status === 'available' && !isSlotSelected(slot),
+                                            'slot-card--now-ongoing': isCurrentSlot(slot) && !isSlotSelected(slot),
+                                            'slot-card--locked': slot.status === 'locked' && !slot.is_my_lock,
+                                            'slot-card--booked': slot.status === 'booked',
+                                            'slot-card--past': slot.status === 'past',
+                                            'slot-card--maintenance': ['maintenance', 'closed'].includes(slot.status),
+                                            'slot-card--disabled': !['available'].includes(slot.status) && !slot.is_my_lock
+                                        }"
+                                        @click="(slot.status === 'available' || slot.is_my_lock) && toggleSlot(slot)">
+                                        
+                                        <!-- Badges: Now or Peak -->
+                                        <span v-if="isCurrentSlot(slot)" class="slot-card-badge slot-card-badge--now">
+                                            BÂY GIỜ
+                                        </span>
+                                        <span v-else-if="isPeakHour(slot)" class="slot-card-badge slot-card-badge--peak">
+                                            GIỜ VÀNG
+                                        </span>
+
+                                        <!-- Time Interval -->
+                                        <div class="slot-card-time">
+                                            {{ formatTime(slot.start_time) }} - {{ formatTime(slot.end_time) }}
+                                        </div>
+
+                                        <!-- Price / Status -->
+                                        <div class="slot-card-price" v-if="slot.status === 'available' || slot.is_my_lock || isSlotSelected(slot)">
+                                            {{ formatCurrency(slot.price) }}
+                                        </div>
+                                        <div class="slot-card-status-label text-muted" v-else>
+                                            {{ getSlotStatusLabel(slot.status) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. MODE: TIMELINE VIEW -->
+                            <div v-else class="client-timeline-wrapper" ref="timelineWrapper" style="position: relative;">
+                                <div class="client-timeline" style="position: relative;">
                                     <div v-for="slot in availableSlots" :key="slot.start_time"
                                         class="client-timeline-slot" :class="{
                                             'slot--selected': isSlotSelected(slot),
                                             'slot--available': slot.status === 'available',
                                             'slot--booked': slot.status === 'booked',
                                             'slot--locked': slot.status === 'locked',
+                                            'slot--now-ongoing': isCurrentSlot(slot),
                                             'slot--unavailable': ['maintenance', 'past', 'closed'].includes(slot.status)
                                         }"
                                         @click="(slot.status === 'available' || slot.is_my_lock) && toggleSlot(slot)"
                                         :title="getSlotStatusLabel(slot.status) + (slot.price && slot.status === 'available' ? ' - ' + formatCurrency(slot.price) : '')">
-                                        <div class="slot-time-label">{{ formatTime(slot.start_time) }}</div>
+                                        
+                                        <div class="slot-time-label d-flex align-items-center gap-1 justify-content-center">
+                                            {{ formatTime(slot.start_time) }}
+                                            <span v-if="isCurrentSlot(slot)" class="badge bg-danger p-1" style="font-size: 0.55rem;">NOW</span>
+                                        </div>
                                         <div class="slot-bar">
                                             <i v-if="slot.status === 'booked'" class="bi bi-x"></i>
                                             <i v-else-if="slot.status === 'locked'" class="bi bi-lock-fill"></i>
@@ -727,8 +907,7 @@ onUnmounted(() => {
                                     <!-- End label for the last slot -->
                                     <div class="client-timeline-slot client-timeline-slot--end"
                                         v-if="availableSlots.length > 0">
-                                        <div class="slot-time-label">{{ formatTime(availableSlots[availableSlots.length
-                                            - 1].end_time) }}</div>
+                                        <div class="slot-time-label">{{ formatTime(availableSlots[availableSlots.length - 1].end_time) }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -876,6 +1055,25 @@ onUnmounted(() => {
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Mobile Floating Sticky Checkout Bar -->
+        <div v-if="store.currentCourt && selectedSlots.length > 0" class="mobile-sticky-bar">
+            <div>
+                <div style="font-size: 0.76rem; color: #64748b; font-weight: 600;">
+                    {{ selectedSlots.length }} slot • {{ bookingSummary.totalTime }} giờ
+                </div>
+                <div class="fw-bold" style="font-size: 1.15rem; color: var(--court-primary);">
+                    {{ formatCurrency(bookingSummary.total) }}
+                </div>
+            </div>
+            <button class="btn px-4 py-2 text-white fw-bold rounded-pill"
+                style="background: var(--court-primary); box-shadow: 0 4px 14px rgba(230,59,111,0.35); font-size: 0.9rem;"
+                :disabled="bookingInProgress"
+                @click="proceedBooking">
+                <span v-if="bookingInProgress" class="spinner-border spinner-border-sm me-1"></span>
+                Đặt Sân Ngay <i class="bi bi-arrow-right ms-1"></i>
+            </button>
         </div>
     </div>
 </template>

@@ -149,9 +149,7 @@
 
             <div class="ticket-content">
               <h4>Lý do: {{ selectedTicket.reason }}</h4>
-              <div class="description-box">
-                {{ selectedTicket.description }}
-              </div>
+              <div class="description-box" v-html="sanitizeHtml(selectedTicket.description || '(Không có nội dung mô tả)')"></div>
               <div class="image-box" v-if="selectedTicket.image_url">
                  <p><strong>Ảnh minh chứng:</strong></p>
                  <img :src="getImageUrl(selectedTicket.image_url)" alt="Minh chứng" class="evidence-img" @click="openImage(selectedTicket.image_url)">
@@ -199,6 +197,7 @@ import Swal from 'sweetalert2';
 import api from '@/axios';
 import AppIcon from '@/components/AppIcon.vue';
 import { getStorageUrl } from '@/utils/url';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const tickets = ref([]);
 const loading = ref(false);
@@ -581,7 +580,9 @@ onMounted(() => {
   background: var(--surface-container); padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0;
 }
 .ticket-content h4 { margin: 0 0 12px; font-size: 1.1rem; color: #dc2626; }
-.description-box { color: #334155; line-height: 1.6; white-space: pre-wrap; }
+.description-box { color: #334155; line-height: 1.6; word-break: break-word; }
+.description-box p { margin: 0 0 8px 0; }
+.description-box p:last-child { margin-bottom: 0; }
 
 .image-box { margin-top: 16px; }
 .evidence-img { max-width: 100%; max-height: 200px; border-radius: 8px; cursor: zoom-in; border: 1px solid #e2e8f0; }

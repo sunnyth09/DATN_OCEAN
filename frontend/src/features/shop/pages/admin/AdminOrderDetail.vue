@@ -436,6 +436,40 @@ const getOtherDiscount = (orderData) => {
   return remaining > 0 ? remaining : 0;
 };
 
+const isPosOrder = computed(() => {
+  if (!order.value) return false;
+  return order.value.order_type === 'pos' || order.value.order_code?.startsWith('POS');
+});
+
+const isPosGuest = computed(() => {
+  if (!order.value) return false;
+  if (!isPosOrder.value) return false;
+  return !order.value.user_id || order.value.user_id === order.value.seller_id;
+});
+
+const isDownloadingPosPdf = ref(false);
+const downloadPosReceipt = async () => {
+  if (!order.value) return;
+  try {
+    isDownloadingPosPdf.value = true;
+    const response = await api.get(`/admin/pos/orders/${order.value.order_id}/receipt-pdf`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `hoadon_${order.value.order_code}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+    toast.success('Đã tải hóa đơn POS thành công!');
+  } catch (error) {
+    toast.error('Lỗi khi tải hóa đơn POS. Vui lòng thử lại!');
+    console.error('POS receipt error:', error);
+  } finally {
+    isDownloadingPosPdf.value = false;
+  }
+};
+const downloadPosReceiptPdf = downloadPosReceipt;
+
 const formatDate = (dateString) => {
   if (!dateString) return '—';
   const date = new Date(dateString);
@@ -550,7 +584,38 @@ const syncGhn = async () => {
       fetchOrder();
     }
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Không thể đồng bộ vận chuyển');
+    const errorMsg = error.response?.data?.message || 'Không thể đồng bộ vận chuyển';
+    toast.error(errorMsg);
+
+    Swal.fire({
+      title: 'Đẩy Đơn Vận Chuyển Thất Bại',
+      html: `
+        <div class="text-start">
+          <p class="text-danger fw-bold mb-2 small">Chi tiết lỗi từ Ocean Express:</p>
+          <div class="p-2.5 bg-light border border-danger-subtle rounded small text-dark mb-3" style="font-size: 0.85rem; line-height: 1.4;">
+            ${errorMsg}
+          </div>
+          <div class="small text-muted">
+            <strong class="text-dark">💡 Hướng dẫn vá lỗi kịp thời:</strong>
+            <ul class="mb-0 ps-3 mt-1">
+              <li>Kiểm tra lại SĐT người nhận (10 chữ số).</li>
+              <li>Kiểm tra mã địa chỉ phường/xã (ward_code) có hợp lệ không.</li>
+              <li>Hoặc bấm <strong>"Tự Giao Hàng"</strong> để đẩy đơn sang Đang Giao ngay lập tức!</li>
+            </ul>
+          </div>
+        </div>
+      `,
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Chuyển sang Tự Giao Hàng',
+      cancelButtonText: 'Đóng & Kiểm tra lại'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        confirmSelfDelivery();
+      }
+    });
   } finally {
     isSyncingGhn.value = false;
   }
@@ -623,28 +688,6 @@ const printLabel = async () => {
     toast.error('Lỗi khi in vận đơn');
   } finally {
     isPrinting.value = false;
-  }
-};
-
-const isDownloadingPosPdf = ref(false);
-const downloadPosReceiptPdf = async () => {
-  if (!order.value) return;
-  isDownloadingPosPdf.value = true;
-  try {
-    const response = await api.get(`/admin/pos/orders/${order.value.order_id}/receipt-pdf`, { responseType: 'blob' });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `hoadon_${order.value.order_code}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.parentNode.removeChild(link);
-    toast.success('Đã tải hóa đơn POS thành công!');
-  } catch (error) {
-    toast.error('Lỗi khi tải hóa đơn POS. Vui lòng thử lại!');
-    console.error('PDF error:', error);
-  } finally {
-    isDownloadingPosPdf.value = false;
   }
 };
 
@@ -807,7 +850,11 @@ onMounted(() => fetchOrder());
             <p class="page-sub">Ngày đặt: {{ formatDate(order.created_at) }}</p>
           </div>
         </div>
-        <div class="header-badges">
+        <div class="header-badges" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button v-if="isPosOrder" class="btn-print-pos" @click="downloadPosReceipt" :disabled="isDownloadingPosPdf" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; background: #0284c7; color: #fff; font-size: 0.82rem; font-weight: 700; border: none; cursor: pointer; transition: background 0.2s;" title="Tải/In hóa đơn bán hàng tại quầy">
+            <AppIcon name="printer" size="15" />
+            <span>{{ isDownloadingPosPdf ? 'Đang tải...' : 'In hóa đơn POS' }}</span>
+          </button>
           <span class="status-badge" :class="getStatusBadgeClass(order.fulfillment_status)">{{ getStatusLabel(order.fulfillment_status) }}</span>
           <span class="status-badge" :class="getPaymentBadgeClass(order.payment_status)">{{ paymentLabels[order.payment_status] || order.payment_status }}</span>
         </div>
@@ -1003,15 +1050,19 @@ onMounted(() => fetchOrder());
             <div class="info-rows">
               <div class="info-row">
                 <span class="info-label">Tên</span>
-                <span class="info-value">{{ order.recipient_name || (order.user_id !== order.seller_id ? (order.user?.name || order.user?.full_name) : '') || 'Khách lẻ' }}</span>
+                <span class="info-value fw-bold">{{ isPosGuest ? (order.recipient_name || 'Khách lẻ') : (order.user?.full_name || order.user?.name || order.recipient_name || 'Khách lẻ') }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Email</span>
-                <span class="info-value">{{ getCustomerEmail }}</span>
+                <span class="info-value">{{ isPosGuest ? '—' : (getCustomerEmail !== 'None' ? getCustomerEmail : '—') }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Điện thoại</span>
-                <span class="info-value">{{ getCustomerPhone }}</span>
+                <span class="info-value">{{ order.recipient_phone || (isPosGuest ? '—' : (getCustomerPhone !== 'None' ? getCustomerPhone : '—')) }}</span>
+              </div>
+              <div class="info-row" v-if="order.seller">
+                <span class="info-label">Thu ngân</span>
+                <span class="info-value">{{ order.seller.full_name || order.seller.name }}</span>
               </div>
               <template v-if="order.order_type === 'pos'">
                 <div class="info-row">

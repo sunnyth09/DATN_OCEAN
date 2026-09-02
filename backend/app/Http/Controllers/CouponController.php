@@ -15,11 +15,17 @@ class CouponController extends Controller
     ) {}
 
     /**
-     * Admin: Danh sách tất cả mã giảm giá (kèm categories + lượt dùng)
+     * Admin: Danh sách tất cả mã giảm giá (kèm categories + lượt dùng + lọc thùng rác)
      */
-    public function index()
+    public function index(Request $request)
     {
-        $coupons = $this->couponService->adminPaginate();
+        $filters = [
+            'status' => $request->input('status'),
+            'trashed' => $request->input('trashed'),
+            'search' => $request->input('search'),
+        ];
+
+        $coupons = $this->couponService->adminPaginate($filters, (int) $request->input('per_page', 20));
 
         return response()->json([
             'status' => 'success',
@@ -27,6 +33,17 @@ class CouponController extends Controller
             'total' => $coupons->total(),
             'current_page' => $coupons->currentPage(),
             'last_page' => $coupons->lastPage(),
+        ]);
+    }
+
+    /**
+     * Admin: Thống kê số lượng mã giảm giá theo từng tab trạng thái.
+     */
+    public function counts()
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->couponService->getCounts(),
         ]);
     }
 
@@ -90,7 +107,73 @@ class CouponController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã xóa mã giảm giá thành công!',
+            'message' => 'Đã chuyển mã giảm giá vào thùng rác thành công!',
+        ]);
+    }
+
+    /**
+     * Admin: Khôi phục mã giảm giá
+     */
+    public function restore($id)
+    {
+        if (! $this->couponService->adminRestore($id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không tìm thấy mã giảm giá trong thùng rác!',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã khôi phục mã giảm giá thành công!',
+        ]);
+    }
+
+    /**
+     * Admin: Xóa vĩnh viễn mã giảm giá
+     */
+    public function forceDelete($id)
+    {
+        if (! $this->couponService->adminForceDelete($id)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không tìm thấy mã giảm giá!',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã xóa vĩnh viễn mã giảm giá!',
+        ]);
+    }
+
+    /**
+     * Admin: Khôi phục hàng loạt mã giảm giá
+     */
+    public function bulkRestore(Request $request)
+    {
+        $ids = (array) $request->input('ids', []);
+        $count = $this->couponService->adminBulkRestore($ids);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Đã khôi phục thành công {$count} mã giảm giá!",
+            'count' => $count,
+        ]);
+    }
+
+    /**
+     * Admin: Xóa vĩnh viễn hàng loạt mã giảm giá
+     */
+    public function bulkForceDelete(Request $request)
+    {
+        $ids = (array) $request->input('ids', []);
+        $count = $this->couponService->adminBulkForceDelete($ids);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Đã xóa vĩnh viễn thành công {$count} mã giảm giá!",
+            'count' => $count,
         ]);
     }
 

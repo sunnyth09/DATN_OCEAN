@@ -4,16 +4,15 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Court;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class CourtAdminController extends Controller
 {
     /**
      * Lấy danh sách tất cả các sân bóng (kèm theo lịch và giá).
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -35,8 +34,7 @@ class CourtAdminController extends Controller
      * Thêm mới một sân bóng vào hệ thống.
      * Tự động sinh slug từ tên sân.
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(Request $request)
     {
@@ -44,10 +42,13 @@ class CourtAdminController extends Controller
             'court_name' => 'required|string|max:100',
             'court_code' => 'required|string|max:20|unique:courts,court_code',
             'type' => 'required|in:standard,vip,outdoor,indoor',
+            'surface' => 'nullable|string|max:50',
+            'max_players' => 'nullable|integer|min:1|max:20',
+            'description' => 'nullable|string',
+            'image_url' => 'nullable|string',
+            'sort_order' => 'nullable|integer|min:0',
             'status' => 'required|in:active,inactive,maintenance,closed',
         ]);
-
-        $validated['slug'] = Str::slug($validated['court_name']);
 
         $court = Court::create($validated);
 
@@ -61,8 +62,8 @@ class CourtAdminController extends Controller
     /**
      * Hiển thị thông tin chi tiết một sân bóng theo ID.
      *
-     * @param int $id ID của sân bóng
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID của sân bóng
+     * @return JsonResponse
      */
     public function show($id)
     {
@@ -76,11 +77,9 @@ class CourtAdminController extends Controller
 
     /**
      * Cập nhật thông tin sân bóng.
-     * Sẽ cập nhật lại slug nếu có sự thay đổi về tên sân.
      *
-     * @param \Illuminate\Http\Request $request
-     * @param int $id ID của sân bóng
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID của sân bóng
+     * @return JsonResponse
      */
     public function update(Request $request, $id)
     {
@@ -90,12 +89,13 @@ class CourtAdminController extends Controller
             'court_name' => 'sometimes|string|max:100',
             'court_code' => 'sometimes|string|max:20|unique:courts,court_code,'.$court->court_id.',court_id',
             'type' => 'sometimes|in:standard,vip,outdoor,indoor',
+            'surface' => 'nullable|string|max:50',
+            'max_players' => 'nullable|integer|min:1|max:20',
+            'description' => 'nullable|string',
+            'image_url' => 'nullable|string',
+            'sort_order' => 'nullable|integer|min:0',
             'status' => 'sometimes|in:active,inactive,maintenance,closed',
         ]);
-
-        if (isset($validated['court_name'])) {
-            $validated['slug'] = Str::slug($validated['court_name']);
-        }
 
         $court->update($validated);
 
@@ -107,10 +107,35 @@ class CourtAdminController extends Controller
     }
 
     /**
+     * Upload ảnh đại diện sân
+     *
+     * @return JsonResponse
+     */
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
+        ]);
+
+        $file = $request->file('image');
+        $path = $file->store('uploads/courts', 'public');
+        $url = asset('storage/'.$path);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Image uploaded successfully.',
+            'data' => [
+                'path' => $path,
+                'url' => $url,
+            ],
+        ]);
+    }
+
+    /**
      * Xóa mềm (soft delete) một sân bóng khỏi hệ thống.
      *
-     * @param int $id ID của sân bóng
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID của sân bóng
+     * @return JsonResponse
      */
     public function destroy($id)
     {

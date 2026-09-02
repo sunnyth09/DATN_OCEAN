@@ -38,6 +38,10 @@ import '../screens/loyalty_screen.dart';
 import '../screens/lucky_wheel_screen.dart';
 import '../screens/chat_screen.dart';
 import '../screens/order_tracking_screen.dart';
+import '../screens/open_play_list_screen.dart';
+import '../screens/open_play_detail_screen.dart';
+import '../screens/create_open_play_screen.dart';
+import '../screens/my_open_plays_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> shellNavigatorHomeKey = GlobalKey<NavigatorState>(debugLabel: 'homeTab');
@@ -296,6 +300,29 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/loyalty',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const LoyaltyScreen(),
+      ),
+      GoRoute(
+        path: '/open-plays',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const OpenPlayListScreen(),
+      ),
+      GoRoute(
+        path: '/open-plays/:id',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return OpenPlayDetailScreen(matchId: id);
+        },
+      ),
+      GoRoute(
+        path: '/create-open-play',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const CreateOpenPlayScreen(),
+      ),
+      GoRoute(
+        path: '/my-open-plays',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const MyOpenPlaysScreen(),
       ),
       GoRoute(
         path: '/chat',
