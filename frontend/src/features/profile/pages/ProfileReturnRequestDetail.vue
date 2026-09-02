@@ -750,7 +750,7 @@ const goBack = () => {
                 <span class="node-dot sender"></span>
                 <div class="node-info">
                   <span class="node-type">Điểm lấy hàng</span>
-                  <p class="node-addr">{{ customerTrackingInfo.tracking_data?.sender_address || detail?.return_pickup_address || detail?.order?.shipping_address || 'Địa chỉ của bạn' }}</p>
+                  <p class="node-addr">{{ customerTrackingInfo.sender_address || detail?.return_pickup_address || detail?.order?.shipping_address || 'Địa chỉ của bạn' }}</p>
                 </div>
               </div>
               <div class="route-line"></div>
@@ -758,7 +758,7 @@ const goBack = () => {
                 <span class="node-dot receiver"></span>
                 <div class="node-info">
                   <span class="node-type">Điểm nhận hàng (Kho shop)</span>
-                  <p class="node-addr">{{ customerTrackingInfo.tracking_data?.receiver_address || 'Kho Tổng Ocean Sport' }}</p>
+                  <p class="node-addr">{{ customerTrackingInfo.receiver_address || '300/6 Hà Huy Tập, Phường Tân An, Tỉnh Đắk Lắk' }}</p>
                 </div>
               </div>
             </div>

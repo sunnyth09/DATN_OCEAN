@@ -22,6 +22,12 @@ return [
     'default_weight' => (int) env('OCEAN_EXPRESS_DEFAULT_WEIGHT', 500),
     'min_weight' => (int) env('OCEAN_EXPRESS_MIN_WEIGHT', 100),
 
+    // Thông tin Kho / Địa chỉ Shop nhận hàng hoàn (Nơi nhận của đơn thu hồi)
+    'warehouse_name' => env('OCEAN_EXPRESS_WAREHOUSE_NAME', 'Kho Tổng Ocean Sport'),
+    'warehouse_phone' => env('OCEAN_EXPRESS_WAREHOUSE_PHONE', '0905094644'),
+    'warehouse_address' => env('OCEAN_EXPRESS_WAREHOUSE_ADDRESS', '300/6 Hà Huy Tập, Phường Tân An, Tỉnh Đắk Lắk'),
+    'warehouse_ward_code' => env('OCEAN_EXPRESS_WAREHOUSE_WARD_CODE', 'VN-66-24163'),
+
     /*
     |--------------------------------------------------------------------------
     | Bảo mật Webhook

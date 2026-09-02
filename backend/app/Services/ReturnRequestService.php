@@ -345,8 +345,9 @@ class ReturnRequestService
         if (! in_array($this->normalizeStatus($returnRequest->status), [
             ReturnRequestStatus::APPROVED->value,
             ReturnRequestStatus::RETURNING->value,
+            ReturnRequestStatus::WAREHOUSE_RECEIVED->value, // Webhook có thể đã set sẵn, admin vẫn cần nhập received_quantity
         ], true)) {
-            return $this->error('Chỉ có thể xác nhận nhận hàng hoàn sau khi đã duyệt hoặc đang gửi hàng.', 422);
+            return $this->error('Chỉ có thể xác nhận nhận hàng hoàn sau khi đã duyệt, đang gửi hàng hoặc đã về kho.', 422);
         }
 
         DB::transaction(function () use ($returnRequest, $data) {
@@ -399,7 +400,9 @@ class ReturnRequestService
 
                     $pass = (int) ($payload['qc_pass_quantity'] ?? 0);
                     $fail = (int) ($payload['qc_fail_quantity'] ?? 0);
-                    $received = (int) $item->received_quantity;
+                    // Nếu received_quantity chưa được set (webhook tự cập nhật không qua markReceived thủ công)
+                    // thì dùng requested_quantity làm fallback để QC vẫn thực hiện được
+                    $received = (int) ($item->received_quantity ?: $item->requested_quantity);
 
                     if ($pass < 0 || $fail < 0 || ($pass + $fail) > $received) {
                         throw new OrderException('Số lượng QC không hợp lệ.');
@@ -613,6 +616,7 @@ class ReturnRequestService
     {
         $returnRequest->loadMissing(['items.orderItem.product', 'items.product', 'order']);
 
+        // 1. NƠI GỬI (ĐIỂM LẤY HÀNG): Lấy từ thông tin đơn hàng ban đầu của khách
         $customerWardCode = trim((string) ($returnRequest->return_pickup_ward_code ?: ($returnRequest->order?->ward_code ?? '')));
         $customerAddress = trim((string) ($returnRequest->return_pickup_address ?: ($returnRequest->order?->shipping_address ?? 'Địa chỉ khách hàng')));
         $customerName = trim((string) ($returnRequest->return_pickup_name ?: ($returnRequest->order?->recipient_name ?? 'Khách Hàng')));
@@ -623,14 +627,15 @@ class ReturnRequestService
             $customerPhone = '0'.substr($customerPhone, 2);
         }
 
+        // 2. NƠI NHẬN (ĐIỂM GIAO ĐẾN): Địa chỉ Kho của Shop để nhận lại hàng hoàn
         $warehouseWardCode = config('ocean_express.warehouse_ward_code')
-            ?: (config('ghn.sender.ward_code') ?: $customerWardCode);
+            ?: (config('ghn.sender.ward_code') ?: 'VN-66-24163');
         $warehouseAddress = config('ocean_express.warehouse_address')
-            ?: (config('ghn.sender.address') ?: 'Kho Tổng Ocean Sport, TP. Hồ Chí Minh');
+            ?: (config('ghn.sender.address') ?: '300/6 Hà Huy Tập, Phường Tân An, Tỉnh Đắk Lắk');
         $warehouseName = config('ocean_express.warehouse_name')
             ?: (config('ghn.sender.name') ?: 'Kho Tổng Ocean Sport');
         
-        $rawWarehousePhone = (string) (config('ocean_express.warehouse_phone') ?: '0901234567');
+        $rawWarehousePhone = (string) (config('ocean_express.warehouse_phone') ?: (config('ghn.sender.phone') ?: '0905094644'));
         $warehousePhone = preg_replace('/[^\d]/', '', $rawWarehousePhone);
         if (str_starts_with($warehousePhone, '84') && strlen($warehousePhone) === 11) {
             $warehousePhone = '0'.substr($warehousePhone, 2);
@@ -651,18 +656,26 @@ class ReturnRequestService
         $width = (int) ($data['width'] ?? 15);
         $height = (int) ($data['height'] ?? 10);
 
-        // Chuẩn hóa thông tin người nhận sang Khách Hàng kèm nhãn [THU HỒI]:
-        // Nhờ vậy tài xế Ocean Express có số điện thoại khách để gọi và bản đồ dẫn đường chỉ thẳng đến nhà khách
-        $displayName = "[THU HỒI] {$customerName}";
-
-        $customNote = ! empty($data['required_note']) ? trim((string) $data['required_note']) : 'Thu hồi kiện hàng hoàn từ khách';
-        $dispatchNote = "[ĐƠN THU HỒI #{$returnRequest->return_code}] {$customNote} | Shipper liên hệ khách {$customerName} ({$customerPhone}) tại {$customerAddress} để nhận lại kiện hàng. Sau khi lấy xong bàn giao về {$warehouseName} ({$warehouseAddress} - SĐT: {$warehousePhone}). COD: 0đ.";
+        $customNote = ! empty($data['required_note']) ? trim((string) $data['required_note']) : 'Thu hồi kiện hàng hoàn từ khách về kho shop';
+        $dispatchNote = "[ĐƠN HOÀN HÀNG #{$returnRequest->return_code}] {$customNote} | Shipper lấy hàng từ Khách: {$customerName} ({$customerPhone}) tại {$customerAddress}. Chuyển phát về Kho Shop: {$warehouseName} ({$warehouseAddress} - SĐT: {$warehousePhone}). COD: 0đ.";
 
         return [
-            'receiver_name' => $displayName,
-            'receiver_phone' => $customerPhone,
-            'receiver_location_id' => (string) ($customerWardCode ?: $warehouseWardCode),
-            'receiver_address_detail' => $customerAddress ?: $warehouseAddress,
+            // Nơi nhận: Địa chỉ Kho của Shop (điểm giao hàng đến)
+            'receiver_name' => $warehouseName,
+            'receiver_phone' => $warehousePhone,
+            'receiver_location_id' => $warehouseWardCode,
+            'receiver_address_detail' => $warehouseAddress,
+
+            // Nơi gửi / Điểm lấy hàng: Thông tin khách hàng từ đơn hàng
+            'sender_name' => $customerName,
+            'sender_phone' => $customerPhone,
+            'sender_location_id' => $customerWardCode ?: $warehouseWardCode,
+            'sender_address_detail' => $customerAddress,
+            'pickup_name' => $customerName,
+            'pickup_phone' => $customerPhone,
+            'pickup_location_id' => $customerWardCode ?: $warehouseWardCode,
+            'pickup_address_detail' => $customerAddress,
+
             'weight' => max(100, $weight),
             'length' => max(1, $length),
             'width' => max(1, $width),
@@ -806,11 +819,36 @@ class ReturnRequestService
         $customerName = $returnRequest->return_pickup_name ?: ($returnRequest->order?->recipient_name ?? 'Khách Hàng');
         $customerPhone = $returnRequest->return_pickup_phone ?: ($returnRequest->order?->recipient_phone ?? '');
 
-        $warehouseAddress = config('ocean_express.warehouse_address') ?: 'Kho Tổng Ocean Sport, TP. Hồ Chí Minh';
+        $warehouseAddress = config('ocean_express.warehouse_address') ?: '300/6 Hà Huy Tập, Phường Tân An, Tỉnh Đắk Lắk';
         $warehouseName = config('ocean_express.warehouse_name') ?: 'Kho Tổng Ocean Sport';
-        $warehousePhone = config('ocean_express.warehouse_phone') ?: '0901234567';
+        $warehousePhone = config('ocean_express.warehouse_phone') ?: '0905094644';
 
-        $logs = $trackingData['logs'] ?? ($trackingData['tracking_logs'] ?? []);
+        $rawLogs = $trackingData['logs'] ?? ($trackingData['tracking_logs'] ?? []);
+        $formattedLogs = array_map(function ($log) use ($customerName, $warehouseName) {
+            $status = strtolower($log['status'] ?? ($log['action'] ?? ''));
+            $desc = $log['note'] ?? ($log['description'] ?? '');
+
+            // Chuẩn hóa mô tả nhật ký di chuyển sang ngữ cảnh ĐƠN HOÀN HÀNG (thu hồi từ Khách về Kho Shop):
+            if ($status === 'ready_to_pick') {
+                $desc = "Đơn thu hồi đã tạo trên Ocean Express, đang chờ tài xế đến lấy hàng từ khách ({$customerName})";
+            } elseif (in_array($status, ['picking', 'picked', 'picked_up'])) {
+                $desc = "Tài xế Ocean Express đã lấy kiện hàng hoàn thành công từ Khách ({$customerName}) và đang chuyển về bưu cục";
+            } elseif (in_array($status, ['hub_inbound', 'in_hub', 'storing', 'stored'])) {
+                $hubName = preg_match('/Bưu cục [^,\.]+/u', (string) $desc, $m) ? $m[0] : 'Bưu cục trung chuyển';
+                $desc = "Kiện hàng hoàn đã nhập kho tại {$hubName}, tiếp tục luân chuyển về {$warehouseName}";
+            } elseif (in_array($status, ['hub_outbound', 'transporting', 'in_transit', 'shipping'])) {
+                $desc = "Kiện hàng hoàn đang được luân chuyển chặng cuối về {$warehouseName}";
+            } elseif ($status === 'delivering') {
+                $desc = "Tài xế Ocean Express đang di chuyển giao kiện hàng hoàn về {$warehouseName}";
+            } elseif (in_array($status, ['delivered', 'completed', 'returned'])) {
+                $desc = "Kiện hàng hoàn đã được giao về tận tay {$warehouseName} thành công";
+            }
+
+            $log['note'] = $desc;
+            $log['description'] = $desc;
+
+            return $log;
+        }, $rawLogs);
 
         return $this->success('Tra cứu hành trình vận chuyển Ocean Express.', [
             'tracking_code' => $trackingNumber,
@@ -824,7 +862,7 @@ class ReturnRequestService
             'receiver_phone' => $warehousePhone,
             'receiver_address' => $warehouseAddress,
             'tracking_data' => $trackingData,
-            'logs' => $logs,
+            'logs' => $formattedLogs,
         ]);
     }
 

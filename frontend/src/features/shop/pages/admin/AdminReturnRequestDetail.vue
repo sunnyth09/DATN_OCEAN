@@ -195,6 +195,37 @@ const isStatus = (...statuses) => {
   return statuses.includes(detail.value.status);
 };
 
+// Map trạng thái kỹ thuật Ocean Express sang nhãn tiếng Việt thân thiện
+const OE_STATUS_MAP = {
+  ready_to_pick: { label: '☃️ Chờ lấy hàng', icon: '⏳', color: '#f59e0b' },
+  picking:       { label: '🚴 Shipper đang đến lấy', icon: '🚴', color: '#3b82f6' },
+  picked:        { label: '✅ Đã lấy hàng', icon: '✅', color: '#10b981' },
+  picked_up:     { label: '✅ Đã lấy hàng', icon: '✅', color: '#10b981' },
+  hub_inbound:   { label: '🏛️ Nhập kho trung chuyển', icon: '🏛️', color: '#6366f1' },
+  in_hub:        { label: '🏛️ Tại kho trung chuyển', icon: '🏛️', color: '#6366f1' },
+  storing:       { label: '🏛️ Tại kho trung chuyển', icon: '🏛️', color: '#6366f1' },
+  stored:        { label: '🏛️ Tại kho trung chuyển', icon: '🏛️', color: '#6366f1' },
+  hub_outbound:  { label: '🚚 Xuất kho — Lên đường', icon: '🚚', color: '#8b5cf6' },
+  transporting:  { label: '🚚 Đang vận chuyển', icon: '🚚', color: '#8b5cf6' },
+  in_transit:    { label: '🚚 Đang trên đường', icon: '🚚', color: '#8b5cf6' },
+  shipping:      { label: '🚚 Đang vận chuyển', icon: '🚚', color: '#8b5cf6' },
+  delivering:    { label: '🛥️ Shipper đang giao về kho', icon: '🛥️', color: '#f97316' },
+  delivered:     { label: '🎉 Đã giao về kho', icon: '🎉', color: '#16a34a' },
+  completed:     { label: '🎉 Hoàn thành', icon: '🎉', color: '#16a34a' },
+  returned:      { label: '🎉 Đã giao về kho', icon: '🎉', color: '#16a34a' },
+  cancelled:     { label: '❌ Hủy', icon: '❌', color: '#dc2626' },
+  delivery_fail: { label: '⚠️ Giao thất bại', icon: '⚠️', color: '#dc2626' },
+  damaged:       { label: '⚠️ Hàng bị hư hỏng', icon: '⚠️', color: '#dc2626' },
+  lost:          { label: '⚠️ Hàng thất lạc', icon: '⚠️', color: '#dc2626' },
+};
+
+const formatOeStatus = (rawStatus) => {
+  if (!rawStatus) return { label: rawStatus || 'Không rõ', icon: '•', color: '#94a3b8' };
+  const key = String(rawStatus).toLowerCase().trim();
+  return OE_STATUS_MAP[key] || { label: rawStatus, icon: '•', color: '#94a3b8' };
+};
+
+
 const refreshDetail = async () => {
   const response = await store.fetchAdminReturnRequestDetail(route.params.id);
   if (detail.value) {
@@ -737,8 +768,24 @@ onMounted(() => {
             <div class="guide-box warning">
               <p><strong>Kiện hàng đang trên đường về kho shop:</strong></p>
               <p class="small text-muted mb-0">
-                Kiện hàng đang được shipper vận chuyển về kho. Khi nhận được kiện hàng thực tế tại kho, hãy bấm xác nhận để chuyển sang bước kiểm định chất lượng (QC).
+                Kiện hàng đang được shipper vận chuyển về kho. Khi nhận được kiện hàng thực tế tại kho, hãy nhập số lượng và bấm xác nhận để chuyển sang bước kiểm định chất lượng (QC).
               </p>
+            </div>
+
+            <!-- Nhập số lượng thực nhận -->
+            <div class="receive-items-list">
+              <div v-for="item in detail.items" :key="item.id" class="receive-item-row">
+                <span class="receive-item-name">{{ item.order_item?.product_name || item.product?.name }}</span>
+                <div class="receive-qty-box">
+                  <label class="receive-qty-label">Số lượng nhận</label>
+                  <input
+                    v-model.number="receivedItems[item.id]"
+                    type="number" min="0" :max="item.requested_quantity"
+                    class="receive-qty-input"
+                  />
+                  <span class="receive-qty-max">/ {{ item.requested_quantity }}</span>
+                </div>
+              </div>
             </div>
 
             <button class="btn-flow btn-received" :disabled="actionLoading" @click="markReceived">
@@ -747,8 +794,15 @@ onMounted(() => {
             </button>
           </div>
 
-          <!-- State 3: Warehouse Received -> QC Inspection -->
+          <!-- State 4: Warehouse Received -> QC Inspection -->
+          <!-- Cũng hiển thị khi webhook OE đẩy delivered mà bỏ qua bước returning -->
           <div v-else-if="isStatus('warehouse_received', 'received')" class="action-block">
+            <div class="guide-box success mb-3">
+              <p><strong>🎉 Kiện hàng đã về đến kho &mdash; Thực hiện QC:</strong></p>
+              <p class="small text-muted mb-0">
+                Kiện hàng hoàn đã được giao về kho. Hãy kiểm tra từng sản phẩm và nhập kết quả QC rồi lưu để tiến hành hoàn tiền.
+              </p>
+            </div>
             <div class="qc-head-bar">
               <span class="qc-head-title">Kiểm định chất lượng (QC)</span>
               <div class="qc-quick-btns">
@@ -798,7 +852,7 @@ onMounted(() => {
 
             <button class="btn-flow btn-qc-submit" :disabled="actionLoading" @click="inspect">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <span>Lưu kết quả Giám định QC</span>
+              <span>Lưu kết quả QC &amp; Tiến hành Hoàn tiền</span>
             </button>
           </div>
 
@@ -986,13 +1040,13 @@ onMounted(() => {
               </div>
               <div class="route-point receiver">
                 <span class="point-badge dropoff">Kho nhận hàng (Shop)</span>
-                <strong class="point-name">Kho Tổng Ocean Sport <span class="point-phone">(0901234567)</span></strong>
-                <p class="point-addr">Kho Tổng Ocean Sport, TP. Hồ Chí Minh</p>
+                <strong class="point-name">Kho Tổng Ocean Sport <span class="point-phone">(0905094644)</span></strong>
+                <p class="point-addr">300/6 Hà Huy Tập, Phường Tân An, Tỉnh Đắk Lắk</p>
               </div>
             </div>
             <div class="dispatch-sync-notice">
               <span class="sync-icon">💡</span>
-              <p><strong>Cơ chế đồng bộ:</strong> Vận đơn đẩy sang Ocean Express sẽ hiển thị thông tin người nhận là <code>[THU HỒI] {{ detail?.return_pickup_name || detail?.order?.recipient_name || 'Khách Hàng' }}</code> kèm SĐT và bản đồ dẫn đường chỉ thẳng đến nhà khách để tài xế đến lấy kiện hàng chuyển về kho.</p>
+              <p><strong>Cơ chế điều phối:</strong> Hệ thống tự động lấy thông tin từ đơn hàng làm <strong>Nơi gửi (Điểm lấy hàng hoàn từ Khách)</strong> và thiết lập địa chỉ Kho Shop làm <strong>Nơi nhận</strong> để Shipper chuyển hàng hoàn về kho.</p>
             </div>
           </div>
 
@@ -1097,7 +1151,7 @@ onMounted(() => {
                     <strong>{{ trackingInfo.receiver_name || 'Kho Tổng Ocean Sport' }}</strong>
                     <span v-if="trackingInfo.receiver_phone" class="phone-meta"> ({{ trackingInfo.receiver_phone }})</span>
                   </p>
-                  <p class="node-addr">{{ trackingInfo.receiver_address || 'Kho Tổng Ocean Sport, TP. Hồ Chí Minh' }}</p>
+                  <p class="node-addr">{{ trackingInfo.receiver_address || '300/6 Hà Huy Tập, Phường Tân An, Tỉnh Đắk Lắk' }}</p>
                 </div>
               </div>
             </div>
@@ -1110,7 +1164,12 @@ onMounted(() => {
                   <div class="entry-bullet"></div>
                   <div class="entry-body">
                     <span class="entry-time">{{ formatDate(log.timestamp || log.created_at) }}</span>
-                    <strong class="entry-status">{{ log.status || log.action }}</strong>
+                    <span
+                      class="entry-status-badge"
+                      :style="{ color: formatOeStatus(log.status || log.action).color }"
+                    >
+                      {{ formatOeStatus(log.status || log.action).label }}
+                    </span>
                     <p v-if="log.note || log.description" class="entry-desc">{{ log.note || log.description }}</p>
                   </div>
                 </div>
@@ -2503,6 +2562,13 @@ onMounted(() => {
   color: #64748b;
 }
 
+.entry-status-badge {
+  font-size: 0.84rem;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 2px;
+}
+
 .btn-refresh-tracking {
   background: #0f172a;
   color: #ffffff;
@@ -2513,4 +2579,85 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* guide-box success variant */
+.guide-box.success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.84rem;
+  color: #166534;
+}
+
+.guide-box.success p {
+  margin: 0 0 4px 0;
+}
+
+/* receive items list (nhập số lượng nhận hàng tại kho) */
+.receive-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.receive-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.receive-item-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #0f172a;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.receive-qty-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.receive-qty-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.receive-qty-input {
+  width: 60px;
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  color: #0f172a;
+  background: #fff;
+}
+
+.receive-qty-input:focus {
+  outline: none;
+  border-color: #e63b6f;
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.12);
+}
+
+.receive-qty-max {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
 </style>
+
