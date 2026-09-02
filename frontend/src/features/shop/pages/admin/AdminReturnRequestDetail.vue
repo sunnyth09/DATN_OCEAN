@@ -359,19 +359,22 @@ const openTrackingModal = async () => {
     const res = await store.getReturnTracking(route.params.id);
     if (res.status === 'success') {
       trackingInfo.value = res.data;
-      // Auto-sync: neu backend da dong bo trang thai tu OE, reload lai trang chi tiet
-      // de stepper va action panel cap nhat chinh xac
+      // Auto-sync: khi backend dong bo trang thai tu OE thanh cong
+      // -> dong modal va reload detail de stepper cap nhat dung buoc
       if (res.data?.status_synced) {
-        showToast('Trang thai da duoc dong bo tu Ocean Express!', 'success');
+        showToast('Trạng thái đã được đồng bộ từ Ocean Express!', 'success');
+        showTrackingModal.value = false; // Dong modal de user thay stepper thay doi
         await refreshDetail();
       }
     }
   } catch (error) {
-    showToast(error.response?.data?.message || 'Khong the tra cuu hanh trinh Ocean Express.', 'error');
+    showToast(error.response?.data?.message || 'Không thể tra cứu hành trình Ocean Express.', 'error');
   } finally {
     trackingLoading.value = false;
   }
 };
+
+
 
 
 const closeTrackingModal = () => {
@@ -748,6 +751,15 @@ onMounted(() => {
                 <p class="small text-muted mb-0">
                   Vận đơn thu hồi đã tạo thành công trên <strong>Ocean Express</strong>. Khi shipper đến lấy hàng từ khách, hệ thống sẽ tự động cập nhật qua Webhook.
                 </p>
+                <!-- Nut dong bo thu cong khi webhook OE khong cap nhat duoc -->
+                <button
+                  class="btn-sync-oe mt-2"
+                  :disabled="trackingLoading || actionLoading"
+                  @click="openTrackingModal"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+                  <span>{{ trackingLoading ? 'Đang đồng bộ...' : 'Đồng bộ trạng thái từ Ocean Express' }}</span>
+                </button>
               </template>
               <template v-else>
                 <p class="small text-muted mb-2">
@@ -769,6 +781,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
+
 
           <!-- State 3: Returning -> In transit to warehouse -->
           <div v-else-if="isStatus('returning')" class="action-block">
@@ -2666,5 +2679,33 @@ onMounted(() => {
   font-size: 0.78rem;
   color: #94a3b8;
 }
+
+/* Nut dong bo trang thai OE thu cong */
+.btn-sync-oe {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 7px 14px;
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-sync-oe:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.btn-sync-oe:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 </style>
+
 

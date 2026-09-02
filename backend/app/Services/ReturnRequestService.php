@@ -855,12 +855,26 @@ class ReturnRequestService
         // Khi webhook OE khong ban thanh cong, admin bam "Cap nhat lai"
         // se tu dong cap nhat trang thai chinh xac tu OE vao he thong.
         // Chi ap dung cho admin (!$userId).
+        //
+        // NOTE: rawLogs duoc sort TANG DAN (cu truoc moi sau).
+        // Phai lay phan tu CUOI CUNG de co trang thai moi nhat.
         // ---------------------------------------------------------------
         $statusSynced = false;
-        if (! $userId && ! empty($rawLogs)) {
-            $latestLog    = $rawLogs[0] ?? null;
-            $latestOeSt   = strtolower((string) ($latestLog['status'] ?? ($latestLog['action'] ?? '')));
-            $currentSt    = $this->normalizeStatus($returnRequest->status);
+        if (! $userId) {
+            // 1. Uu tien lay tu truong status tong cua OE (neu API tra ve)
+            $oeTopStatus = strtolower(trim((string) ($trackingData['status'] ?? ($trackingData['order_status'] ?? ''))));
+
+            // 2. Fallback: lay tu log cuoi cung (moi nhat) trong mang logs
+            $latestLogStatus = '';
+            if (! empty($rawLogs)) {
+                $lastLog = end($rawLogs); // Lay phan tu cuoi - MOI NHAT
+                reset($rawLogs);
+                $latestLogStatus = strtolower((string) ($lastLog['status'] ?? ($lastLog['action'] ?? '')));
+            }
+
+            // Chon trang thai OE cuoi cung: uu tien top-level status, fallback log cuoi
+            $latestOeSt = $oeTopStatus ?: $latestLogStatus;
+            $currentSt  = $this->normalizeStatus($returnRequest->status);
 
             $returningArr = [
                 'picking','picked','picked_up','stored','storing',
@@ -911,6 +925,7 @@ class ReturnRequestService
                 $statusSynced = true;
             }
         }
+
 
         return $this->success('Tra cuu hanh trinh van chuyen Ocean Express.', [
             'tracking_code'  => $trackingNumber,
