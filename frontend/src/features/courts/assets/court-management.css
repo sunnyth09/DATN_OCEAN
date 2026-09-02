@@ -177,8 +177,10 @@ html.dark {
   100% { transform: scale(0.9); box-shadow: 0 0 0 0 currentColor; opacity: 1; }
 }
 
-/* ─── Page Header ─── */
-.page-header {
+/* ─── Court Page Header ─── */
+.court-management-page .page-header,
+.court-container .page-header,
+.booking-management-page .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -187,12 +189,16 @@ html.dark {
   gap: 16px;
 }
 
-.header-info {
+.court-management-page .header-info,
+.court-container .header-info,
+.booking-management-page .header-info {
   display: flex;
   flex-direction: column;
 }
 
-.page-title {
+.court-management-page .page-title,
+.court-container .page-title,
+.booking-management-page .page-title {
   font-size: 1.5rem;
   font-weight: 800;
   color: var(--text-main, #2D3436);
@@ -202,7 +208,9 @@ html.dark {
   margin: 0;
 }
 
-.page-subtitle {
+.court-management-page .page-subtitle,
+.court-container .page-subtitle,
+.booking-management-page .page-subtitle {
   font-size: 0.9rem;
   color: var(--text-muted, #636E72);
   margin-top: 4px;
@@ -210,7 +218,9 @@ html.dark {
   margin-bottom: 0;
 }
 
-.header-btns {
+.court-management-page .header-btns,
+.court-container .header-btns,
+.booking-management-page .header-btns {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -271,8 +281,10 @@ html.dark {
   margin-top: 2px;
 }
 
-/* ─── Unified Ocean Filter Bar & Status Pills ─── */
-.filters-bar {
+/* ─── Unified Ocean Filter Bar & Status Pills (Court Scoped) ─── */
+.court-management-page .filters-bar,
+.court-container .filters-bar,
+.booking-management-page .filters-bar {
   background: var(--card-bg, #ffffff);
   border-radius: 16px;
   border: 1px solid var(--border-color, #E9ECEF);
@@ -281,14 +293,18 @@ html.dark {
   overflow: hidden;
 }
 
-.status-tabs-container {
+.court-management-page .status-tabs-container,
+.court-container .status-tabs-container,
+.booking-management-page .status-tabs-container {
   padding: 14px 20px;
   border-bottom: 1px solid var(--border-color, #E9ECEF);
   background: var(--card-bg, #ffffff);
   overflow-x: auto;
 }
 
-.status-pills {
+.court-management-page .status-pills,
+.court-container .status-pills,
+.booking-management-page .status-pills {
   display: inline-flex;
   gap: 6px;
   padding: 5px;
@@ -297,11 +313,15 @@ html.dark {
   white-space: nowrap;
 }
 
-html.dark .status-pills {
+html.dark .court-management-page .status-pills,
+html.dark .court-container .status-pills,
+html.dark .booking-management-page .status-pills {
   background: #232627;
 }
 
-.status-pill {
+.court-management-page .status-pill,
+.court-container .status-pill,
+.booking-management-page .status-pill {
   background: transparent !important;
   border: none !important;
   outline: none !important;
@@ -318,23 +338,31 @@ html.dark .status-pills {
   font-family: inherit !important;
 }
 
-.status-pill:hover {
+.court-management-page .status-pill:hover,
+.court-container .status-pill:hover,
+.booking-management-page .status-pill:hover {
   color: var(--text-main, #2D3436) !important;
 }
 
-.status-pill.active {
+.court-management-page .status-pill.active,
+.court-container .status-pill.active,
+.booking-management-page .status-pill.active {
   background: #ffffff !important;
   color: var(--primary, #E63B6F) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 }
 
-html.dark .status-pill.active {
+html.dark .court-management-page .status-pill.active,
+html.dark .court-container .status-pill.active,
+html.dark .booking-management-page .status-pill.active {
   background: #161819 !important;
   color: #ffb2bf !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
-.pill-count-badge {
+.court-management-page .pill-count-badge,
+.court-container .pill-count-badge,
+.booking-management-page .pill-count-badge {
   font-size: 0.72rem;
   font-weight: 700;
   padding: 2px 7px;
@@ -343,24 +371,34 @@ html.dark .status-pill.active {
   color: inherit;
 }
 
-.status-pill.active .pill-count-badge {
+.court-management-page .status-pill.active .pill-count-badge,
+.court-container .status-pill.active .pill-count-badge,
+.booking-management-page .status-pill.active .pill-count-badge {
   background: rgba(230, 59, 111, 0.12);
   color: var(--primary, #E63B6F);
 }
 
-.filters-inner {
+.court-management-page .filters-inner,
+.court-container .filters-inner,
+.booking-management-page .filters-inner {
   padding: 16px 20px;
   background: var(--card-bg, #ffffff);
 }
 
-.search-box {
+.court-management-page .search-box,
+.court-container .search-box,
+.booking-management-page .search-box {
   position: relative;
   max-width: 380px;
   width: 100%;
 }
 
-.search-box svg,
-.search-box i {
+.court-management-page .search-box svg,
+.court-management-page .search-box i,
+.court-container .search-box svg,
+.court-container .search-box i,
+.booking-management-page .search-box svg,
+.booking-management-page .search-box i {
   position: absolute;
   left: 14px;
   top: 50%;
@@ -370,7 +408,9 @@ html.dark .status-pill.active {
   pointer-events: none;
 }
 
-.search-input {
+.court-management-page .search-input,
+.court-container .search-input,
+.booking-management-page .search-input {
   width: 100%;
   padding: 9px 14px 9px 38px;
   border-radius: 30px;
@@ -382,24 +422,32 @@ html.dark .status-pill.active {
   color: var(--text-main, #2D3436);
 }
 
-html.dark .search-input {
+html.dark .court-management-page .search-input,
+html.dark .court-container .search-input,
+html.dark .booking-management-page .search-input {
   background: #232627;
   color: #f0f1f2;
 }
 
-.search-input:focus {
+.court-management-page .search-input:focus,
+.court-container .search-input:focus,
+.booking-management-page .search-input:focus {
   outline: none;
   border-color: var(--primary, #E63B6F);
   background: #ffffff;
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.12);
 }
 
-html.dark .search-input:focus {
+html.dark .court-management-page .search-input:focus,
+html.dark .court-container .search-input:focus,
+html.dark .booking-management-page .search-input:focus {
   background: #161819;
 }
 
-/* ─── Buttons ─── */
-.btn-primary {
+/* ─── Buttons (Court Scoped) ─── */
+.court-management-page .btn-primary,
+.court-container .btn-primary,
+.booking-management-page .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -416,14 +464,18 @@ html.dark .search-input:focus {
   box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 
-.btn-primary:hover {
+.court-management-page .btn-primary:hover,
+.court-container .btn-primary:hover,
+.booking-management-page .btn-primary:hover {
   background: var(--primary-dark, #b50c4d);
   color: white !important;
   transform: translateY(-1px);
   box-shadow: 0 6px 14px rgba(230, 59, 111, 0.28);
 }
 
-.btn-outline {
+.court-management-page .btn-outline,
+.court-container .btn-outline,
+.booking-management-page .btn-outline {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -439,7 +491,9 @@ html.dark .search-input:focus {
   text-decoration: none;
 }
 
-.btn-outline:hover {
+.court-management-page .btn-outline:hover,
+.court-container .btn-outline:hover,
+.booking-management-page .btn-outline:hover {
   border-color: var(--primary, #E63B6F);
   color: var(--primary, #E63B6F);
   background: rgba(230, 59, 111, 0.04);
@@ -2198,5 +2252,228 @@ html.dark .ocean-table th {
   color: #e63b6f !important;
 }
 
+/* =============================================================
+   Court Section Header, KPI Stats, Filters & Table Layout
+   ============================================================= */
 
+/* ─── Court Section Header ─── */
+.court-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
 
+.court-section-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-main, #2D3436);
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.court-section-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted, #636E72);
+  margin-top: 4px;
+  font-weight: 500;
+  margin-bottom: 0;
+}
+
+/* ─── Court Action Buttons ─── */
+.court-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+}
+
+.court-action-btn--primary {
+  background: var(--primary, #E63B6F);
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.22);
+}
+
+.court-action-btn--primary:hover {
+  background: var(--primary-dark, #b50c4d);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
+}
+
+.court-action-btn--success {
+  background: #198754;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.22);
+}
+
+.court-action-btn--success:hover {
+  background: #157347;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(25, 135, 84, 0.3);
+}
+
+.court-action-btn--outline {
+  border-color: var(--border-color, #E9ECEF);
+  background: var(--card-bg, #ffffff);
+  color: var(--text-muted, #636E72);
+}
+
+.court-action-btn--outline:hover {
+  border-color: var(--primary, #E63B6F);
+  color: var(--primary, #E63B6F);
+  background: rgba(230, 59, 111, 0.04);
+}
+
+/* ─── Court Stats Bar & Stat Cards ─── */
+.court-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.court-stat-card {
+  background: var(--card-bg, #ffffff);
+  border-radius: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-color, #E9ECEF);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.court-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.court-stat-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.court-stat-card__content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.court-stat-card__value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-main, #2D3436);
+  line-height: 1.1;
+  margin-bottom: 3px;
+}
+
+.court-stat-card__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted, #636E72);
+}
+
+/* ─── Court Filter Bar ─── */
+.court-filter-bar {
+  background: var(--card-bg, #ffffff);
+  border-radius: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-color, #E9ECEF);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  margin-bottom: 20px;
+}
+
+/* ─── Court Table Wrap ─── */
+.court-table-wrap {
+  background: var(--card-bg, #ffffff);
+  border-radius: 16px;
+  border: 1px solid var(--border-color, #E9ECEF);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.court-table-wrap table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color, #E9ECEF);
+}
+
+.court-table-wrap table td {
+  padding: 14px 16px;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+  vertical-align: middle;
+}
+
+/* ─── Court Empty State ─── */
+.court-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.court-empty-state__icon {
+  font-size: 2.5rem;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.court-empty-state__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main, #2D3436);
+  margin-bottom: 6px;
+}
+
+.court-empty-state__text {
+  font-size: 0.85rem;
+  color: var(--text-muted, #636E72);
+}
+
+/* Dark Mode Overrides */
+html.dark .court-stat-card,
+html.dark .court-filter-bar,
+html.dark .court-table-wrap {
+  background: var(--court-card-bg, #1e2024);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .court-table-wrap table th {
+  background: #232627;
+  color: #94a3b8;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .court-table-wrap table td {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+html.dark .court-section-title,
+html.dark .court-stat-card__value,
+html.dark .court-empty-state__title {
+  color: #f1f5f9;
+}

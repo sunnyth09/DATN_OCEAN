@@ -499,13 +499,18 @@ const clearFilters = () => {
         <div class="court-section-header">
             <div>
                 <h2 class="court-section-title">
-                    <i class="bi bi-calendar-check"></i>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="me-2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
                     Quản Lý Lịch Đặt Sân
                 </h2>
                 <p class="court-section-subtitle">Theo dõi, check-in/out và quản lý tất cả đơn đặt sân</p>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <button class="court-action-btn" style="background: #198754; color: #fff; border: none; font-weight: 600;" @click="openScannerModal">
+                <button class="court-action-btn court-action-btn--success" @click="openScannerModal">
                     <i class="bi bi-qr-code-scan me-1"></i> Quét QR Check-in
                 </button>
                 <button class="court-action-btn court-action-btn--primary" @click="openModal('posBookingModal')">
@@ -517,20 +522,40 @@ const clearFilters = () => {
         <!-- Stats Bar -->
         <div class="court-stats-bar">
             <div class="court-stat-card">
-                <div class="court-stat-card__value" style="color: var(--court-primary);">{{ bookingStats.total }}</div>
-                <div class="court-stat-card__label">Tổng booking</div>
+                <div class="court-stat-card__icon" style="background: rgba(230, 59, 111, 0.1); color: var(--court-primary, #e63b6f);">
+                    <i class="bi bi-calendar2-check-fill"></i>
+                </div>
+                <div class="court-stat-card__content">
+                    <div class="court-stat-card__value" style="color: var(--court-primary, #e63b6f);">{{ bookingStats.total }}</div>
+                    <div class="court-stat-card__label">Tổng booking</div>
+                </div>
             </div>
             <div class="court-stat-card">
-                <div class="court-stat-card__value" style="color: var(--court-playing);">{{ bookingStats.playing }}</div>
-                <div class="court-stat-card__label">Đang chơi</div>
+                <div class="court-stat-card__icon" style="background: rgba(13, 110, 253, 0.1); color: var(--court-playing, #0d6efd);">
+                    <i class="bi bi-play-circle-fill"></i>
+                </div>
+                <div class="court-stat-card__content">
+                    <div class="court-stat-card__value" style="color: var(--court-playing, #0d6efd);">{{ bookingStats.playing }}</div>
+                    <div class="court-stat-card__label">Đang chơi</div>
+                </div>
             </div>
             <div class="court-stat-card">
-                <div class="court-stat-card__value" style="color: #ffc107;">{{ bookingStats.pending }}</div>
-                <div class="court-stat-card__label">Chờ duyệt</div>
+                <div class="court-stat-card__icon" style="background: rgba(245, 158, 11, 0.1); color: #d97706;">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+                <div class="court-stat-card__content">
+                    <div class="court-stat-card__value" style="color: #d97706;">{{ bookingStats.pending }}</div>
+                    <div class="court-stat-card__label">Chờ duyệt</div>
+                </div>
             </div>
             <div class="court-stat-card">
-                <div class="court-stat-card__value" style="color: var(--court-available);">{{ formatCurrency(bookingStats.revenue) }}</div>
-                <div class="court-stat-card__label" style="font-size: 0.65rem;">Doanh thu ngày</div>
+                <div class="court-stat-card__icon" style="background: rgba(25, 135, 84, 0.1); color: var(--court-available, #198754);">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+                <div class="court-stat-card__content">
+                    <div class="court-stat-card__value" style="color: var(--court-available, #198754);">{{ formatCurrency(bookingStats.revenue) }}</div>
+                    <div class="court-stat-card__label">Doanh thu ngày</div>
+                </div>
             </div>
         </div>
 
