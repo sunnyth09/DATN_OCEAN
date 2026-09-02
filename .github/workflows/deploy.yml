@@ -258,10 +258,13 @@ jobs:
             sleep 15
 
             docker compose exec -T backend php artisan optimize:clear || true
-            docker compose exec -T backend php artisan optimize || true
+            # Neu optimize fail (vi route cache bi corrupt), xoa ngay tranh sap API
+            docker compose exec -T backend php artisan optimize \
+              || docker compose exec -T backend php artisan optimize:clear || true
             docker compose exec -T backend php artisan migrate --force || true
             docker compose exec -T backend php artisan queue:restart || true
             docker compose restart queue_worker reverb || true
+
 
             echo "=== Deployed version on disk ==="
             cat /var/www/oceansport/dist/version.json || true
