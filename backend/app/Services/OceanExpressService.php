@@ -139,6 +139,7 @@ class OceanExpressService
                 }
 
                 Log::warning('OceanExpress createOrder 200 but missing tracking_number: '.$response->body());
+
                 return [
                     'success' => false,
                     'status_code' => $response->status(),
@@ -229,6 +230,7 @@ class OceanExpressService
     public static function createOrder(array $orderData): ?array
     {
         $res = self::createOrderDetailed($orderData);
+
         return $res['success'] ? $res['data'] : null;
     }
 

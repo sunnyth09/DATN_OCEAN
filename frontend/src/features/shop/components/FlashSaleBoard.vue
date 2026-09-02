@@ -103,13 +103,6 @@
 
     </template>
 
-    <!-- ── FAST CHECKOUT MODAL ── -->
-    <FlashSaleBuyModal
-      v-model="showBuyModal"
-      :sale-item="sale"
-      @success="onBuySuccess"
-    />
-
     <!-- ── TOAST ── -->
     <div v-if="toast.visible" class="toast-box" :class="`toast--${toast.type}`">
       {{ toast.message }}
@@ -122,12 +115,10 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api, { getUser } from '@/axios.js';
-import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
-const showBuyModal = ref(false);
 
 const props = defineProps({
   flashSaleId: { type: Number, default: null },
@@ -292,19 +283,27 @@ async function fetchStock() {
 
 // ── Buy ──
 function handleBuy() {
+  if (!sale.value) return;
+  const fsId = sale.value.id || sale.value.flash_sale_id;
+  const prodId = sale.value.product_id;
+
   if (!isLoggedIn.value) {
     showToast('warn', 'Vui lòng đăng nhập để tham gia Flash Sale!');
-    router.push('/client/login');
+    router.push({
+      path: '/client/login',
+      query: { redirect: `/checkout?flash_sale_id=${fsId}&product_id=${prodId}` }
+    });
     return;
   }
-  if (isBuying.value || isBought.value || soldOut.value) return;
+  if (isBuying.value || isBought.value || soldOut.value || ended.value || isUpcoming.value) return;
 
-  showBuyModal.value = true;
-}
-
-function onBuySuccess(orderData) {
-  isBought.value = true;
-  fetchStock();
+  router.push({
+    path: '/checkout',
+    query: {
+      flash_sale_id: fsId,
+      product_id: prodId
+    }
+  });
 }
 
 // ── Lifecycle ──

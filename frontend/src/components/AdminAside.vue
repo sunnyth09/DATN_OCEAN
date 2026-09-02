@@ -73,7 +73,7 @@ const syncActiveRouteToMenu = () => {
     openMenus.inventory = true;
   } else if (path.includes('/admin/court') || path.includes('/admin/open-play')) {
     openMenus.court = true;
-  } else if (path.includes('/admin/coupon') || path.includes('/admin/affiliate') || path.includes('/admin/stats') || path.includes('/admin/user-rewards') || path.includes('/admin/flash-sale')) {
+  } else if (path.includes('/admin/coupon') || path.includes('/admin/affiliate') || path.includes('/admin/stats') || path.includes('/admin/flash-sale')) {
     openMenus.marketing = true;
   } else if (path.includes('/admin/wallet')) {
     openMenus.finance = true;
@@ -119,7 +119,7 @@ const isParentActive = (menu) => {
     case 'court':
       return path.includes('/admin/court') || path.includes('/admin/open-play');
     case 'marketing':
-      return path.includes('/admin/coupon') || path.includes('/admin/affiliate') || path.includes('/admin/stats') || path.includes('/admin/user-rewards') || path.includes('/admin/flash-sale');
+      return path.includes('/admin/coupon') || path.includes('/admin/affiliate') || path.includes('/admin/stats') || path.includes('/admin/flash-sale');
     case 'finance':
       return path.includes('/admin/wallet');
     case 'care':
@@ -319,9 +319,6 @@ const handleLogout = async () => {
             </router-link>
             <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Thống kê doanh thu</span>
-            </router-link>
-            <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/user-rewards" class="tree-item" active-class="tree-item--active">
-              <span class="tree-dot"></span><span class="tree-text">Lịch sử đổi quà</span>
             </router-link>
             <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/flash-sale" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Flash Sale</span>

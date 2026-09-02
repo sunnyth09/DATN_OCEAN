@@ -253,7 +253,7 @@ class AuthService
     {
         $guard = auth('admin')->check() ? 'admin' : 'api';
         $user = auth($guard)->user();
-        if ($user instanceof \App\Models\User) {
+        if ($user instanceof User) {
             $user->load('tier');
         }
 

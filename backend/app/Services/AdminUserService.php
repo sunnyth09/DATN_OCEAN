@@ -341,7 +341,7 @@ class AdminUserService
     /**
      * Khôi phục hàng loạt users đã xóa mềm.
      *
-     * @param array<int> $ids
+     * @param  array<int>  $ids
      * @return array{ok: bool, code: int, message: string, count: int}
      */
     public function bulkRestore(array $ids): array
@@ -363,7 +363,7 @@ class AdminUserService
     /**
      * Xóa vĩnh viễn hàng loạt users.
      *
-     * @param array<int> $ids
+     * @param  array<int>  $ids
      * @return array{ok: bool, code: int, message: string, count: int}
      */
     public function bulkForceDelete(array $ids, $currentUserId): array

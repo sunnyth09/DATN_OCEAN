@@ -163,23 +163,26 @@
                 placeholder="Nhập nội dung phản hồi cho khách hàng..." 
                 class="reply-input"
                 rows="4"
+                :disabled="isTicketClosed"
               ></textarea>
               
               <div class="status-update mt-3">
                 <label>Cập nhật trạng thái:</label>
-                <select v-model="updateStatus" class="filter-select w-100">
-                  <option value="pending">Chờ xử lý</option>
-                  <option value="processing">Đang xử lý</option>
-                  <option value="resolved">Đã giải quyết</option>
-                  <option value="closed">Đã đóng</option>
+                <select v-model="updateStatus" class="filter-select w-100" :disabled="isTicketClosed">
+                  <option v-for="opt in availableStatusOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
                 </select>
+                <p v-if="isTicketClosed" class="ticket-closed-hint">
+                  🔒 Khiếu nại này đã đóng và được lưu trữ, không thể chỉnh sửa thêm.
+                </p>
               </div>
             </div>
           </div>
           
           <div class="modal-footer">
             <button class="btn btn-secondary" @click="closeModal">Đóng</button>
-            <button class="btn btn-primary" @click="submitReply" :disabled="actionLoading">
+            <button class="btn btn-primary" @click="submitReply" :disabled="actionLoading || isTicketClosed">
               <span v-if="actionLoading" class="spinner-small"></span>
               <span v-else>Cập nhật & Phản hồi</span>
             </button>
@@ -191,7 +194,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import Swal from 'sweetalert2';
 import api from '@/axios';
@@ -211,6 +214,35 @@ const showModal = ref(false);
 const selectedTicket = ref(null);
 const replyContent = ref('');
 const updateStatus = ref('pending');
+
+const availableStatusOptions = computed(() => {
+  const current = selectedTicket.value?.status;
+  if (!current) return [];
+  if (current === 'closed') {
+    return [{ value: 'closed', label: 'Đã đóng' }];
+  }
+  if (current === 'resolved') {
+    return [
+      { value: 'resolved', label: 'Đã giải quyết' },
+      { value: 'closed', label: 'Đã đóng' }
+    ];
+  }
+  if (current === 'processing') {
+    return [
+      { value: 'processing', label: 'Đang xử lý' },
+      { value: 'resolved', label: 'Đã giải quyết' },
+      { value: 'closed', label: 'Đã đóng' }
+    ];
+  }
+  return [
+    { value: 'pending', label: 'Chờ xử lý' },
+    { value: 'processing', label: 'Đang xử lý' },
+    { value: 'resolved', label: 'Đã giải quyết' },
+    { value: 'closed', label: 'Đã đóng' }
+  ];
+});
+
+const isTicketClosed = computed(() => selectedTicket.value?.status === 'closed');
 
 const fetchTickets = async () => {
   loading.value = true;
@@ -280,31 +312,43 @@ const closeModal = () => {
 };
 
 const submitReply = async () => {
-  if (!selectedTicket.value) return;
+  if (!selectedTicket.value || isTicketClosed.value) return;
+
+  const originalStatus = selectedTicket.value.status;
+  const originalReply = (selectedTicket.value.admin_reply || '').trim();
+  const currentReply = (replyContent.value || '').trim();
+
+  if (updateStatus.value === originalStatus && currentReply === originalReply) {
+    Swal.fire({ toast: true, position: 'top-end', title: 'Thông báo', text: 'Không có thay đổi nào cần cập nhật.', icon: 'info', showConfirmButton: false, timer: 2000 });
+    return;
+  }
+
   actionLoading.value = true;
   
   try {
     const res = await api.put(`/admin/tickets/${selectedTicket.value.ticket_id}`, {
       status: updateStatus.value,
-      admin_reply: replyContent.value
+      admin_reply: currentReply
     });
     
     if (res.data.status === 'success') {
       Swal.fire({
         title: 'Thành công',
-        text: 'Đã cập nhật khiếu nại',
+        text: res.data.message || 'Đã cập nhật khiếu nại',
         icon: 'success',
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
         timer: 3000
       });
+      window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
+      window.dispatchEvent(new Event('admin-notification-received'));
       closeModal();
       fetchTickets();
     }
   } catch (error) {
     console.error("Lỗi cập nhật:", error);
-    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Có lỗi xảy ra khi cập nhật', icon: 'error', showConfirmButton: false, timer: 3000 });
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật', icon: 'error', showConfirmButton: false, timer: 3000 });
   } finally {
     actionLoading.value = false;
   }
@@ -593,6 +637,20 @@ onMounted(() => {
   font-family: inherit; font-size: 0.95rem; resize: vertical; box-sizing: border-box;
 }
 .reply-input:focus { border-color: #1d4ed8; outline: none; }
+.reply-input:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+.ticket-closed-hint {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
 
 .modal-footer {
   padding: 16px 24px; border-top: 1px solid #e2e8f0;

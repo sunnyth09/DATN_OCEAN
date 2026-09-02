@@ -42,10 +42,26 @@ class FlashSaleService
                     $originalPrice = (float) ($product->min_price ?? 0);
                     $discountPct = $originalPrice > 0 ? round((($originalPrice - $item->campaign_price) / $originalPrice) * 100) : 0;
 
+                    $dbSold = (int) ($item->sold ?? 0);
+                    $totalStock = (int) $item->campaign_stock;
+                    $maxRemaining = max(0, $totalStock - $dbSold);
+
                     $stockKey = "flash_sale_{$fs->id}_product_{$item->product_id}_stock";
                     $redisStock = Redis::get($stockKey);
-                    $remaining = $redisStock !== null ? (int) $redisStock : max(0, $item->campaign_stock - $item->sold);
 
+                    // Tự động phục hồi Redis nếu chưa có key hoặc bị lệch giá trị
+                    if ($redisStock === null || (int) $redisStock > $maxRemaining || ((int) $redisStock === 0 && $dbSold < $totalStock && $fs->status === 'active')) {
+                        $remaining = $maxRemaining;
+                        if ($fs->status === 'active') {
+                            $ttl = max(60, now()->diffInSeconds($fs->end_time) + 3600);
+                            Redis::set($stockKey, $remaining);
+                            Redis::expire($stockKey, (int) $ttl);
+                        }
+                    } else {
+                        $remaining = max(0, min((int) $redisStock, $maxRemaining));
+                    }
+
+                    $soldCount = max($dbSold, $totalStock - $remaining);
                     $thumbnailUrl = $product->thumbnail_url ?: ($product->mainImage?->image_url ?: ($product->images?->first()?->image_url ?: null));
 
                     $formatted[] = [
@@ -66,10 +82,10 @@ class FlashSaleService
                         'min_price' => (float) $item->campaign_price,
                         'original_price' => $originalPrice,
                         'discount_percent' => max(0, $discountPct),
-                        'total_stock' => (int) $item->campaign_stock,
-                        'total_quantity' => (int) $item->campaign_stock,
-                        'sold' => max(0, $item->campaign_stock - $remaining),
-                        'sold_count' => max(0, $item->campaign_stock - $remaining),
+                        'total_stock' => $totalStock,
+                        'total_quantity' => $totalStock,
+                        'sold' => $soldCount,
+                        'sold_count' => $soldCount,
                         'remaining' => max(0, $remaining),
                         'is_sold_out' => $remaining <= 0,
                         'max_per_user' => self::MAX_PER_USER,
@@ -116,9 +132,25 @@ class FlashSaleService
         }
 
         $fs = $item->flashSale;
+        $dbSold = (int) ($item->sold ?? 0);
+        $totalStock = (int) $item->campaign_stock;
+        $maxRemaining = max(0, $totalStock - $dbSold);
+
         $stockKey = "flash_sale_{$fs->id}_product_{$item->product_id}_stock";
         $redisStock = Redis::get($stockKey);
-        $remaining = $redisStock !== null ? (int) $redisStock : max(0, $item->campaign_stock - $item->sold);
+
+        if ($redisStock === null || (int) $redisStock > $maxRemaining || ((int) $redisStock === 0 && $dbSold < $totalStock && $fs->status === 'active')) {
+            $remaining = $maxRemaining;
+            if ($fs->status === 'active') {
+                $ttl = max(60, now()->diffInSeconds($fs->end_time) + 3600);
+                Redis::set($stockKey, $remaining);
+                Redis::expire($stockKey, (int) $ttl);
+            }
+        } else {
+            $remaining = max(0, min((int) $redisStock, $maxRemaining));
+        }
+
+        $soldCount = max($dbSold, $totalStock - $remaining);
 
         return [
             'flash_sale_id' => $fs->id,
@@ -126,9 +158,9 @@ class FlashSaleService
             'title' => $fs->name,
             'campaign_price' => (float) $item->campaign_price,
             'flash_price' => (float) $item->campaign_price,
-            'total_stock' => (int) $item->campaign_stock,
-            'sold' => max(0, $item->campaign_stock - $remaining),
-            'sold_count' => max(0, $item->campaign_stock - $remaining),
+            'total_stock' => $totalStock,
+            'sold' => $soldCount,
+            'sold_count' => $soldCount,
             'remaining' => max(0, $remaining),
             'is_sold_out' => $remaining <= 0,
             'max_per_user' => self::MAX_PER_USER,
@@ -163,18 +195,34 @@ class FlashSaleService
             return ['state' => 'item_not_found'];
         }
 
+        $dbSold = (int) ($item->sold ?? 0);
+        $totalStock = (int) $item->campaign_stock;
+        $maxRemaining = max(0, $totalStock - $dbSold);
+
         $stockKey = "flash_sale_{$flashSaleId}_product_{$item->product_id}_stock";
-        $remaining = Redis::get($stockKey);
-        $remaining = $remaining === null ? max(0, $item->campaign_stock - $item->sold) : (int) $remaining;
+        $redisStock = Redis::get($stockKey);
+
+        if ($redisStock === null || (int) $redisStock > $maxRemaining || ((int) $redisStock === 0 && $dbSold < $totalStock && $flashSale->status === 'active')) {
+            $remaining = $maxRemaining;
+            if ($flashSale->status === 'active') {
+                $ttl = max(60, now()->diffInSeconds($flashSale->end_time) + 3600);
+                Redis::set($stockKey, $remaining);
+                Redis::expire($stockKey, (int) $ttl);
+            }
+        } else {
+            $remaining = max(0, min((int) $redisStock, $maxRemaining));
+        }
+
+        $soldCount = max($dbSold, $totalStock - $remaining);
 
         return [
             'state' => 'ok',
             'data' => [
                 'flash_sale_id' => $flashSaleId,
                 'product_id' => $item->product_id,
-                'total_stock' => $item->campaign_stock,
+                'total_stock' => $totalStock,
                 'remaining' => $remaining,
-                'sold_count' => max(0, $item->campaign_stock - $remaining),
+                'sold_count' => $soldCount,
                 'is_sold_out' => $remaining <= 0,
             ],
         ];
@@ -291,14 +339,14 @@ class FlashSaleService
     {
         foreach ($flashSale->items as $item) {
             $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
-            $remainingStock = max(0, $item->campaign_stock - $item->sold);
+            $remainingStock = max(0, (int) $item->campaign_stock - (int) $item->sold);
 
             // Set số lượng trên Redis
             Redis::set($key, $remainingStock);
 
             // Tính TTL: set thời gian tồn tại của key bằng thời gian kết thúc campaign + 1h dự phòng
-            $ttl = now()->diffInSeconds($flashSale->end_time) + 3600;
-            Redis::expire($key, (int) max($ttl, 0));
+            $ttl = max(60, now()->diffInSeconds($flashSale->end_time) + 3600);
+            Redis::expire($key, (int) $ttl);
         }
     }
 

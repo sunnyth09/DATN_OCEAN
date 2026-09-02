@@ -176,7 +176,7 @@ class OrderService
 
             // === TÍNH TOÁN GIẢM GIÁ HẠNG THÀNH VIÊN ===
             $tierDiscountAmount = 0;
-            if (!$isFlashSaleOrder && $user && $user->tier_id && $user->tier) {
+            if (! $isFlashSaleOrder && $user && $user->tier_id && $user->tier) {
                 $tierDiscountAmount = round(($subtotal * $user->tier->discount_percent) / 100, 2);
                 $discountAmount += $tierDiscountAmount;
             }

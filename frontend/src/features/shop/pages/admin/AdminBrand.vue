@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useAdminKeepAlive, markAdminResourceDirty } from '@/composables/useAdminKeepAlive';
+import { getStorageUrl } from '@/utils/url';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
@@ -88,12 +89,29 @@ const changePage = (page) => {
     }
 };
 
+const stripHtml = (html) => {
+    if (!html) return '';
+    let str = String(html);
+    for (let i = 0; i < 3; i++) {
+        if (!str.includes('&') && !str.includes('<')) break;
+        const txt = document.createElement('textarea');
+        txt.innerHTML = str;
+        const decoded = txt.value;
+        if (decoded === str) break;
+        str = decoded;
+    }
+    return str.replace(/<[^>]*>/g, '').trim();
+};
+
 onMounted(fetchBrands);
 
 // ── Xử lý chọn ảnh ──
 const onImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (errors.value.image) {
+        delete errors.value.image;
+    }
     imageFile.value = file;
     const reader = new FileReader();
     reader.onload = (ev) => { imagePreview.value = ev.target.result; };
@@ -104,6 +122,9 @@ const clearImageSelection = () => {
     imageFile.value = null;
     imagePreview.value = null;
     if (imageInputRef.value) imageInputRef.value.value = '';
+    if (errors.value.image) {
+        delete errors.value.image;
+    }
 };
 
 const removeCurrentImage = async () => {
@@ -116,6 +137,7 @@ const removeCurrentImage = async () => {
         await api.delete(`/brands/${form.value.brand_id}/image`);
         form.value.current_image_url = null;
         showToast('Đã xóa logo!', 'success');
+        markAdminResourceDirty('brands');
         await fetchBrands();
     } catch {
         showToast('Xóa logo thất bại!', 'danger');
@@ -140,9 +162,9 @@ const openEditModal = (brand) => {
     form.value = {
         brand_id: brand.brand_id,
         name: brand.name,
-        description: brand.description || '',
+        description: stripHtml(brand.description || ''),
         is_active: brand.is_active,
-        current_image_url: brand.image_url || null,
+        current_image_url: brand.image_url || brand.logo_url || null,
     };
     clearImageSelection();
     isModalOpen.value = true;
@@ -171,10 +193,10 @@ const handleSubmit = async () => {
     isSubmitting.value = true;
 
     const fd = new FormData();
-    fd.append('name', form.value.name);
-    fd.append('description', form.value.description || '');
-    fd.append('is_active', form.value.is_active ?? 1);
-    if (imageFile.value) {
+    fd.append('name', form.value.name.trim());
+    fd.append('description', stripHtml(form.value.description || '').trim());
+    fd.append('is_active', form.value.is_active ? 1 : 0);
+    if (imageFile.value instanceof File) {
         fd.append('image', imageFile.value);
     }
 
@@ -191,6 +213,7 @@ const handleSubmit = async () => {
             });
             showToast(res.data.message || 'Thêm thương hiệu thành công!', 'success');
         }
+        markAdminResourceDirty('brands');
         await fetchBrands();
         closeModal();
     } catch (error) {
@@ -222,6 +245,7 @@ const deleteBrand = async (id) => {
     try {
         const res = await api.delete(`/brands/${id}`);
         showToast(res.data.message || 'Đã xóa thương hiệu!', 'success');
+        markAdminResourceDirty('brands');
         await fetchBrands();
     } catch (error) {
         showToast(error.response?.data?.message || 'Xóa thất bại!', 'danger');
@@ -297,7 +321,7 @@ const deleteBrand = async (id) => {
                         <tr v-for="brand in paginatedBrands" :key="brand.brand_id">
                             <td>
                                 <div class="brand-logo-container">
-                                    <img v-if="brand.image_url" :src="brand.image_url" alt="logo" class="brand-img"/>
+                                    <img v-if="brand.image_url || brand.logo_url" :src="getStorageUrl(brand.image_url || brand.logo_url)" alt="logo" class="brand-img"/>
                                     <div v-else class="brand-img-placeholder">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                                     </div>
@@ -406,7 +430,7 @@ const deleteBrand = async (id) => {
                                 <span class="img-new-badge">Ảnh mới</span>
                             </div>
                             <div v-else-if="form.current_image_url" class="image-preview-wrap">
-                                <img :src="form.current_image_url" alt="Logo hiện tại" class="image-preview" />
+                                <img :src="getStorageUrl(form.current_image_url)" alt="Logo hiện tại" class="image-preview" />
                                 <button type="button" class="img-remove-btn" @click="removeCurrentImage" :disabled="isDeletingImage" title="Xóa logo">
                                     <svg v-if="!isDeletingImage" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                                     <span v-else class="mini-spinner"></span>
@@ -514,18 +538,18 @@ const deleteBrand = async (id) => {
 .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-color); }
 .modal-head h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); }
 .btn-close { background: none; border: none; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 6px; transition: all 0.2s; }
-.btn-close:hover { background: var(--hover-bg); color: var(--coral); }
+.btn-close:hover { background: var(--hover-bg); color: #dc2626; }
 .modal-body { padding: 24px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 
 /* Form */
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px; }
-.required { color: var(--coral); }
+.required { color: #dc2626; }
 .form-control { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--ocean-deepest); color: var(--text-main); font-family: var(--font-inter); font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box; }
 .form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
-.form-control.is-invalid { border-color: var(--coral); background: #fef2f2; }
-.field-error { display: block; color: var(--coral); font-size: 0.72rem; font-weight: 600; margin-top: 6px; }
+.form-control.is-invalid { border-color: #dc2626; background: #fef2f2; }
+.field-error { display: block; color: #dc2626 !important; font-size: 0.78rem; font-weight: 600; margin-top: 6px; }
 .form-error-box { display: flex; align-items: center; gap: 8px; padding: 10px 14px; margin-bottom: 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; font-size: 0.82rem; font-weight: 600; }
 
 /* Toggle */
@@ -542,7 +566,7 @@ const deleteBrand = async (id) => {
 /* Image Upload */
 .image-preview-wrap { position: relative; display: inline-block; margin-bottom: 10px; border-radius: 10px; }
 .image-preview { width: 120px; height: 90px; object-fit: contain; background: white; border-radius: 10px; border: 2px solid var(--border-color); display: block; padding: 5px; }
-.img-remove-btn { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; background: var(--coral); color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 1; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+.img-remove-btn { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; background: #dc2626; color: white; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 1; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 .img-remove-btn:hover { transform: scale(1.1); }
 .img-new-badge { position: absolute; bottom: 6px; left: 6px; background: var(--primary); color: white; font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
 .image-drop-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 20px; border: 2px dashed var(--border-color); border-radius: 10px; cursor: pointer; transition: all 0.2s; color: var(--text-light); text-align: center; background: var(--ocean-deepest); }

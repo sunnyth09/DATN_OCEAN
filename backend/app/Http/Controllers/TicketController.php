@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class TicketController extends Controller
 {
@@ -75,29 +76,65 @@ class TicketController extends Controller
         try {
             $ticket = Ticket::findOrFail($id);
             $oldStatus = $ticket->status;
-            $oldReply = $ticket->admin_reply;
+            $oldReply = trim((string) $ticket->admin_reply);
+            $newStatus = $request->status;
+            $newReply = trim((string) ($request->admin_reply ?? ''));
 
-            $ticket->status = $request->status;
-            if ($request->has('admin_reply')) {
-                $ticket->admin_reply = $request->admin_reply;
+            $statusLabels = [
+                'pending' => 'Chờ xử lý',
+                'processing' => 'Đang xử lý',
+                'resolved' => 'Đã giải quyết',
+                'closed' => 'Đã đóng',
+            ];
+
+            // State Machine Transition Rules
+            $allowedTransitions = [
+                'pending' => ['pending', 'processing', 'resolved', 'closed'],
+                'processing' => ['processing', 'resolved', 'closed'],
+                'resolved' => ['resolved', 'closed'],
+                'closed' => ['closed'],
+            ];
+
+            if (! in_array($newStatus, $allowedTransitions[$oldStatus] ?? [])) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Không thể chuyển trạng thái khiếu nại từ "'.($statusLabels[$oldStatus] ?? $oldStatus).'" sang "'.($statusLabels[$newStatus] ?? $newStatus).'".',
+                ], 422);
             }
+
+            // Nếu khiếu nại đã đóng (closed), khóa hoàn toàn không cho sửa đổi thêm
+            if ($oldStatus === 'closed') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Khiếu nại này đã đóng, không thể chỉnh sửa thêm.',
+                ], 422);
+            }
+
+            $isStatusChanged = ($oldStatus !== $newStatus);
+            $isReplyChanged = ($oldReply !== $newReply);
+
+            // Nếu không có thay đổi nào về cả status lẫn reply, trả về thành công nhưng không gửi email thừa
+            if (! $isStatusChanged && ! $isReplyChanged) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Không có thay đổi nào cần cập nhật',
+                    'data' => $ticket,
+                ]);
+            }
+
+            $ticket->status = $newStatus;
+            $ticket->admin_reply = $newReply ?: null;
             $ticket->save();
 
-            // Gửi thông báo cho user nếu trạng thái thay đổi hoặc có phản hồi mới
-            if ($ticket->status != $oldStatus || ($ticket->admin_reply && $ticket->admin_reply != $oldReply)) {
+            // Gửi thông báo & email cho user CHỈ KHI có thay đổi thực sự
+            if ($isStatusChanged || ($isReplyChanged && ! empty($ticket->admin_reply))) {
                 $user = User::find($ticket->user_id);
                 if ($user) {
-                    $statusText = match ($ticket->status) {
-                        'pending' => 'Chờ xử lý',
-                        'processing' => 'Đang xử lý',
-                        'resolved' => 'Đã giải quyết',
-                        'closed' => 'Đã đóng',
-                        default => $ticket->status
-                    };
+                    $statusText = $statusLabels[$ticket->status] ?? $ticket->status;
                     $title = 'Cập nhật khiếu nại #'.$ticket->ticket_id;
                     $message = 'Khiếu nại của bạn đã chuyển sang: '.$statusText.'.';
-                    if ($ticket->admin_reply && $ticket->admin_reply != $oldReply) {
-                        $message .= ' Admin: '.substr($ticket->admin_reply, 0, 60).'...';
+                    if ($isReplyChanged && ! empty($ticket->admin_reply)) {
+                        $message .= ' Admin: '.Str::limit($ticket->admin_reply, 60);
                     }
 
                     // Gửi email thông báo (bỏ vào Queue để không block request)

@@ -235,6 +235,35 @@ const getStatusText = (status) => {
   return map[status] || status;
 };
 
+const availableStatusOptions = computed(() => {
+  const current = selectedTicket.value?.status;
+  if (!current) return [];
+  if (current === 'closed') {
+    return [{ value: 'closed', label: 'Đã đóng' }];
+  }
+  if (current === 'resolved') {
+    return [
+      { value: 'resolved', label: 'Đã giải quyết' },
+      { value: 'closed', label: 'Đã đóng' }
+    ];
+  }
+  if (current === 'processing') {
+    return [
+      { value: 'processing', label: 'Đang xử lý' },
+      { value: 'resolved', label: 'Đã giải quyết' },
+      { value: 'closed', label: 'Đã đóng' }
+    ];
+  }
+  return [
+    { value: 'pending', label: 'Chờ xử lý' },
+    { value: 'processing', label: 'Đang xử lý' },
+    { value: 'resolved', label: 'Đã giải quyết' },
+    { value: 'closed', label: 'Đã đóng' }
+  ];
+});
+
+const isTicketClosed = computed(() => selectedTicket.value?.status === 'closed');
+
 const openTicketModal = (ticket) => {
   selectedTicket.value = ticket;
   replyContent.value = ticket.admin_reply || '';
@@ -248,16 +277,26 @@ const closeTicketModal = () => {
 };
 
 const submitReply = async () => {
-  if (!selectedTicket.value) return;
+  if (!selectedTicket.value || isTicketClosed.value) return;
+
+  const originalStatus = selectedTicket.value.status;
+  const originalReply = (selectedTicket.value.admin_reply || '').trim();
+  const currentReply = (replyContent.value || '').trim();
+
+  if (updateStatus.value === originalStatus && currentReply === originalReply) {
+    toast.info('Không có thay đổi nào.');
+    return;
+  }
+
   actionLoading.value = true;
   try {
     const res = await api.put(`/admin/tickets/${selectedTicket.value.ticket_id}`, {
       status: updateStatus.value,
-      admin_reply: replyContent.value
+      admin_reply: currentReply
     });
 
     if (res.data.status === 'success') {
-      toast.success('Đã cập nhật khiếu nại');
+      toast.success(res.data.message || 'Đã cập nhật khiếu nại');
       window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
       window.dispatchEvent(new Event('admin-notification-received'));
       closeTicketModal();
@@ -265,7 +304,7 @@ const submitReply = async () => {
     }
   } catch (error) {
     console.error("Lỗi cập nhật:", error);
-    toast.error('Có lỗi xảy ra khi cập nhật');
+    toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật');
   } finally {
     actionLoading.value = false;
   }
@@ -755,23 +794,26 @@ onUnmounted(() => {
                 placeholder="Nhập nội dung phản hồi cho khách hàng..."
                 class="reply-input"
                 rows="4"
+                :disabled="isTicketClosed"
               ></textarea>
 
               <div class="status-update mt-3">
                 <label>Cập nhật trạng thái:</label>
-                <select v-model="updateStatus" class="filter-select w-100">
-                  <option value="pending">Chờ xử lý</option>
-                  <option value="processing">Đang xử lý</option>
-                  <option value="resolved">Đã giải quyết</option>
-                  <option value="closed">Đã đóng</option>
+                <select v-model="updateStatus" class="filter-select w-100" :disabled="isTicketClosed">
+                  <option v-for="opt in availableStatusOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
                 </select>
+                <p v-if="isTicketClosed" class="ticket-closed-hint">
+                  🔒 Khiếu nại này đã đóng và được lưu trữ, không thể chỉnh sửa thêm.
+                </p>
               </div>
             </div>
           </div>
 
           <div class="modal-footer">
             <button class="btn btn-secondary" @click="closeTicketModal">Đóng</button>
-            <button class="btn btn-primary" @click="submitReply" :disabled="actionLoading">
+            <button class="btn btn-primary" @click="submitReply" :disabled="actionLoading || isTicketClosed">
               <span v-if="actionLoading" class="spinner-small"></span>
               <span v-else>Cập nhật & Phản hồi</span>
             </button>
@@ -1368,6 +1410,20 @@ onUnmounted(() => {
   font-family: inherit; font-size: 0.95rem; resize: vertical; box-sizing: border-box;
 }
 .reply-input:focus { border-color: var(--primary); outline: none; }
+.reply-input:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+.ticket-closed-hint {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
 
 .modal-footer {
   padding: 16px 24px; border-top: 1px solid #e2e8f0;

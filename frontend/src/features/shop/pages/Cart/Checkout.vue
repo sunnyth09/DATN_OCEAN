@@ -230,18 +230,37 @@ const fetchFlashSaleData = async () => {
     try {
         const { data } = await api.get('flash-sale');
         const list = data.data ?? [];
-        const item = list.find(s => s.id == flashSaleId.value && s.product_id == flashSaleProductId.value);
+        const item = list.find(s => (s.id == flashSaleId.value || s.flash_sale_id == flashSaleId.value) && s.product_id == flashSaleProductId.value);
         if (item) {
+            let selectedVariant = null;
+            try {
+                const varRes = await api.get(`/products/${item.product_id}/variants`);
+                const vars = varRes.data?.data || [];
+                if (route.query.variant_id) {
+                    selectedVariant = vars.find(v => v.variant_id == route.query.variant_id);
+                }
+                if (!selectedVariant && vars.length > 0) {
+                    selectedVariant = vars.find(v => (v.stock || 0) > 0) || vars[0];
+                }
+            } catch (varErr) {
+                console.error('Lỗi khi tải phân loại Flash Sale:', varErr);
+            }
+
             cartItems.value = [{
-                cart_item_id: 'fs_' + item.id,
+                cart_item_id: 'fs_' + (item.item_id || item.id),
+                product_id: item.product_id,
+                variant_id: selectedVariant?.variant_id || (route.query.variant_id ? Number(route.query.variant_id) : null),
                 product: {
-                    name: item.product_name,
-                    thumbnail_url: item.product_thumbnail,
+                    product_id: item.product_id,
+                    name: item.product_name || item.name,
+                    thumbnail_url: item.product_thumbnail || item.thumbnail_url || item.image_url,
                 },
                 variant: {
-                    price: item.sale_price,
-                    color: 'Flash Sale',
-                    size: 'Đặc biệt'
+                    variant_id: selectedVariant?.variant_id || null,
+                    price: item.sale_price || item.flash_price,
+                    color: selectedVariant?.color || 'Flash Sale',
+                    size: selectedVariant?.size || 'Đặc biệt',
+                    stock: selectedVariant?.stock ?? item.remaining
                 },
                 quantity: 1,
             }];
@@ -762,7 +781,20 @@ const confirmVariantChange = async () => {
     const newVariantId = modalSelectedVariant.value.variant_id;
 
     try {
-        if (isBuyNow.value) {
+        if (isFlashSale.value) {
+            if (cartItems.value.length > 0) {
+                cartItems.value[0].variant_id = newVariantId;
+                cartItems.value[0].variant = {
+                    variant_id: newVariantId,
+                    price: cartItems.value[0].variant?.price || 0,
+                    color: modalSelectedVariant.value.color || 'Flash Sale',
+                    size: modalSelectedVariant.value.size || 'Đặc biệt',
+                    stock: modalSelectedVariant.value.stock
+                };
+            }
+            showToast('Đã cập nhật phân loại sản phẩm!', 'success');
+            closeVariantModal();
+        } else if (isBuyNow.value) {
             // Mua ngay
             buyNowItem.value = {
                 variant_id: newVariantId,
@@ -869,6 +901,7 @@ const placeOrder = async () => {
             const fsPayload = {
                 flash_sale_id: flashSaleId.value,
                 product_id: flashSaleProductId.value,
+                variant_id: cartItems.value[0]?.variant_id || (route.query.variant_id ? Number(route.query.variant_id) : null),
                 quantity: 1,
                 recipient_name: fsName,
                 recipient_phone: fsPhone,

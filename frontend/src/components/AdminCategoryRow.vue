@@ -1,5 +1,6 @@
 <script setup>
 import AppIcon from '@/components/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
 const props = defineProps({
     category: { type: Object, required: true },
@@ -16,8 +17,8 @@ const emit = defineEmits(['edit', 'delete']);
                 <!-- Thumbnail ảnh danh mục hoặc icon mặc định -->
                 <div class="cat-icon-wrap">
                     <img
-                        v-if="category.image_url"
-                        :src="category.image_url"
+                        v-if="category.image_url || category.image"
+                        :src="getStorageUrl(category.image_url || category.image)"
                         :alt="category.name"
                         class="cat-thumbnail"
                     />

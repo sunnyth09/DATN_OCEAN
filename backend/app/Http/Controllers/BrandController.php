@@ -18,11 +18,29 @@ class BrandController extends Controller
             return null;
         }
 
-        if (filter_var($path, FILTER_VALIDATE_URL)) {
+        if (filter_var($path, FILTER_VALIDATE_URL) || Str::startsWith($path, ['http://', 'https://'])) {
             return $path;
         }
 
-        return url('/api/image-proxy?path='.$path);
+        $cleanPath = ltrim(preg_replace('/^storage\//', '', $path), '/');
+        $baseUrl = rtrim(config('app.url', 'http://localhost:8383'), '/');
+        if (! Str::startsWith($baseUrl, ['http://', 'https://'])) {
+            $baseUrl = 'http://'.$baseUrl;
+        }
+
+        return $baseUrl.'/storage/'.$cleanPath;
+    }
+
+    private function cleanDescription(?string $desc): ?string
+    {
+        if (empty($desc)) {
+            return null;
+        }
+
+        $decoded = html_entity_decode(html_entity_decode($desc, ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $clean = trim(strip_tags($decoded));
+
+        return $clean !== '' ? $clean : null;
     }
 
     /**
@@ -37,6 +55,7 @@ class BrandController extends Controller
             $data = Brand::orderBy('brand_id', 'desc')->get();
             $data->transform(function ($brand) {
                 $brand->image_url = $this->buildImageUrl($brand->logo_url);
+                $brand->description = $this->cleanDescription($brand->description);
 
                 return $brand;
             });
@@ -52,20 +71,48 @@ class BrandController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
+        $rules = [
+            'name' => 'required|string|max:120|unique:brands,name',
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
-        ]);
+        ];
+
+        if ($request->hasFile('image')) {
+            $rules['image'] = 'nullable|file|mimes:jpeg,jpg,png,webp,gif,svg,bmp,avif|max:5120';
+        } else {
+            $rules['image'] = 'nullable|string';
+        }
+
+        $messages = [
+            'name.required' => 'Vui lòng nhập tên thương hiệu.',
+            'name.max' => 'Tên thương hiệu không được vượt quá 120 ký tự.',
+            'name.unique' => 'Tên thương hiệu này đã tồn tại.',
+            'image.file' => 'File tải lên phải là hình ảnh hợp lệ.',
+            'image.mimes' => 'Hình ảnh phải có định dạng: jpeg, jpg, png, webp, gif, svg.',
+            'image.max' => 'Kích thước hình ảnh không được vượt quá 5MB.',
+        ];
+
+        $request->validate($rules, $messages);
 
         $data = $request->except(['image']);
-        $data['slug'] = Str::slug($request->name);
-        $data['is_active'] = $request->has('is_active') ? $request->is_active : 1;
+        if (isset($data['description'])) {
+            $data['description'] = $this->cleanDescription($data['description']);
+        }
+
+        $slug = Str::slug($request->name);
+        $originalSlug = $slug;
+        $count = 1;
+        while (Brand::where('slug', $slug)->exists()) {
+            $slug = $originalSlug.'-'.$count++;
+        }
+        $data['slug'] = $slug;
+        $data['is_active'] = $request->has('is_active') ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN) : true;
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('brands', 'public');
             $data['logo_url'] = $path;
+        } elseif ($request->filled('image') && filter_var($request->image, FILTER_VALIDATE_URL)) {
+            $data['logo_url'] = $request->image;
         }
 
         $brand = Brand::create($data);
@@ -87,17 +134,44 @@ class BrandController extends Controller
     {
         $brand = Brand::findOrFail($id);
 
-        $request->validate([
-            'name' => 'required|string|max:255',
+        $rules = [
+            'name' => 'required|string|max:120|unique:brands,name,'.$id.',brand_id',
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
-        ]);
+        ];
+
+        if ($request->hasFile('image')) {
+            $rules['image'] = 'nullable|file|mimes:jpeg,jpg,png,webp,gif,svg,bmp,avif|max:5120';
+        } else {
+            $rules['image'] = 'nullable|string';
+        }
+
+        $messages = [
+            'name.required' => 'Vui lòng nhập tên thương hiệu.',
+            'name.max' => 'Tên thương hiệu không được vượt quá 120 ký tự.',
+            'name.unique' => 'Tên thương hiệu này đã tồn tại.',
+            'image.file' => 'File tải lên phải là hình ảnh hợp lệ.',
+            'image.mimes' => 'Hình ảnh phải có định dạng: jpeg, jpg, png, webp, gif, svg.',
+            'image.max' => 'Kích thước hình ảnh không được vượt quá 5MB.',
+        ];
+
+        $request->validate($rules, $messages);
 
         $data = $request->except(['image']);
-        $data['slug'] = Str::slug($request->name);
+        if (isset($data['description'])) {
+            $data['description'] = $this->cleanDescription($data['description']);
+        }
+
+        $slug = Str::slug($request->name);
+        $originalSlug = $slug;
+        $count = 1;
+        while (Brand::where('slug', $slug)->where('brand_id', '!=', $id)->exists()) {
+            $slug = $originalSlug.'-'.$count++;
+        }
+        $data['slug'] = $slug;
+
         if ($request->has('is_active')) {
-            $data['is_active'] = $request->is_active;
+            $data['is_active'] = filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN);
         }
 
         if ($request->hasFile('image')) {
@@ -106,6 +180,8 @@ class BrandController extends Controller
             }
             $path = $request->file('image')->store('brands', 'public');
             $data['logo_url'] = $path;
+        } elseif ($request->filled('image') && filter_var($request->image, FILTER_VALIDATE_URL)) {
+            $data['logo_url'] = $request->image;
         }
 
         $brand->update($data);

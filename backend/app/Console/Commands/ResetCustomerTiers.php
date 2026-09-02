@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -42,8 +41,8 @@ class ResetCustomerTiers extends Command
             Log::info("[ResetCustomerTiers] Reset {$affected} users to tier_month_spent=0, tier_id=NULL.");
 
         } catch (\Exception $e) {
-            $this->error('❌ Lỗi khi reset hạng: ' . $e->getMessage());
-            Log::error('[ResetCustomerTiers] ' . $e->getMessage());
+            $this->error('❌ Lỗi khi reset hạng: '.$e->getMessage());
+            Log::error('[ResetCustomerTiers] '.$e->getMessage());
 
             return Command::FAILURE;
         }

@@ -31,10 +31,19 @@ class OrderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $user = auth('api')->user();
+        $user = $request->user() ?? auth('api')->user() ?? auth('admin')->user() ?? auth()->user();
+
+        if (! $user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Vui lòng đăng nhập để xem danh sách đơn hàng.',
+            ], 401);
+        }
+
+        $userId = (int) ($user->user_id ?? $user->getKey());
 
         $orders = $this->orderService->getUserOrders(
-            $user->user_id,
+            $userId,
             $request->get('status', 'all')
         );
 
@@ -50,9 +59,18 @@ class OrderController extends Controller
      */
     public function store(StoreOrderRequest $request): JsonResponse
     {
-        $user = auth('api')->user();
+        $user = $request->user() ?? auth('api')->user() ?? auth('admin')->user() ?? auth()->user();
 
-        $lock = Cache::lock('order_checkout_'.$user->user_id, 5);
+        if (! $user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Vui lòng đăng nhập để đặt hàng.',
+            ], 401);
+        }
+
+        $userId = (int) ($user->user_id ?? $user->getKey());
+
+        $lock = Cache::lock('order_checkout_'.$userId, 5);
 
         if (! $lock->get()) {
             return response()->json([
@@ -63,7 +81,7 @@ class OrderController extends Controller
 
         try {
             $result = $this->orderService->createOrder(
-                $user->user_id,
+                $userId,
                 $request->validated(),
                 $request
             );
@@ -153,11 +171,21 @@ class OrderController extends Controller
             ], 404);
         }
 
+        $user = request()->user() ?? auth('api')->user() ?? auth('admin')->user() ?? auth()->user();
+        if (! $user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Vui lòng đăng nhập.',
+            ], 401);
+        }
+
+        $userId = (int) ($user->user_id ?? $user->getKey());
+
         Gate::authorize('view', $order); // 403 nếu không phải owner
 
         // Load chi tiết đầy đủ
         $detail = $this->orderService->getUserOrderDetail(
-            auth('api')->user()->user_id,
+            $userId,
             $order->order_id
         );
 
@@ -173,8 +201,18 @@ class OrderController extends Controller
      */
     public function cancel(CancelOrderRequest $request, int $id): JsonResponse
     {
+        $user = $request->user() ?? auth('api')->user() ?? auth('admin')->user() ?? auth()->user();
+        if (! $user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Vui lòng đăng nhập.',
+            ], 401);
+        }
+
+        $userId = (int) ($user->user_id ?? $user->getKey());
+
         $result = $this->orderService->cancelOrder(
-            auth('api')->user()->user_id,
+            $userId,
             $id,
             $request->cancel_reason
         );
@@ -190,8 +228,18 @@ class OrderController extends Controller
      */
     public function getOrderIdByCode(string $orderCode): JsonResponse
     {
+        $user = request()->user() ?? auth('api')->user() ?? auth('admin')->user() ?? auth()->user();
+        if (! $user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Vui lòng đăng nhập.',
+            ], 401);
+        }
+
+        $userId = (int) ($user->user_id ?? $user->getKey());
+
         $order = $this->orderService->getOrderByCode(
-            auth('api')->user()->user_id,
+            $userId,
             $orderCode
         );
 

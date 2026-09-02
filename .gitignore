@@ -52,6 +52,7 @@ Thumbs.db
 /backend/storage/app/public/attendances/*
 /backend/storage/app/public/avatars/*
 /backend/storage/app/public/categories/*
+/backend/storage/app/public/brands/*
 /backend/storage/app/public/product_comments/*
 /backend/storage/app/public/product_descriptions/*
 /backend/storage/app/public/thumbnails/*

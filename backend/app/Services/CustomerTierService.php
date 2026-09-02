@@ -20,7 +20,7 @@ class CustomerTierService
         try {
             $user->total_spent += $amount;
             $user->tier_month_spent += $amount;
-            
+
             // Tìm hạng cao nhất phù hợp với tier_month_spent hiện tại
             $newTier = CustomerTier::where('is_active', true)
                 ->where('min_spent', '<=', $user->tier_month_spent)
@@ -43,7 +43,7 @@ class CustomerTierService
             ])->save();
 
         } catch (\Exception $e) {
-            Log::error("Failed to upgrade tier for user {$user->user_id}: " . $e->getMessage());
+            Log::error("Failed to upgrade tier for user {$user->user_id}: ".$e->getMessage());
         }
     }
 
@@ -59,7 +59,7 @@ class CustomerTierService
         try {
             $user->total_spent = max(0, $user->total_spent - $amount);
             $user->tier_month_spent = max(0, $user->tier_month_spent - $amount);
-            
+
             // Tìm hạng cao nhất phù hợp với tier_month_spent bị giảm
             $newTier = CustomerTier::where('is_active', true)
                 ->where('min_spent', '<=', $user->tier_month_spent)
@@ -70,7 +70,7 @@ class CustomerTierService
 
             if ($user->tier_id !== $newTierId) {
                 $user->tier_id = $newTierId;
-                Log::info("User {$user->user_id} downgraded to tier " . ($newTier->name ?? 'None'));
+                Log::info("User {$user->user_id} downgraded to tier ".($newTier->name ?? 'None'));
             }
 
             $user->forceFill([
@@ -80,7 +80,7 @@ class CustomerTierService
             ])->save();
 
         } catch (\Exception $e) {
-            Log::error("Failed to downgrade tier for user {$user->user_id}: " . $e->getMessage());
+            Log::error("Failed to downgrade tier for user {$user->user_id}: ".$e->getMessage());
         }
     }
 }

@@ -35,24 +35,45 @@ class CategoryController extends Controller
      */
     private function buildImageUrl(?string $path): ?string
     {
-        if (! $path) {
+        if (empty($path)) {
             return null;
         }
         // Nếu đã là URL tuyệt đối thì trả về ngay
-        if (Str::startsWith($path, ['http://', 'https://'])) {
+        if (filter_var($path, FILTER_VALIDATE_URL) || Str::startsWith($path, ['http://', 'https://'])) {
             return $path;
         }
 
-        return url('/api/image-proxy?path='.$path);
+        $cleanPath = ltrim(preg_replace('/^storage\//', '', $path), '/');
+        $baseUrl = rtrim(config('app.url', 'http://localhost:8383'), '/');
+        if (! Str::startsWith($baseUrl, ['http://', 'https://'])) {
+            $baseUrl = 'http://'.$baseUrl;
+        }
+
+        return $baseUrl.'/storage/'.$cleanPath;
+    }
+
+    private function cleanDescription(?string $desc): ?string
+    {
+        if (empty($desc)) {
+            return null;
+        }
+
+        $decoded = html_entity_decode(html_entity_decode($desc, ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $clean = trim(strip_tags($decoded));
+
+        return $clean !== '' ? $clean : null;
     }
 
     /**
-     * Ánh xạ image_url vào toàn bộ danh sách (đệ quy)
+     * Ánh xạ image_url và làm sạch description vào toàn bộ danh sách (đệ quy)
      */
     private function appendImageUrl(array $categories): array
     {
         return array_map(function ($cat) {
             $cat['image_url'] = $this->buildImageUrl($cat['image'] ?? null);
+            if (isset($cat['description'])) {
+                $cat['description'] = $this->cleanDescription($cat['description']);
+            }
             if (! empty($cat['children'])) {
                 $cat['children'] = $this->appendImageUrl($cat['children']);
             }
@@ -70,7 +91,10 @@ class CategoryController extends Controller
     public function index()
     {
         $tree = Cache::rememberForever('categories:tree', function () {
-            $cats = Category::all()->toArray();
+            $cats = Category::orderBy('sort_order', 'asc')
+                ->orderBy('category_id', 'asc')
+                ->get()
+                ->toArray();
 
             return $this->buildTree($cats);
         });
@@ -91,14 +115,29 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'name' => 'required|string|max:255',
             'parent_id' => 'nullable|integer',
             'description' => 'nullable|string',
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
-        ]);
+        ];
+
+        if ($request->hasFile('image')) {
+            $rules['image'] = 'image|mimes:jpeg,jpg,png,webp,gif|max:2048';
+        } else {
+            $rules['image'] = 'nullable|string';
+        }
+
+        $messages = [
+            'name.required' => 'Vui lòng nhập tên danh mục.',
+            'name.max' => 'Tên danh mục không được vượt quá 255 ký tự.',
+            'image.image' => 'File tải lên phải là hình ảnh.',
+            'image.mimes' => 'Hình ảnh phải có định dạng: jpeg, jpg, png, webp, gif.',
+            'image.max' => 'Kích thước hình ảnh không được vượt quá 2MB.',
+        ];
+
+        $validator = Validator::make($request->all(), $rules, $messages);
 
         if ($validator->fails()) {
             return response()->json([
@@ -109,6 +148,11 @@ class CategoryController extends Controller
         }
 
         $data = $request->except(['image']);
+
+        // Làm sạch thẻ HTML trong description
+        if (isset($data['description'])) {
+            $data['description'] = ! empty($data['description']) ? trim(strip_tags($data['description'])) : null;
+        }
 
         // Nếu parent_id = 0, treat như null (danh mục gốc)
         if (isset($data['parent_id']) && $data['parent_id'] == 0) {
@@ -152,6 +196,9 @@ class CategoryController extends Controller
         }
 
         $data = $category->toArray();
+        if (isset($data['description'])) {
+            $data['description'] = $this->cleanDescription($data['description']);
+        }
         $data['image_url'] = $this->buildImageUrl($category->image);
 
         return response()->json([
@@ -174,14 +221,29 @@ class CategoryController extends Controller
             ], 404);
         }
 
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'name' => 'sometimes|required|string|max:255',
             'parent_id' => 'nullable|integer',
             'description' => 'nullable|string',
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
-            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
-        ]);
+        ];
+
+        if ($request->hasFile('image')) {
+            $rules['image'] = 'image|mimes:jpeg,jpg,png,webp,gif|max:2048';
+        } else {
+            $rules['image'] = 'nullable|string';
+        }
+
+        $messages = [
+            'name.required' => 'Vui lòng nhập tên danh mục.',
+            'name.max' => 'Tên danh mục không được vượt quá 255 ký tự.',
+            'image.image' => 'File tải lên phải là hình ảnh.',
+            'image.mimes' => 'Hình ảnh phải có định dạng: jpeg, jpg, png, webp, gif.',
+            'image.max' => 'Kích thước hình ảnh không được vượt quá 2MB.',
+        ];
+
+        $validator = Validator::make($request->all(), $rules, $messages);
 
         if ($validator->fails()) {
             return response()->json([
@@ -192,6 +254,11 @@ class CategoryController extends Controller
         }
 
         $data = $request->except(['image']);
+
+        // Làm sạch thẻ HTML trong description
+        if (isset($data['description'])) {
+            $data['description'] = ! empty($data['description']) ? trim(strip_tags($data['description'])) : null;
+        }
 
         // Nếu parent_id = 0, treat như null (danh mục gốc)
         if (isset($data['parent_id']) && $data['parent_id'] == 0) {
@@ -222,6 +289,9 @@ class CategoryController extends Controller
         Cache::forget('categories:tree');
 
         $result = $category->fresh()->toArray();
+        if (isset($result['description'])) {
+            $result['description'] = $this->cleanDescription($result['description']);
+        }
         $result['image_url'] = $this->buildImageUrl($category->fresh()->image);
 
         return response()->json([

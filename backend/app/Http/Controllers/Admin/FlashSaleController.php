@@ -130,7 +130,7 @@ class FlashSaleController extends Controller
                 $flashSale->items()->create([
                     'product_id' => $item['product_id'],
                     'campaign_price' => $item['campaign_price'],
-                    'campaign_stock' => $item['campaign_stock'],
+                    'campaign_stock' => (int) $item['campaign_stock'],
                     'sold' => 0,
                 ]);
             }
@@ -140,6 +140,10 @@ class FlashSaleController extends Controller
             }
 
             Cache::forget('flash_sale_public_list');
+            Cache::forget('flash_sale_public_list_all');
+            Cache::forget('flash_sale_public_list_ongoing');
+            Cache::forget('flash_sale_public_list_upcoming');
+            Cache::forget('flash_sale_public_list_active');
             Cache::forget("flash_sale_meta_{$flashSale->id}");
 
             DB::commit();
@@ -160,30 +164,41 @@ class FlashSaleController extends Controller
             $flashSale = FlashSale::with('items')->findOrFail($id);
             $oldStatus = $flashSale->status;
 
+            // Lưu lại số lượng đã bán thực tế của các sản phẩm cũ
+            $existingSoldMap = $flashSale->items->pluck('sold', 'product_id')->toArray();
+
             // Cập nhật record tổng
             $flashSale->update($request->only('name', 'start_time', 'end_time', 'status'));
 
-            // Xoá và thay thế toàn bộ Items (cho đơn giản vì form inline, hoặc bạn có thể update firstOrCreate)
+            // Xoá và tạo lại Items nhưng bảo toàn số lượng sold thực tế
             $flashSale->items()->delete();
             foreach ($request->items as $item) {
+                $prevSold = $existingSoldMap[$item['product_id']] ?? (isset($item['sold']) ? (int) $item['sold'] : 0);
+                $campaignStock = (int) $item['campaign_stock'];
+                $sold = min($prevSold, $campaignStock);
+
                 $flashSale->items()->create([
                     'product_id' => $item['product_id'],
                     'campaign_price' => $item['campaign_price'],
-                    'campaign_stock' => $item['campaign_stock'],
-                    'sold' => isset($item['sold']) ? $item['sold'] : 0,
+                    'campaign_stock' => $campaignStock,
+                    'sold' => $sold,
                 ]);
             }
 
             $flashSale->load('items'); // Load lại relationship
 
-            // Xử lý Redis trạng thái state machine
-            if (in_array($oldStatus, ['draft', 'ended']) && $flashSale->status === 'active') {
+            // Luôn đồng bộ Redis khi chiến dịch đang Active
+            if ($flashSale->status === 'active') {
                 $this->service->syncStockToRedis($flashSale);
-            } elseif ($oldStatus === 'active' && $flashSale->status === 'ended') {
+            } elseif ($flashSale->status === 'ended') {
                 $this->service->revertStockFromRedis($flashSale);
             }
 
             Cache::forget('flash_sale_public_list');
+            Cache::forget('flash_sale_public_list_all');
+            Cache::forget('flash_sale_public_list_ongoing');
+            Cache::forget('flash_sale_public_list_upcoming');
+            Cache::forget('flash_sale_public_list_active');
             Cache::forget("flash_sale_meta_{$flashSale->id}");
 
             DB::commit();
@@ -206,6 +221,10 @@ class FlashSaleController extends Controller
         $flashSale->delete();
 
         Cache::forget('flash_sale_public_list');
+        Cache::forget('flash_sale_public_list_all');
+        Cache::forget('flash_sale_public_list_ongoing');
+        Cache::forget('flash_sale_public_list_upcoming');
+        Cache::forget('flash_sale_public_list_active');
         Cache::forget("flash_sale_meta_{$id}");
 
         return response()->json(['status' => 'success', 'message' => 'Đã xóa Flash Sale!']);

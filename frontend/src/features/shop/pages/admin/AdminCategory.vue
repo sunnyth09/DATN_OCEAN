@@ -105,6 +105,20 @@ const changePage = (page) => {
     }
 };
 
+const stripHtml = (html) => {
+    if (!html) return '';
+    let str = String(html);
+    for (let i = 0; i < 3; i++) {
+        if (!str.includes('&') && !str.includes('<')) break;
+        const txt = document.createElement('textarea');
+        txt.innerHTML = str;
+        const decoded = txt.value;
+        if (decoded === str) break;
+        str = decoded;
+    }
+    return str.replace(/<[^>]*>/g, '').trim();
+};
+
 onMounted(fetchCategories);
 
 // ── Xử lý chọn ảnh ──
@@ -134,6 +148,7 @@ const removeCurrentImage = async () => {
         await api.delete(`/categories/${form.value.category_id}/image`);
         form.value.current_image_url = null;
         showToast('Đã xóa ảnh danh mục!', 'success');
+        markAdminResourceDirty('categories');
         await fetchCategories();
     } catch {
         showToast('Xóa ảnh thất bại!', 'danger');
@@ -159,7 +174,7 @@ const openEditModal = (category) => {
         category_id: category.category_id,
         name: category.name,
         parent_id: category.parent_id == 0 ? null : category.parent_id,
-        description: category.description || '',
+        description: stripHtml(category.description || ''),
         sort_order: category.sort_order || 0,
         is_active: category.is_active,
         current_image_url: category.image_url || null,
@@ -192,12 +207,12 @@ const handleSubmit = async () => {
 
     // Luôn dùng FormData để hỗ trợ upload file
     const fd = new FormData();
-    fd.append('name', form.value.name);
+    fd.append('name', form.value.name.trim());
     fd.append('parent_id', form.value.parent_id ?? '');
-    fd.append('description', form.value.description || '');
+    fd.append('description', stripHtml(form.value.description || '').trim());
     fd.append('sort_order', form.value.sort_order ?? 0);
     fd.append('is_active', form.value.is_active ?? 1);
-    if (imageFile.value) {
+    if (imageFile.value instanceof File) {
         fd.append('image', imageFile.value);
     }
 
@@ -215,6 +230,7 @@ const handleSubmit = async () => {
             });
             Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data.message || 'Thêm danh mục thành công!', icon: 'success', showConfirmButton: false, timer: 3000 });
         }
+        markAdminResourceDirty('categories');
         await fetchCategories();
         closeModal();
     } catch (error) {
@@ -246,6 +262,7 @@ const deleteCategory = async (id) => {
     try {
         const res = await api.delete(`/categories/${id}`);
         showToast(res.data.message || 'Đã xóa danh mục!', 'success');
+        markAdminResourceDirty('categories');
         await fetchCategories();
     } catch (error) {
         showToast(error.response?.data?.message || 'Xóa thất bại!', 'danger');
