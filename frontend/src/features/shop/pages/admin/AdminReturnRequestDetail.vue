@@ -195,34 +195,34 @@ const isStatus = (...statuses) => {
   return statuses.includes(detail.value.status);
 };
 
-// Map trạng thái kỹ thuật Ocean Express sang nhãn tiếng Việt thân thiện
+// Map trạng thái kỹ thuật Ocean Express → nhãn tiếng Việt thân thiện (không dùng emoji)
 const OE_STATUS_MAP = {
-  ready_to_pick: { label: '☃️ Chờ lấy hàng', icon: '⏳', color: '#f59e0b' },
-  picking:       { label: '🚴 Shipper đang đến lấy', icon: '🚴', color: '#3b82f6' },
-  picked:        { label: '✅ Đã lấy hàng', icon: '✅', color: '#10b981' },
-  picked_up:     { label: '✅ Đã lấy hàng', icon: '✅', color: '#10b981' },
-  hub_inbound:   { label: '🏛️ Nhập kho trung chuyển', icon: '🏛️', color: '#6366f1' },
-  in_hub:        { label: '🏛️ Tại kho trung chuyển', icon: '🏛️', color: '#6366f1' },
-  storing:       { label: '🏛️ Tại kho trung chuyển', icon: '🏛️', color: '#6366f1' },
-  stored:        { label: '🏛️ Tại kho trung chuyển', icon: '🏛️', color: '#6366f1' },
-  hub_outbound:  { label: '🚚 Xuất kho — Lên đường', icon: '🚚', color: '#8b5cf6' },
-  transporting:  { label: '🚚 Đang vận chuyển', icon: '🚚', color: '#8b5cf6' },
-  in_transit:    { label: '🚚 Đang trên đường', icon: '🚚', color: '#8b5cf6' },
-  shipping:      { label: '🚚 Đang vận chuyển', icon: '🚚', color: '#8b5cf6' },
-  delivering:    { label: '🛥️ Shipper đang giao về kho', icon: '🛥️', color: '#f97316' },
-  delivered:     { label: '🎉 Đã giao về kho', icon: '🎉', color: '#16a34a' },
-  completed:     { label: '🎉 Hoàn thành', icon: '🎉', color: '#16a34a' },
-  returned:      { label: '🎉 Đã giao về kho', icon: '🎉', color: '#16a34a' },
-  cancelled:     { label: '❌ Hủy', icon: '❌', color: '#dc2626' },
-  delivery_fail: { label: '⚠️ Giao thất bại', icon: '⚠️', color: '#dc2626' },
-  damaged:       { label: '⚠️ Hàng bị hư hỏng', icon: '⚠️', color: '#dc2626' },
-  lost:          { label: '⚠️ Hàng thất lạc', icon: '⚠️', color: '#dc2626' },
+  ready_to_pick: { label: 'Chờ lấy hàng', color: '#f59e0b' },
+  picking:       { label: 'Shipper đang đến lấy hàng', color: '#3b82f6' },
+  picked:        { label: 'Đã lấy hàng từ khách', color: '#10b981' },
+  picked_up:     { label: 'Đã lấy hàng từ khách', color: '#10b981' },
+  hub_inbound:   { label: 'Nhập kho trung chuyển', color: '#6366f1' },
+  in_hub:        { label: 'Tại kho trung chuyển', color: '#6366f1' },
+  storing:       { label: 'Tại kho trung chuyển', color: '#6366f1' },
+  stored:        { label: 'Tại kho trung chuyển', color: '#6366f1' },
+  hub_outbound:  { label: 'Xuất kho — Lên đường', color: '#8b5cf6' },
+  transporting:  { label: 'Đang vận chuyển', color: '#8b5cf6' },
+  in_transit:    { label: 'Đang trên đường', color: '#8b5cf6' },
+  shipping:      { label: 'Đang vận chuyển', color: '#8b5cf6' },
+  delivering:    { label: 'Shipper đang giao về kho', color: '#f97316' },
+  delivered:     { label: 'Đã giao về kho thành công', color: '#16a34a' },
+  completed:     { label: 'Đã hoàn thành', color: '#16a34a' },
+  returned:      { label: 'Đã giao về kho thành công', color: '#16a34a' },
+  cancelled:     { label: 'Hủy vận đơn', color: '#dc2626' },
+  delivery_fail: { label: 'Giao thất bại', color: '#dc2626' },
+  damaged:       { label: 'Hàng bị hư hỏng', color: '#dc2626' },
+  lost:          { label: 'Hàng thất lạc', color: '#dc2626' },
 };
 
 const formatOeStatus = (rawStatus) => {
-  if (!rawStatus) return { label: rawStatus || 'Không rõ', icon: '•', color: '#94a3b8' };
+  if (!rawStatus) return { label: 'Không rõ', color: '#94a3b8' };
   const key = String(rawStatus).toLowerCase().trim();
-  return OE_STATUS_MAP[key] || { label: rawStatus, icon: '•', color: '#94a3b8' };
+  return OE_STATUS_MAP[key] || { label: rawStatus, color: '#94a3b8' };
 };
 
 
@@ -359,13 +359,20 @@ const openTrackingModal = async () => {
     const res = await store.getReturnTracking(route.params.id);
     if (res.status === 'success') {
       trackingInfo.value = res.data;
+      // Auto-sync: neu backend da dong bo trang thai tu OE, reload lai trang chi tiet
+      // de stepper va action panel cap nhat chinh xac
+      if (res.data?.status_synced) {
+        showToast('Trang thai da duoc dong bo tu Ocean Express!', 'success');
+        await refreshDetail();
+      }
     }
   } catch (error) {
-    showToast(error.response?.data?.message || 'Không thể tra cứu hành trình Ocean Express.', 'error');
+    showToast(error.response?.data?.message || 'Khong the tra cuu hanh trinh Ocean Express.', 'error');
   } finally {
     trackingLoading.value = false;
   }
 };
+
 
 const closeTrackingModal = () => {
   showTrackingModal.value = false;

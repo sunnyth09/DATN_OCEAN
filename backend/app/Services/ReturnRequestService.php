@@ -850,19 +850,82 @@ class ReturnRequestService
             return $log;
         }, $rawLogs);
 
-        return $this->success('Tra cứu hành trình vận chuyển Ocean Express.', [
-            'tracking_code' => $trackingNumber,
-            'carrier' => $returnRequest->return_carrier ?: 'ocean_express',
-            'carrier_label' => 'Ocean Express',
-            'status' => $returnRequest->status,
-            'sender_name' => $customerName,
-            'sender_phone' => $customerPhone,
+        // ---------------------------------------------------------------
+        // Auto-sync: Dong bo trang thai tu OE vao DB neu chua cap nhat.
+        // Khi webhook OE khong ban thanh cong, admin bam "Cap nhat lai"
+        // se tu dong cap nhat trang thai chinh xac tu OE vao he thong.
+        // Chi ap dung cho admin (!$userId).
+        // ---------------------------------------------------------------
+        $statusSynced = false;
+        if (! $userId && ! empty($rawLogs)) {
+            $latestLog    = $rawLogs[0] ?? null;
+            $latestOeSt   = strtolower((string) ($latestLog['status'] ?? ($latestLog['action'] ?? '')));
+            $currentSt    = $this->normalizeStatus($returnRequest->status);
+
+            $returningArr = [
+                'picking','picked','picked_up','stored','storing',
+                'in_hub','hub_inbound','hub_outbound','transporting',
+                'in_transit','shipping','delivering',
+            ];
+            $deliveredArr = ['delivered','completed','returned'];
+
+            if ($latestOeSt && in_array($latestOeSt, $deliveredArr, true) &&
+                in_array($currentSt, [
+                    ReturnRequestStatus::APPROVED->value,
+                    ReturnRequestStatus::RETURNING->value,
+                    ReturnRequestStatus::PENDING->value,
+                ], true)
+            ) {
+                DB::transaction(function () use ($returnRequest) {
+                    $returnRequest->update([
+                        'status'                => ReturnRequestStatus::WAREHOUSE_RECEIVED->value,
+                        'received_at'           => $returnRequest->received_at ?: now(),
+                        'warehouse_received_at' => $returnRequest->warehouse_received_at ?: now(),
+                    ]);
+                    $this->updateOrderStatus(
+                        $returnRequest->order,
+                        OrderStatus::WAREHOUSE_RECEIVED->value,
+                        'Ocean Express: Kien hang hoan da giao ve kho Shop (dong bo thu cong).'
+                    );
+                });
+                $returnRequest->refresh();
+                $statusSynced = true;
+            } elseif ($latestOeSt && in_array($latestOeSt, $returningArr, true) &&
+                in_array($currentSt, [
+                    ReturnRequestStatus::APPROVED->value,
+                    ReturnRequestStatus::PENDING->value,
+                ], true)
+            ) {
+                DB::transaction(function () use ($returnRequest) {
+                    $returnRequest->update([
+                        'status'       => ReturnRequestStatus::RETURNING->value,
+                        'returning_at' => $returnRequest->returning_at ?: now(),
+                    ]);
+                    $this->updateOrderStatus(
+                        $returnRequest->order,
+                        OrderStatus::RETURNING->value,
+                        'Ocean Express: Shipper da nhan kien hang hoan (dong bo thu cong).'
+                    );
+                });
+                $returnRequest->refresh();
+                $statusSynced = true;
+            }
+        }
+
+        return $this->success('Tra cuu hanh trinh van chuyen Ocean Express.', [
+            'tracking_code'  => $trackingNumber,
+            'carrier'        => $returnRequest->return_carrier ?: 'ocean_express',
+            'carrier_label'  => 'Ocean Express',
+            'status'         => $returnRequest->status,
+            'status_synced'  => $statusSynced,
+            'sender_name'    => $customerName,
+            'sender_phone'   => $customerPhone,
             'sender_address' => $customerAddress,
-            'receiver_name' => $warehouseName,
+            'receiver_name'  => $warehouseName,
             'receiver_phone' => $warehousePhone,
             'receiver_address' => $warehouseAddress,
-            'tracking_data' => $trackingData,
-            'logs' => $formattedLogs,
+            'tracking_data'  => $trackingData,
+            'logs'           => $formattedLogs,
         ]);
     }
 
