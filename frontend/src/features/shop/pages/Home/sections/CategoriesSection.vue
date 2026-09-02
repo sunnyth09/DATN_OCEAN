@@ -1,245 +1,464 @@
 <script setup>
-defineProps(['Categories', 'isLoadingCategories', 'getCatIcon', 'getCatGradient']);
+import { computed } from 'vue';
+
+const props = defineProps({
+  Categories: {
+    type: Array,
+    default: () => []
+  },
+  topCategories: {
+    type: Array,
+    default: () => []
+  },
+  isLoadingCategories: {
+    type: Boolean,
+    default: false
+  }
+});
+
+// Fallback images only when database image is empty
+const DEFAULT_SPORT_IMAGES = {
+  pickleball: 'https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?q=80&w=800&auto=format&fit=crop',
+  badminton: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=800&auto=format&fit=crop',
+  tennis: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=800&auto=format&fit=crop',
+};
+
+// 3 Main Sport Pillars (Pickleball, Cầu Lông, Tennis) directly from Database
+const mainSports = computed(() => {
+  const all = props.Categories || [];
+  
+  // 1. Pickleball
+  const pickleCat = all.find(c => (c.name || '').toLowerCase() === 'pickleball') || 
+                    all.find(c => (c.name || '').toLowerCase().includes('pickleball') && !c.parentName) || 
+                    { id: 1, name: 'Pickleball' };
+  
+  const pickleSubs = all.filter(c => {
+    const n = (c.name || '').toLowerCase();
+    const p = (c.parentName || '').toLowerCase();
+    return (n.includes('pickleball') || p.includes('pickleball')) && c.id !== pickleCat.id;
+  }).map(c => ({
+    id: c.id,
+    name: c.name,
+    shortName: c.name.replace(/pickleball/gi, '').trim() || c.name
+  }));
+
+  // 2. Cầu Lông
+  const badCat = all.find(c => (c.name || '').toLowerCase() === 'cầu lông') || 
+                 all.find(c => (c.name || '').toLowerCase().includes('cầu lông') && !c.parentName) || 
+                 { id: 2, name: 'Cầu Lông' };
+
+  const badSubs = all.filter(c => {
+    const n = (c.name || '').toLowerCase();
+    const p = (c.parentName || '').toLowerCase();
+    return (n.includes('cầu lông') || p.includes('cầu lông')) && c.id !== badCat.id;
+  }).map(c => ({
+    id: c.id,
+    name: c.name,
+    shortName: c.name.replace(/cầu lông/gi, '').trim() || c.name
+  }));
+
+  // 3. Tennis
+  const tenCat = all.find(c => (c.name || '').toLowerCase() === 'tennis') || 
+                 all.find(c => (c.name || '').toLowerCase().includes('tennis') && !c.parentName) || 
+                 { id: 3, name: 'Tennis' };
+
+  const tenSubs = all.filter(c => {
+    const n = (c.name || '').toLowerCase();
+    const p = (c.parentName || '').toLowerCase();
+    return (n.includes('tennis') || p.includes('tennis')) && c.id !== tenCat.id;
+  }).map(c => ({
+    id: c.id,
+    name: c.name,
+    shortName: c.name.replace(/tennis/gi, '').trim() || c.name
+  }));
+
+  return [
+    {
+      id: pickleCat.id,
+      name: pickleCat.rawName || pickleCat.name || 'Pickleball',
+      tag: 'XU HƯỚNG MỚI',
+      description: 'Vợt, bóng, giày & trang bị thi đấu tiêu chuẩn',
+      image: (pickleCat.image && String(pickleCat.image).trim() !== '' && pickleCat.image !== '0') 
+        ? pickleCat.image 
+        : DEFAULT_SPORT_IMAGES.pickleball,
+      subcategories: pickleSubs.length > 0 ? pickleSubs : [
+        { id: pickleCat.id, shortName: 'Vợt' },
+        { id: pickleCat.id, shortName: 'Giày' },
+        { id: pickleCat.id, shortName: 'Balo' }
+      ]
+    },
+    {
+      id: badCat.id,
+      name: badCat.rawName || badCat.name || 'Cầu Lông',
+      tag: 'BÁN CHẠY NHẤT',
+      description: 'Vợt Yonex, Lining, cước đan & quả cầu chính hãng',
+      image: (badCat.image && String(badCat.image).trim() !== '' && badCat.image !== '0') 
+        ? badCat.image 
+        : DEFAULT_SPORT_IMAGES.badminton,
+      subcategories: badSubs.length > 0 ? badSubs : [
+        { id: badCat.id, shortName: 'Vợt Cầu Lông' },
+        { id: badCat.id, shortName: 'Giày Cầu Lông' },
+        { id: badCat.id, shortName: 'Quả Cầu & Cước' }
+      ]
+    },
+    {
+      id: tenCat.id,
+      name: tenCat.rawName || tenCat.name || 'Tennis',
+      tag: 'CHUYÊN NGHIỆP',
+      description: 'Vợt Wilson, Babolat, Head & phụ kiện sân đấu',
+      image: (tenCat.image && String(tenCat.image).trim() !== '' && tenCat.image !== '0') 
+        ? tenCat.image 
+        : DEFAULT_SPORT_IMAGES.tennis,
+      subcategories: tenSubs.length > 0 ? tenSubs : [
+        { id: tenCat.id, shortName: 'Vợt' },
+        { id: tenCat.id, shortName: 'Giày' },
+        { id: tenCat.id, shortName: 'Balo' }
+      ]
+    }
+  ];
+});
+
+const handleImgError = (e, sportName) => {
+  if (e.target) {
+    const key = (sportName || '').toLowerCase();
+    if (key.includes('pickleball')) e.target.src = DEFAULT_SPORT_IMAGES.pickleball;
+    else if (key.includes('cầu lông') || key.includes('badminton')) e.target.src = DEFAULT_SPORT_IMAGES.badminton;
+    else e.target.src = DEFAULT_SPORT_IMAGES.tennis;
+  }
+};
 </script>
+
 <template>
-    <section class="section-categories py-5 bg-light reveal-on-scroll">
-        <div class="container">
-
-            <!-- Quick filters (Trang mục biệt yêu) -->
-            <!-- <div class="quick-filters-wrap mb-5">
-                <div class="text-center mb-4">
-                    <h2 class="section-title mb-1">TRANG PHỤC BẠN YÊU</h2>
-                    <p class="section-subtitle mb-0">Tìm kiếm trang phục theo phong cách của bạn.</p>
-                </div>
-
-                <div class="quick-filter-buttons">
-                    <router-link to="/product?category=pickleball" class="quick-filter-btn">
-                        <div class="qf-icon">🎾</div>
-                        <span>Pickleball</span>
-                    </router-link>
-                    <router-link to="/product?category=running" class="quick-filter-btn">
-                        <div class="qf-icon">👟</div>
-                        <span>Chạy bộ</span>
-                    </router-link>
-                    <router-link to="/product?category=tennis" class="quick-filter-btn">
-                        <div class="qf-icon">🏸</div>
-                        <span>Tennis</span>
-                    </router-link>
-                </div>
-            </div> -->
-
-            <!-- Categories Grid -->
-            <div class="categories-grid-wrap mt-5">
-                <div class="d-flex align-items-end justify-content-between mb-4">
-                    <div>
-                        <h2 class="section-title mb-1 fw-bold">DANH MỤC SẢN PHẨM</h2>
-                        <p class="section-subtitle mb-0">Khám phá các danh mục sản phẩm nổi bật</p>
-                    </div>
-                    <router-link to="/product" class="link-more d-flex align-items-center gap-1">
-                        Xem tất cả
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                    </router-link>
-                </div>
-
-                <div class="custom-cat-grid">
-                    <template v-if="isLoadingCategories">
-                        <div class="cat-grid-large skeleton-pulse"></div>
-                        <div class="cat-grid-small skeleton-pulse" v-for="i in 4" :key="i"></div>
-                    </template>
-                    <template v-else-if="Categories.length > 0">
-                        <!-- Large Card -->
-                        <div class="cat-grid-large" v-if="Categories[0]">
-                            <router-link :to="'/product?category=' + Categories[0].id" class="cat-card-modern">
-                                <div class="cat-card-img"
-                                    :style="{ backgroundImage: 'url(' + (Categories[0].image || 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?q=80&w=800') + ')' }">
-                                </div>
-                                <div class="cat-card-overlay">
-                                    <h3>{{ Categories[0].name }}</h3>
-                                    <!-- Optional Subcategories here -->
-                                    <div class="sub-categories" v-if="Categories[0].children">
-                                        <span class="sub-cat" v-for="child in Categories[0].children.slice(0, 3)"
-                                            :key="child.id">{{ child.name }}</span>
-                                    </div>
-                                </div>
-                            </router-link>
-                        </div>
-
-                        <!-- Small Cards (max 4) -->
-                        <div class="cat-grid-small" v-for="cat in Categories.slice(1, 5)" :key="cat.id">
-                            <router-link :to="'/product?category=' + cat.id" class="cat-card-modern">
-                                <div class="cat-card-img"
-                                    :style="{ backgroundImage: 'url(' + (cat.image || 'https://images.unsplash.com/photo-1626245100063-2fb5e5812301?q=80&w=800') + ')' }">
-                                </div>
-                                <div class="cat-card-overlay">
-                                    <h3>{{ cat.name }}</h3>
-                                    <!-- Optional Subcategories here -->
-                                    <div class="sub-categories" v-if="cat.children">
-                                        <span class="sub-cat" v-for="child in cat.children.slice(0, 2)"
-                                            :key="child.id">{{ child.name }}</span>
-                                    </div>
-                                </div>
-                            </router-link>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
+  <section class="section-categories py-5 reveal-on-scroll">
+    <div class="container">
+      
+      <!-- Section Header -->
+      <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-3 mb-4">
+        <div>
+          <span class="section-kicker">KHÁM PHÁ THEO BỘ MÔN</span>
+          <h2 class="section-title mb-1 fw-bold">DANH MỤC THỂ THAO NỔI BẬT</h2>
+          <p class="section-subtitle mb-0">Trang thiết bị, vợt và phụ kiện chính hãng chuyên dụng cho từng môn thi đấu</p>
         </div>
-    </section>
+        <router-link to="/product" class="link-view-all d-inline-flex align-items-center gap-2">
+          <span>Tất cả danh mục</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </router-link>
+      </div>
+
+      <!-- Loading Skeletons -->
+      <div v-if="isLoadingCategories" class="row g-4">
+        <div class="col-lg-4 col-md-6" v-for="i in 3" :key="i">
+          <div class="pillar-skeleton skeleton-pulse"></div>
+        </div>
+      </div>
+
+      <!-- 3 SPORT PILLAR HERO CARDS (BẢN CHUẨN ĐÚNG GU 100%) -->
+      <div v-else class="row g-4">
+        <div 
+          v-for="sport in mainSports" 
+          :key="sport.id" 
+          class="col-lg-4 col-md-6"
+        >
+          <div class="sport-pillar-card">
+            <router-link :to="'/product?category=' + sport.id" class="pillar-link">
+              
+              <!-- Background Image Box với ảnh gốc từ web -->
+              <div class="pillar-img-box">
+                <img 
+                  :src="sport.image" 
+                  :alt="sport.name" 
+                  class="pillar-img" 
+                  loading="lazy"
+                  @error="(e) => handleImgError(e, sport.name)"
+                />
+                <div class="pillar-gradient"></div>
+              </div>
+
+              <!-- Foreground Content -->
+              <div class="pillar-content">
+                <span class="pillar-tag">{{ sport.tag }}</span>
+                <h3 class="pillar-name">{{ sport.name }}</h3>
+                <p class="pillar-desc">{{ sport.description }}</p>
+
+                <!-- Subcategory quick chips -->
+                <div class="pillar-chips" v-if="sport.subcategories.length > 0">
+                  <router-link
+                    v-for="sub in sport.subcategories"
+                    :key="sub.id"
+                    :to="'/product?category=' + sub.id"
+                    class="pillar-chip"
+                    @click.stop
+                  >
+                    {{ sub.shortName }}
+                  </router-link>
+                </div>
+
+                <div class="pillar-cta">
+                  <span>Khám phá bộ sưu tập</span>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </div>
+              </div>
+
+            </router-link>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
 </template>
 
 <style scoped>
-/* Quick Filters */
-.quick-filter-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    flex-wrap: wrap;
+.section-categories {
+  background: #f8fafc;
 }
 
-.quick-filter-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 120px;
-    height: 120px;
-    background: #fff;
-    border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    text-decoration: none;
-    color: #111827;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    border: 1px solid transparent;
+/* Header */
+.section-kicker {
+  display: block;
+  color: var(--primary, #e63b6f);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
 }
 
-.quick-filter-btn:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(225, 29, 72, 0.1);
-    border-color: rgba(225, 29, 72, 0.2);
-    color: #e11d48;
+.section-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-main, #2D3436);
+  letter-spacing: -0.5px;
 }
 
-.qf-icon {
-    font-size: 2.5rem;
-    margin-bottom: 8px;
+.section-subtitle {
+  color: var(--text-secondary, #636E72);
+  font-size: 0.9rem;
 }
 
-/* Custom CSS Grid for Categories */
-.custom-cat-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 240px 240px;
-    gap: 20px;
+.link-view-all {
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  white-space: nowrap;
 }
 
-.cat-grid-large {
-    grid-column: 1 / 2;
-    grid-row: 1 / 3;
-    border-radius: 20px;
-    overflow: hidden;
+.link-view-all:hover {
+  background: var(--primary, #e63b6f);
+  border-color: var(--primary, #e63b6f);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(230, 59, 111, 0.25);
 }
 
-.cat-grid-small {
-    border-radius: 20px;
-    overflow: hidden;
+/* ── 3 SPORT PILLAR HERO CARDS ── */
+.sport-pillar-card {
+  height: 380px;
+  min-height: 380px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  background: #1e293b;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
 }
 
-.cat-card-modern {
-    display: block;
-    width: 100%;
-    height: 100%;
-    position: relative;
-    overflow: hidden;
-    background: #111827;
+.sport-pillar-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 22px 45px rgba(15, 23, 42, 0.22);
 }
 
-.cat-card-img {
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    transition: transform 0.6s ease;
-    /* Loại bỏ opacity để hình ảnh không bị tối/mờ */
+.pillar-link {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 24px 26px;
+  text-decoration: none;
+  position: relative;
 }
 
-.cat-card-modern:hover .cat-card-img {
-    transform: scale(1.08);
+/* Background Image Box */
+.pillar-img-box {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #1e293b;
+  overflow: hidden;
 }
 
-.cat-card-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 30px;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+.pillar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 8%;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.cat-card-overlay h3 {
-    color: #fff;
-    margin: 0 0 8px 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+.sport-pillar-card:hover .pillar-img {
+  transform: scale(1.05);
 }
 
-.cat-grid-large .cat-card-overlay h3 {
-    font-size: 2.2rem;
+/* Gradient Overlay tạo chiều sâu và độ tương phản tự nhiên */
+.pillar-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.08) 0%,
+    rgba(15, 23, 42, 0.38) 42%,
+    rgba(15, 23, 42, 0.90) 80%,
+    rgba(15, 23, 42, 0.98) 100%
+  );
+  pointer-events: none;
 }
 
-.sub-categories {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+.pillar-content {
+  position: relative;
+  z-index: 2;
 }
 
-.sub-cat {
-    font-size: 0.8rem;
-    color: #fff;
-    background: rgba(255, 255, 255, 0.2);
-    padding: 4px 12px;
-    border-radius: 99px;
-    backdrop-filter: blur(4px);
-    transition: all 0.2s;
+.pillar-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
-.sub-cat:hover {
-    background: rgba(255, 255, 255, 0.4);
+.pillar-name {
+  color: #ffffff;
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin: 0 0 6px 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-.link-more {
-    color: var(--primary);
-    font-size: 0.95rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.2s;
+.pillar-desc {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  margin-bottom: 14px;
 }
 
-.link-more:hover {
-    color: var(--primary);
-    opacity: 0.8;
-    text-decoration: underline;
+/* Subcategory chips */
+.pillar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
 }
 
+.pillar-chip {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.pillar-chip:hover {
+  background: var(--primary, #e63b6f);
+  border-color: var(--primary, #e63b6f);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.pillar-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+}
+
+.sport-pillar-card:hover .pillar-cta {
+  color: #ff85a8;
+  transform: translateX(4px);
+}
+
+/* Skeleton Pulse */
+.pillar-skeleton {
+  height: 380px;
+  border-radius: 20px;
+}
+
+.skeleton-pulse {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeletonLoad 1.5s infinite;
+}
+
+@keyframes skeletonLoad {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Responsive */
 @media (max-width: 991px) {
-    .custom-cat-grid {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto;
-    }
+  .sport-pillar-card {
+    height: 350px;
+    min-height: 350px;
+  }
 
-    .cat-grid-large {
-        grid-column: 1 / 3;
-        grid-row: 1 / 2;
-        height: 300px;
-    }
+  .pillar-link {
+    padding: 20px;
+  }
 
-    .cat-grid-small {
-        height: 200px;
-    }
+  .pillar-name {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .section-title {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sport-pillar-card {
+    height: 320px;
+    min-height: 320px;
+  }
+
+  .pillar-link {
+    padding: 18px;
+  }
+
+  .pillar-name {
+    font-size: 1.35rem;
+  }
 }
 </style>

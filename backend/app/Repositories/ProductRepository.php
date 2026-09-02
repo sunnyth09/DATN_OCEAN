@@ -3,10 +3,12 @@
 namespace App\Repositories;
 
 use App\Models\CartItem;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class ProductRepository
 {
@@ -32,6 +34,63 @@ class ProductRepository
         ];
     }
 
+    /**
+     * Áp dụng tìm kiếm thông minh kết hợp Meilisearch IDs và SQL LIKE
+     * (Tìm theo tên, slug không dấu, mô tả, danh mục, thương hiệu)
+     */
+    private function applySearchFilters($query, ?array $matchedIds, array $filters): void
+    {
+        $search = $filters['search_query'] ?? $filters['search_like'] ?? null;
+        $hasMatchedIds = ! empty($matchedIds);
+
+        if ($hasMatchedIds || ! empty($search)) {
+            $query->where(function ($q) use ($matchedIds, $search, $hasMatchedIds) {
+                if ($hasMatchedIds) {
+                    $q->whereIn('products.product_id', $matchedIds);
+                }
+
+                if (! empty($search)) {
+                    $searchClean = str_replace(['%', '_'], ['\%', '\_'], trim($search));
+                    $searchSlug = Str::slug($search);
+
+                    $booleanOp = $hasMatchedIds ? 'orWhere' : 'where';
+                    $q->{$booleanOp}(function ($sub) use ($searchClean, $searchSlug) {
+                        $sub->where('products.name', 'like', "%{$searchClean}%")
+                            ->orWhere('products.slug', 'like', "%{$searchClean}%")
+                            ->orWhere('products.short_description', 'like', "%{$searchClean}%");
+
+                        if (! empty($searchSlug) && $searchSlug !== $searchClean) {
+                            $sub->orWhere('products.name', 'like', "%{$searchSlug}%")
+                                ->orWhere('products.slug', 'like', "%{$searchSlug}%");
+                        }
+
+                        // Tìm theo danh mục
+                        $sub->orWhereHas('category', function ($catQuery) use ($searchClean, $searchSlug) {
+                            $catQuery->where('name', 'like', "%{$searchClean}%");
+                            if (! empty($searchSlug) && $searchSlug !== $searchClean) {
+                                $catQuery->orWhere('name', 'like', "%{$searchSlug}%");
+                            }
+                        });
+
+                        // Tìm theo thương hiệu
+                        $sub->orWhereHas('brand', function ($brandQuery) use ($searchClean, $searchSlug) {
+                            $brandQuery->where('name', 'like', "%{$searchClean}%");
+                            if (! empty($searchSlug) && $searchSlug !== $searchClean) {
+                                $brandQuery->orWhere('name', 'like', "%{$searchSlug}%");
+                            }
+                        });
+
+                        // Tìm theo biến thể (SKU, barcode)
+                        $sub->orWhereHas('variants', function ($vq) use ($searchClean) {
+                            $vq->where('sku', 'like', "%{$searchClean}%")
+                                ->orWhere('barcode', 'like', "%{$searchClean}%");
+                        });
+                    });
+                }
+            });
+        }
+    }
+
     // ─── Admin queries ─────────────────────────────────────────────────
 
     /**
@@ -47,16 +106,8 @@ class ProductRepository
         $query = Product::with($this->listEagerLoads())
             ->withSum('variants', 'stock');
 
-        // Search — đã được xử lý ở Service: truyền matchedIds hoặc LIKE
-        if ($matchedIds !== null) {
-            $query->whereIn('product_id', $matchedIds);
-        } elseif (! empty($filters['search_like'])) {
-            $search = str_replace(['%', '_'], ['\%', '\_'], $filters['search_like']);
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%");
-            });
-        }
+        // Search kết hợp Meilisearch + SQL LIKE
+        $this->applySearchFilters($query, $matchedIds, $filters);
 
         // Status
         if (! empty($filters['status'])) {
@@ -74,24 +125,26 @@ class ProductRepository
 
         // Price range
         if (! empty($filters['price_range'])) {
-            $rangeParts = explode('-', $filters['price_range']);
-            if (count($rangeParts) === 2) {
-                $minPrice = $rangeParts[0] !== '' ? (int)$rangeParts[0] : null;
-                $maxPrice = $rangeParts[1] !== '' ? (int)$rangeParts[1] : null;
-                if ($minPrice !== null && $maxPrice !== null) {
-                    $query->whereBetween('min_price', [$minPrice, $maxPrice]);
-                } elseif ($minPrice !== null) {
-                    $query->where('min_price', '>=', $minPrice);
-                } elseif ($maxPrice !== null) {
-                    $query->where('min_price', '<=', $maxPrice);
-                }
-            } else {
+            $predefinedRanges = ['under-500k', '500k-1m', 'above-1m'];
+            if (in_array($filters['price_range'], $predefinedRanges)) {
                 match ($filters['price_range']) {
                     'under-500k' => $query->where('min_price', '<', 500000),
                     '500k-1m' => $query->whereBetween('min_price', [500000, 1000000]),
                     'above-1m' => $query->where('min_price', '>', 1000000),
-                    default => null,
                 };
+            } else {
+                $rangeParts = explode('-', $filters['price_range']);
+                if (count($rangeParts) === 2) {
+                    $minPrice = $rangeParts[0] !== '' ? (int) $rangeParts[0] : null;
+                    $maxPrice = $rangeParts[1] !== '' ? (int) $rangeParts[1] : null;
+                    if ($minPrice !== null && $maxPrice !== null) {
+                        $query->whereBetween('min_price', [$minPrice, $maxPrice]);
+                    } elseif ($minPrice !== null) {
+                        $query->where('min_price', '>=', $minPrice);
+                    } elseif ($maxPrice !== null) {
+                        $query->where('min_price', '<=', $maxPrice);
+                    }
+                }
             }
         }
 
@@ -126,6 +179,100 @@ class ProductRepository
             'data' => $products,
             'total' => $total,
             'total_pages' => ceil($total / $limit),
+            'page' => $page,
+            'limit' => $limit,
+            'max_price_limit' => (float) $maxPriceLimit,
+        ];
+    }
+
+    // ─── Client (public) queries ───────────────────────────────────────
+
+    /**
+     * Client (public): danh sách sản phẩm active với tìm kiếm, lọc, phân trang.
+     * Luôn filter status=active và whereNull(deleted_at) — không bao giờ trả về
+     * sản phẩm draft/inactive/deleted cho người dùng cuối.
+     *
+     * @param  array|null  $matchedIds  IDs từ Meilisearch (null = không search, [] = không dùng)
+     * @param  array  $filters  [max_price, brand_ids, sort_by, category_ids, search_like]
+     */
+    public function getClientProducts(?array $matchedIds, array $filters, int $page, int $limit): array
+    {
+        $offset = ($page - 1) * $limit;
+
+        $query = Product::with($this->listEagerLoads())
+            ->withSum('variants', 'stock')
+            ->where('status', 'active')
+            ->whereNull('deleted_at');
+
+        // ── Search kết hợp Meilisearch + Database ────────────────────
+        $this->applySearchFilters($query, $matchedIds, $filters);
+
+        // ── Category filter ───────────────────────────────────────────
+        if (! empty($filters['category_ids'])) {
+            $query->whereIn('category_id', $filters['category_ids']);
+        }
+
+        // ── Brand filter ──────────────────────────────────────────────
+        if (! empty($filters['brand_ids'])) {
+            $brandIds = is_array($filters['brand_ids'])
+                ? $filters['brand_ids']
+                : explode(',', $filters['brand_ids']);
+            $query->whereIn('brand_id', $brandIds);
+        }
+
+        // ── Price range ──────────────────────────────────────────────
+        if (! empty($filters['price_range'])) {
+            $predefinedRanges = ['under-500k', '500k-1m', 'above-1m'];
+            if (in_array($filters['price_range'], $predefinedRanges)) {
+                match ($filters['price_range']) {
+                    'under-500k' => $query->where('min_price', '<', 500000),
+                    '500k-1m' => $query->whereBetween('min_price', [500000, 1000000]),
+                    'above-1m' => $query->where('min_price', '>', 1000000),
+                };
+            } else {
+                $rangeParts = explode('-', $filters['price_range']);
+                if (count($rangeParts) === 2) {
+                    $minPrice = $rangeParts[0] !== '' ? (int) $rangeParts[0] : null;
+                    $maxPrice = $rangeParts[1] !== '' ? (int) $rangeParts[1] : null;
+                    if ($minPrice !== null && $maxPrice !== null) {
+                        $query->whereBetween('min_price', [$minPrice, $maxPrice]);
+                    } elseif ($minPrice !== null) {
+                        $query->where('min_price', '>=', $minPrice);
+                    } elseif ($maxPrice !== null) {
+                        $query->where('min_price', '<=', $maxPrice);
+                    }
+                }
+            }
+        }
+
+        // ── Max price filter ──────────────────────────────────────────
+        if (isset($filters['max_price']) && is_numeric($filters['max_price'])) {
+            $query->where('min_price', '<=', $filters['max_price']);
+        }
+
+        $total = (clone $query)->count();
+
+        // ── Ordering ─────────────────────────────────────────────────
+        // Đẩy sản phẩm hết hàng xuống dưới
+        $query->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC');
+
+        match ($filters['sort_by'] ?? null) {
+            'oldest' => $query->orderBy('created_at', 'asc'),
+            'price-asc' => $query->orderBy('min_price', 'asc'),
+            'price-desc' => $query->orderBy('min_price', 'desc'),
+            default => $query->orderBy('product_id', 'desc'),
+        };
+
+        $products = $query->offset($offset)->limit($limit)->get();
+
+        $maxPriceLimit = Product::where('status', 'active')
+            ->whereNull('deleted_at')
+            ->max('max_price') ?? 10000000;
+
+        return [
+            'data' => $products,
+            'total' => $total,
+            'total_pages' => (int) ceil($total / $limit),
             'page' => $page,
             'limit' => $limit,
             'max_price_limit' => (float) $maxPriceLimit,
@@ -267,7 +414,7 @@ class ProductRepository
     public function findByIdentifier($identifier)
     {
         $query = Product::with([
-            'category',
+            'category.sizeGuide',
             'brand',
             'images',
             'variants' => function ($q) {
@@ -289,7 +436,7 @@ class ProductRepository
      */
     public function findByIdentifierBasic($identifier)
     {
-        $query = Product::with(['category', 'brand', 'images', 'variants']);
+        $query = Product::with(['category.sizeGuide', 'brand', 'images', 'variants']);
 
         if (is_numeric($identifier)) {
             $query->where('product_id', $identifier)->orWhere('slug', $identifier);
@@ -331,7 +478,7 @@ class ProductRepository
             ->where('status', 'active')
             ->whereNull('deleted_at')
             // Ưu tiên 1: Cùng thương hiệu -> Sản phẩm tương tự sát nhất
-            ->orderByRaw($brandId ? "brand_id = {$brandId} DESC" : "1=1")
+            ->orderByRaw($brandId ? "brand_id = {$brandId} DESC" : '1=1')
             // Ưu tiên 2: Sản phẩm nổi bật (cần đẩy bán)
             ->orderBy('is_featured', 'desc')
             // Ưu tiên 3: Sản phẩm bán chạy (tăng doanh thu)
@@ -339,6 +486,53 @@ class ProductRepository
             // Ưu tiên 4: Còn hàng
             ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
             ->orderBy('product_id', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Sản phẩm phối đồ (các category anh em, hoặc fallback)
+     */
+    public function getMatchingProducts(int $productId, int $categoryId, int $limit = 8)
+    {
+        $currentCategory = Category::find($categoryId);
+        $siblingCategoryIds = [];
+
+        if ($currentCategory && $currentCategory->parent_id) {
+            $siblingCategoryIds = Category::where('parent_id', $currentCategory->parent_id)
+                ->where('category_id', '!=', $categoryId)
+                ->pluck('category_id')->toArray();
+        }
+
+        $query = Product::with([
+            'mainImage' => function ($q) {
+                $q->select('image_id', 'image_url', 'product_id');
+            },
+            'lowestPriceVariant' => function ($q) {
+                $q->select('product_variants.variant_id', 'product_variants.price', 'product_variants.compare_at_price', 'product_variants.sale_price', 'product_variants.sale_starts_at', 'product_variants.sale_ends_at', 'product_variants.stock', 'product_variants.product_id');
+            },
+            'variants' => function ($q) {
+                $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'product_id');
+            },
+            'category:category_id,name',
+        ])
+            ->withSum('variants', 'stock')
+            ->where('product_id', '!=', $productId)
+            ->where('status', 'active')
+            ->whereNull('deleted_at');
+
+        if (! empty($siblingCategoryIds)) {
+            // Lấy từ các danh mục anh em
+            $query->whereIn('category_id', $siblingCategoryIds);
+        } else {
+            // Fallback: nếu không có danh mục anh em, loại trừ danh mục hiện tại và lấy nổi bật
+            $query->where('category_id', '!=', $categoryId)
+                ->orderBy('is_featured', 'desc');
+        }
+
+        return $query->orderBy('sold_count', 'desc')
+            ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
+            ->inRandomOrder()
             ->limit($limit)
             ->get();
     }

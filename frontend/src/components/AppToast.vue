@@ -14,55 +14,49 @@ const router = useRouter();
 const { toast } = useToast(props.toastId);
 
 const handleBuyNow = () => {
-  if (toast.value.data && toast.value.data.variant_id) {
-    sessionStorage.setItem('buy_now_item', JSON.stringify({
-      variant_id: toast.value.data.variant_id,
-      quantity: toast.value.data.qty || 1,
-    }));
-  }
-  
   const toastEl = document.getElementById(props.toastId);
   if (toastEl) {
     const bsToast = window.bootstrap?.Toast.getInstance(toastEl);
     if (bsToast) bsToast.hide();
   }
   
-  router.push({ path: '/checkout', query: { buy_now: '1' } });
+  router.push({ path: '/checkout' });
 };
 
 // Lấy màu và icon dựa trên loại thông báo
 const toastState = computed(() => {
+  const customTitle = toast.value.data?.title;
   switch (toast.value.type) {
     case 'error':
     case 'danger':
       return {
         color: '#ef4444',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
-        title: 'Lỗi'
+        title: customTitle || 'Lỗi'
       };
     case 'warning':
       return {
         color: '#f59e0b',
-        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
-        title: 'Cảnh báo'
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
+        title: customTitle || 'Thông báo'
       };
     case 'info':
       return {
         color: '#3b82f6',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
-        title: 'Thông tin'
+        title: customTitle || 'Thông tin'
       };
     case 'cart':
       return {
         color: '#22c55e',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
-        title: toast.value.message || 'Thêm vào giỏ thành công'
+        title: customTitle || toast.value.message || 'Thêm vào giỏ thành công'
       };
     default: // success
       return {
         color: '#22c55e',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
-        title: 'Thành công'
+        title: customTitle || 'Thành công'
       };
   }
 });
@@ -161,7 +155,7 @@ onUnmounted(() => {
           
           <div class="d-flex gap-2 mt-3 pt-3 border-top border-light">
             <router-link to="/cart" class="btn btn-light btn-sm flex-grow-1 fw-medium" data-bs-dismiss="toast" style="font-size: 0.85rem;">Xem giỏ hàng</router-link>
-            <button @click="handleBuyNow" class="btn btn-primary btn-sm flex-grow-1 fw-medium text-white" style="font-size: 0.85rem;">Thanh toán ngay</button>
+            <button @click="handleBuyNow" class="btn btn-brand-checkout btn-sm flex-grow-1 fw-medium text-white" style="font-size: 0.85rem; background: var(--primary, #E63B6F); border-color: var(--primary, #E63B6F);">Thanh toán ngay</button>
           </div>
         </template>
       </div>
@@ -286,5 +280,12 @@ onUnmounted(() => {
     transform: translateX(0);
     opacity: 1;
   }
+}
+
+.btn-brand-checkout:hover,
+.btn-brand-checkout:focus {
+  background: #c4305d !important;
+  border-color: #c4305d !important;
+  color: #fff;
 }
 </style>

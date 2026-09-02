@@ -29,6 +29,19 @@ class User {
       raw: json,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'full_name': fullName,
+      'name': fullName,
+      'email': email,
+      'phone': phone,
+      'avatar_url': avatarUrl,
+      'role': role,
+      ...raw,
+    };
+  }
 }
 
 int? _toInt(dynamic value) {

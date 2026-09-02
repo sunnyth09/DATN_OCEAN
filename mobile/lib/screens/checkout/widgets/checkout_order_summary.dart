@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../config/app_config.dart';
+import '../../../config/app_theme.dart';
 import '../../../utils/format_utils.dart';
 
 /// Box tổng kết đơn: danh sách sản phẩm + các dòng giá (tạm tính, ship, giảm, tổng).
@@ -44,7 +45,7 @@ class CheckoutOrderSummary extends StatelessWidget {
             children: [
               const Icon(
                 Icons.receipt_outlined,
-                color: Color(0xFFE63B6F),
+                color: AppColors.primary,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -80,7 +81,7 @@ class CheckoutOrderSummary extends StatelessWidget {
                           height: 12,
                           child: CircularProgressIndicator(
                             strokeWidth: 1.5,
-                            color: Color(0xFFE63B6F),
+                            color: AppColors.primary,
                           ),
                         ),
                         SizedBox(width: 6),
@@ -104,6 +105,23 @@ class CheckoutOrderSummary extends StatelessWidget {
                     ),
             ],
           ),
+          if (!isCalculatingShip && shippingFee > 0) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.local_shipping_outlined, size: 12, color: Color(0xFF64748B)),
+                const SizedBox(width: 4),
+                Text(
+                  'Dự kiến giao hàng: 2 - 3 ngày',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF64748B),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (discountAmount > 0) ...[
             const SizedBox(height: 6),
             _buildPriceRow(
@@ -123,7 +141,7 @@ class CheckoutOrderSummary extends StatelessWidget {
               ),
             ),
             labelBold: true,
-            valueColor: const Color(0xFFE63B6F),
+            valueColor: AppColors.primary,
             valueFontSize: 16,
           ),
         ],
@@ -196,7 +214,7 @@ class CheckoutOrderSummary extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 13,
-              color: Color(0xFFE63B6F),
+              color: AppColors.primary,
             ),
           ),
         ],
@@ -261,7 +279,7 @@ class CheckoutOrderSummary extends StatelessWidget {
           child: const Center(
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: Color(0xFFE63B6F),
+              color: AppColors.primary,
             ),
           ),
         ),
@@ -279,7 +297,7 @@ class CheckoutOrderSummary extends StatelessWidget {
         child: const Center(
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: Color(0xFFE63B6F),
+            color: AppColors.primary,
           ),
         ),
       ),

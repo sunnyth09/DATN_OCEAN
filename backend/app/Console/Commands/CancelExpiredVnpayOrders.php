@@ -8,9 +8,11 @@ use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\UserCoupon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -28,10 +30,18 @@ class CancelExpiredVnpayOrders extends Command
     {
         $minutes = (int) $this->option('minutes');
 
-        $expiredOrders = Order::whereIn('payment_method', ['vnpay', 'momo', 'bank_transfer'])
-            ->where('payment_status', PaymentStatus::UNPAID->value)
+        // Tìm các đơn hàng hết hạn: vnpay/momo > 30 phút, bank_transfer > 24 giờ (1440 phút)
+        $expiredOrders = Order::where('payment_status', PaymentStatus::UNPAID->value)
             ->where('fulfillment_status', OrderStatus::PENDING->value)
-            ->where('created_at', '<', now()->subMinutes($minutes))
+            ->where(function ($query) use ($minutes) {
+                $query->where(function ($q) use ($minutes) {
+                    $q->whereIn('payment_method', ['vnpay', 'momo'])
+                        ->where('created_at', '<', now()->subMinutes($minutes));
+                })->orWhere(function ($q) {
+                    $q->where('payment_method', 'bank_transfer')
+                        ->where('created_at', '<', now()->subHours(24));
+                });
+            })
             ->get();
 
         if ($expiredOrders->isEmpty()) {
@@ -60,7 +70,9 @@ class CancelExpiredVnpayOrders extends Command
                         'fulfillment_status' => OrderStatus::CANCELLED->value,
                         'payment_status' => PaymentStatus::FAILED->value,
                         'cancelled_at' => now(),
-                        'cancel_reason' => 'Hệ thống tự động hủy: quá thời hạn thanh toán ('.$minutes.' phút)',
+                        'cancel_reason' => $order->payment_method === 'bank_transfer'
+                            ? 'Hệ thống tự động hủy: quá thời hạn thanh toán (24 giờ)'
+                            : 'Hệ thống tự động hủy: quá thời hạn thanh toán ('.$minutes.' phút)',
                     ]);
 
                 if ($affected === 0) {
@@ -74,7 +86,9 @@ class CancelExpiredVnpayOrders extends Command
                     'order_id' => $order->order_id,
                     'old_status' => OrderStatus::PENDING->value,
                     'new_status' => OrderStatus::CANCELLED->value,
-                    'note' => 'Hệ thống tự động hủy: chưa thanh toán sau '.$minutes.' phút.',
+                    'note' => $order->payment_method === 'bank_transfer'
+                        ? 'Hệ thống tự động hủy: chưa thanh toán sau 24 giờ.'
+                        : 'Hệ thống tự động hủy: chưa thanh toán sau '.$minutes.' phút.',
                 ]);
 
                 // Hoàn trả tồn kho
@@ -82,13 +96,13 @@ class CancelExpiredVnpayOrders extends Command
                 foreach ($orderItems as $item) {
                     ProductVariant::where('variant_id', $item->variant_id)
                         ->increment('stock', $item->quantity);
-                        
+
                     $variant = ProductVariant::find($item->variant_id);
                     if ($variant && $variant->product_id) {
-                        \App\Models\Product::where('product_id', $variant->product_id)->decrement('sold_count', $item->quantity);
+                        Product::where('product_id', $variant->product_id)->decrement('sold_count', $item->quantity);
                     }
                 }
-                \Illuminate\Support\Facades\Cache::tags(['products:best-selling'])->flush();
+                Cache::tags(['products:best-selling'])->flush();
 
                 // Hoàn coupon nếu có
                 if ($order->promotion_id) {

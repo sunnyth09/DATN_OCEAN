@@ -56,7 +56,11 @@ const paymentLabels = {
 const paymentMethodLabels = {
   cod: 'Thanh toán khi nhận hàng (COD)',
   vnpay: 'VNPay',
+  momo: 'MoMo',
   bank_transfer: 'Chuyển khoản ngân hàng',
+  pos_cash: 'Tiền mặt (POS)',
+  pos_transfer: 'Chuyển khoản (POS)',
+  pos_card: 'Quẹt thẻ (POS)',
 };
 
 const getPaymentBadgeClass = (status) => {
@@ -120,8 +124,8 @@ onMounted(loadByToken);
     <section class="tracking-card">
       <form v-if="!token" class="tracking-form" @submit.prevent="submitGuestTracking">
         <div class="form-group">
-          <label for="order_code">Mã đơn hàng</label>
-          <input id="order_code" v-model="form.order_code" type="text" placeholder="VD: QS123456" autocomplete="off" />
+          <label for="order_code">Mã đơn hàng / Mã vận đơn</label>
+          <input id="order_code" v-model="form.order_code" type="text" placeholder="VD: QS123456 hoặc OE-123456" autocomplete="off" />
         </div>
         <div class="form-group">
           <label for="phone">Số điện thoại</label>
@@ -133,9 +137,37 @@ onMounted(loadByToken);
         </button>
       </form>
 
+      <!-- Modern Skeleton Loading -->
       <div v-if="loading && token" class="tracking-skeleton" style="margin-top: 30px;">
-        <div class="skeleton-pulse" style="height:150px; border-radius:12px; margin-bottom: 20px;"></div>
-        <div class="skeleton-pulse" style="height:350px; border-radius:12px;"></div>
+        <!-- Result Header Skeleton -->
+        <div class="skeleton-tracking-header">
+          <div>
+            <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 180px; height: 28px; border-radius: 6px;"></div>
+          </div>
+          <div class="skeleton-box" style="width: 120px; height: 32px; border-radius: 20px;"></div>
+        </div>
+
+        <!-- Result Grid Skeleton -->
+        <div class="skeleton-tracking-grid">
+          <div v-for="i in 3" :key="i" class="skeleton-info-card">
+            <div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 140px; height: 18px; border-radius: 4px;"></div>
+          </div>
+        </div>
+
+        <!-- Items Card Skeleton -->
+        <div class="skeleton-tracking-card" style="margin-top: 24px;">
+          <div class="skeleton-box" style="width: 160px; height: 20px; border-radius: 6px; margin-bottom: 20px;"></div>
+          <div v-for="i in 2" :key="i" class="skeleton-tracking-item">
+            <div class="skeleton-box" style="width: 60px; height: 60px; border-radius: 8px; flex-shrink: 0;"></div>
+            <div style="flex: 1;">
+              <div class="skeleton-box" style="width: 60%; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+              <div class="skeleton-box" style="width: 30%; height: 13px; border-radius: 4px;"></div>
+            </div>
+            <div class="skeleton-box" style="width: 80px; height: 18px; border-radius: 4px;"></div>
+          </div>
+        </div>
       </div>
 
       <p v-if="errorMessage" class="tracking-error">{{ errorMessage }}</p>
@@ -160,9 +192,9 @@ onMounted(loadByToken);
             <span>Số điện thoại</span>
             <strong>{{ tracking.receiver_phone || 'Đã ẩn' }}</strong>
           </div>
-          <div class="info-box" v-if="tracking.tracking_number">
-            <span>Mã GHN</span>
-            <strong>{{ tracking.tracking_number }}</strong>
+          <div class="info-box" v-if="tracking.tracking_number || tracking.ghn_order_code">
+            <span>{{ tracking.tracking_number?.startsWith('OE-') ? 'Mã Ocean Express' : (tracking.ghn_order_code ? 'Mã GHN' : 'Mã vận đơn') }}</span>
+            <strong>{{ tracking.tracking_number || tracking.ghn_order_code }}</strong>
           </div>
         </div>
 
@@ -208,9 +240,9 @@ onMounted(loadByToken);
             </div>
           </div>
 
-          <a v-if="tracking.ghn_tracking_url" class="ghn-link mt-4" :href="tracking.ghn_tracking_url" target="_blank"
+          <a v-if="tracking.tracking_url || tracking.ghn_tracking_url" class="ghn-link mt-4" :href="tracking.tracking_url || tracking.ghn_tracking_url" target="_blank"
             rel="noopener">
-            Xem trực tiếp trên GHN
+            Xem trực tiếp trên {{ tracking.tracking_url?.includes('oceanexpress') ? 'Ocean Express' : 'GHN' }}
           </a>
 
         <div class="timeline-section" v-if="tracking.timeline?.length">
@@ -252,7 +284,7 @@ onMounted(loadByToken);
 .tracking-card {
   background: var(--card-bg);
   border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  border-radius: 16px;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
   padding: 28px;
 }
@@ -290,15 +322,18 @@ onMounted(loadByToken);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
+  height: 42px;
+  min-height: unset;
   border: none;
-  border-radius: 14px;
-  padding: 0 20px;
+  border-radius: 8px;
+  padding: 0 18px;
   background: linear-gradient(135deg, var(--primary), #c22b56);
   color: #fff;
-  font-weight: 900;
+  font-weight: 700;
+  font-size: 0.9rem;
   text-decoration: none;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn-track:disabled {
@@ -527,6 +562,82 @@ onMounted(loadByToken);
 
   .tracking-card {
     padding: 20px;
+  }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.tracking-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-tracking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+
+.skeleton-tracking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-info-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.skeleton-tracking-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.skeleton-tracking-item {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+}
+
+.skeleton-tracking-item:last-child {
+  border-bottom: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>

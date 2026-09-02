@@ -99,31 +99,14 @@
       </form>
     </div>
   </div>
-
-  <!-- Bootstrap Toast -->
-  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-    <div class="toast align-items-center border-0 text-bg-success" id="pwToast" role="alert">
-      <div class="d-flex">
-        <div class="toast-body">{{ toastMsg }}</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-      </div>
-    </div>
-  </div>
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed } from 'vue';
 import api from '@/axios';
-import { Toast } from 'bootstrap';
+import { useToast } from '@/composables/useToast';
 
-const toastMsg = ref('');
-const showToast = (message) => {
-  toastMsg.value = message;
-  nextTick(() => {
-    const el = document.getElementById('pwToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
-  });
-};
+const { showToast } = useToast();
 
 const form = ref({
   current_password: '',

@@ -124,12 +124,20 @@ const modalSelectedVariant = computed(() => {
 
 const onModalColorSelect = (color) => {
     variantModal.value.selectedColor = color;
-    // Reset size nếu size hiện tại không có trong màu mới
-    const available = variantModal.value.variants
-        .filter(v => v.color === color)
-        .map(v => v.size);
-    if (!available.includes(variantModal.value.selectedSize)) {
-        variantModal.value.selectedSize = null;
+    const varsForColor = variantModal.value.variants.filter(v => v.color === color);
+    if (!varsForColor.length) return;
+
+    // Nếu size hiện tại có ở màu mới và còn hàng thì giữ nguyên
+    const currentMatch = varsForColor.find(v => v.size === variantModal.value.selectedSize && (v.stock || 0) > 0);
+    if (currentMatch) {
+        return;
+    }
+    // Nếu không, tự động chọn size đầu tiên còn hàng của màu mới
+    const inStockMatch = varsForColor.find(v => (v.stock || 0) > 0);
+    if (inStockMatch) {
+        variantModal.value.selectedSize = inStockMatch.size || null;
+    } else {
+        variantModal.value.selectedSize = varsForColor[0]?.size || null;
     }
 };
 
@@ -199,6 +207,35 @@ const getVariantLabel = (item) => {
 
 // ====== END VARIANT MODAL ======
 
+// Helper: Kiểm tra item có khả dụng để mua hàng không
+const isItemAvailable = (item) => {
+    if (!item) return false;
+    if (item.is_available === false) return false;
+    if (!item.product || item.product.is_active === false || item.product.status === 'inactive') return false;
+    if (!item.variant || item.variant.status !== 'active') return false;
+    if ((item.variant.stock ?? 0) <= 0) return false;
+    return true;
+};
+
+// Helper: Lấy lý do không khả dụng để hiển thị
+const getItemUnavailableReason = (item) => {
+    if (!item) return 'Sản phẩm không tồn tại';
+    if (item.is_available === false && item.error_message) return item.error_message;
+    if (!item.product || item.product.is_active === false || item.product.status === 'inactive') {
+        return 'Sản phẩm ngừng kinh doanh hoặc đã bị gỡ';
+    }
+    if (!item.variant || item.variant.status !== 'active') {
+        return 'Phân loại hàng ngừng kinh doanh';
+    }
+    if ((item.variant.stock ?? 0) <= 0) {
+        return 'Sản phẩm tạm thời hết hàng';
+    }
+    if (item.quantity > item.variant.stock) {
+        return `Vượt quá tồn kho (Tối đa: ${item.variant.stock})`;
+    }
+    return null;
+};
+
 // Lấy giỏ hàng
 const fetchCart = async (showGlobalLoading = true) => {
     if (cartRequest) {
@@ -209,12 +246,28 @@ const fetchCart = async (showGlobalLoading = true) => {
     if (showGlobalLoading) loading.value = true;
     cartRequest = (async () => {
         try {
-            if (authStore.isAuthenticated) {
+            if (!authStore.isHydrated) {
+                authStore.hydrate();
+            }
+
+            const token = authStore.token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+            const hasAuth = !!token;
+
+            if (hasAuth) {
                 const response = await api.get('/cart');
-                if (response.data.status === 'success') {
-                    cartId.value = response.data.data.cart_id;
-                    cartItems.value = response.data.data.items || [];
+                if (response.data && (response.data.status === 'success' || response.data.data)) {
+                    const data = response.data.data || response.data;
+                    cartId.value = data.cart_id;
+                    const items = data.items || [];
+                    // Tự động bỏ chọn các sản phẩm không khả dụng
+                    items.forEach(item => {
+                        if (!isItemAvailable(item)) {
+                            item.selected = false;
+                        }
+                    });
+                    cartItems.value = items;
                     updateSelectAllState();
+                    cartStore.count = items.length;
                 }
             } else {
                 const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
@@ -222,23 +275,54 @@ const fetchCart = async (showGlobalLoading = true) => {
                     cartId.value = null;
                     cartItems.value = [];
                     selectAll.value = false;
+                    cartStore.count = 0;
                 } else {
-                    const response = await api.post('/cart/guest-details', { items: localItems });
-                    if (response.data.status === 'success') {
-                        cartId.value = null;
-                        cartItems.value = response.data.data.items || [];
-                        updateSelectAllState();
+                    try {
+                        const response = await api.post('/cart/guest-details', { items: localItems });
+                        if (response.data && (response.data.status === 'success' || response.data.data)) {
+                            const guestData = response.data.data || response.data;
+                            cartId.value = null;
+                            const items = guestData.items || [];
+                            items.forEach(item => {
+                                if (!isItemAvailable(item)) {
+                                    item.selected = false;
+                                }
+                            });
+                            cartItems.value = items;
+                            updateSelectAllState();
 
-                        if (response.data.data.freeship_threshold) {
-                            upsellState.freeshipThreshold = response.data.data.freeship_threshold;
+                            // Đồng bộ lại localStorage và cart badge với những sản phẩm còn tồn tại thực tế
+                            const validVariantIds = items.map(i => i.variant_id);
+                            const validLocalItems = localItems.filter(li => validVariantIds.includes(li.variant_id));
+                            if (validLocalItems.length !== localItems.length) {
+                                localStorage.setItem('cart_items', JSON.stringify(validLocalItems));
+                            }
+                            cartStore.count = validLocalItems.length;
+
+                            if (guestData.freeship_threshold) {
+                                upsellState.freeshipThreshold = guestData.freeship_threshold;
+                            }
+                        }
+                    } catch (guestErr) {
+                        console.error('Lỗi lấy chi tiết giỏ hàng guest:', guestErr);
+                        if (guestErr.response?.status === 422) {
+                            localStorage.removeItem('cart_items');
+                            cartItems.value = [];
+                            cartStore.count = 0;
                         }
                     }
                 }
             }
         } catch (error) {
             console.error('Error fetching cart:', error);
-            if (error.response?.status === 401 && authStore.isAuthenticated) {
-                router.push({ name: 'login', query: { redirect: '/cart' } });
+            if (error.response?.status === 403) {
+                cartItems.value = [];
+                cartStore.count = 0;
+                showToast(error.response?.data?.message || 'Tài khoản nhân viên/quản trị không thể sử dụng giỏ hàng khách hàng.', 'warning');
+            } else if (error.response?.status === 401) {
+                const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+                cartItems.value = [];
+                cartStore.count = localItems.length;
             }
         } finally {
             if (showGlobalLoading) loading.value = false;
@@ -257,50 +341,67 @@ const fetchCart = async (showGlobalLoading = true) => {
 };
 
 
-// Cập nhật trạng thái "Chọn tất cả"
+// Computed danh sách sản phẩm khả dụng & không khả dụng
+const availableItems = computed(() => cartItems.value.filter(isItemAvailable));
+const availableCount = computed(() => availableItems.value.length);
+const unavailableItems = computed(() => cartItems.value.filter(item => !isItemAvailable(item)));
+const unavailableCount = computed(() => unavailableItems.value.length);
+
+// Cập nhật trạng thái "Chọn tất cả" (chỉ xét các item khả dụng)
 const updateSelectAllState = () => {
-    if (cartItems.value.length === 0) {
+    if (availableItems.value.length === 0) {
         selectAll.value = false;
         return;
     }
-    selectAll.value = cartItems.value.every(item => item.selected);
+    selectAll.value = availableItems.value.every(item => item.selected);
 };
 
-// Toggle chọn tất cả
+// Toggle chọn tất cả (chỉ tác động đến item khả dụng)
 const toggleSelectAll = async () => {
+    if (availableItems.value.length === 0) return;
     const newState = !selectAll.value;
     selectAll.value = newState;
     
     if (!authStore.isAuthenticated) {
         let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
         localItems.forEach(item => {
-            // Ignore unavailable items (assumes local items could be fetched and verified first, but guest cart logic is similar)
-            if (item.is_available !== false) {
+            const inMemory = cartItems.value.find(ci => ci.variant_id === item.variant_id);
+            if (inMemory && isItemAvailable(inMemory)) {
                 item.selected = newState;
+            } else {
+                item.selected = false;
             }
         });
         localStorage.setItem('cart_items', JSON.stringify(localItems));
         cartItems.value.forEach(item => {
-            if (item.is_available !== false) {
+            if (isItemAvailable(item)) {
                 item.selected = newState;
+            } else {
+                item.selected = false;
             }
         });
         return;
     }
     
-    // Cập nhật UI lập tức
+    // Cập nhật UI lập tức cho các item khả dụng
     cartItems.value.forEach(item => { 
-        if (item.is_available !== false) {
+        if (isItemAvailable(item)) {
             item.selected = newState; 
+        } else {
+            item.selected = false;
         }
     });
 
-    // Gửi 1 request batch duy nhất thay vì N request song song (tránh vượt rate limit)
+    // Gửi 1 request batch duy nhất
     try {
         await api.put('/cart/select-all', { selected: newState });
     } catch (error) {
         // Rollback UI nếu lỗi
-        cartItems.value.forEach(item => { item.selected = !newState; });
+        cartItems.value.forEach(item => { 
+            if (isItemAvailable(item)) {
+                item.selected = !newState; 
+            }
+        });
         selectAll.value = !newState;
         showToast('Không thể cập nhật. Vui lòng thử lại.', 'error');
     }
@@ -308,8 +409,8 @@ const toggleSelectAll = async () => {
 
 // Toggle chọn 1 item
 const toggleSelect = async (item) => {
-    if (item.is_available === false) {
-        showToast('Không thể chọn sản phẩm không khả dụng.', 'error');
+    if (!isItemAvailable(item)) {
+        showToast(getItemUnavailableReason(item) || 'Sản phẩm không khả dụng, không thể chọn.', 'warning');
         return;
     }
     
@@ -537,10 +638,95 @@ const clearCart = async () => {
 };
 
 
-// Tính tổng
-const selectedItems = computed(() => cartItems.value.filter(i => i.selected));
+// Xóa toàn bộ sản phẩm không khả dụng / hết hàng
+const isClearingUnavailable = ref(false);
+const removeAllUnavailable = async () => {
+    if (unavailableCount.value === 0) return;
+    const result = await Swal.fire({
+        title: 'Xóa sản phẩm hết hàng',
+        text: `Bạn có muốn xóa ${unavailableCount.value} sản phẩm hết hàng / không khả dụng khỏi giỏ hàng?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#E63B6F',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Đồng ý xóa',
+        cancelButtonText: 'Hủy'
+    });
+    if (!result.isConfirmed) return;
+
+    isClearingUnavailable.value = true;
+    if (!authStore.isAuthenticated) {
+        let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+        const unavailVids = unavailableItems.value.map(i => i.variant_id);
+        localItems = localItems.filter(i => !unavailVids.includes(i.variant_id));
+        localStorage.setItem('cart_items', JSON.stringify(localItems));
+        cartItems.value = cartItems.value.filter(isItemAvailable);
+        showToast('Đã xóa các sản phẩm không khả dụng!', 'success');
+        updateSelectAllState();
+        cartStore.fetchCount();
+        isClearingUnavailable.value = false;
+        return;
+    }
+
+    try {
+        for (const item of unavailableItems.value) {
+            if (item.cart_item_id) {
+                await api.delete(`/cart/items/${item.cart_item_id}`).catch(() => {});
+            }
+        }
+        cartItems.value = cartItems.value.filter(isItemAvailable);
+        showToast('Đã dọn dẹp các sản phẩm không khả dụng!', 'success');
+        updateSelectAllState();
+        cartStore.fetchCount();
+    } catch (e) {
+        showToast('Không thể xóa sản phẩm. Vui lòng thử lại.', 'error');
+    } finally {
+        isClearingUnavailable.value = false;
+    }
+};
+
+// Tính tổng: Chỉ tính các sản phẩm vừa được chọn VÀ còn khả dụng
+const selectedItems = computed(() => cartItems.value.filter(i => i.selected && isItemAvailable(i)));
 const totalSelectedQuantity = computed(() => selectedItems.value.reduce((sum, i) => sum + i.quantity, 0));
 const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + (i.variant?.price || 0) * i.quantity, 0));
+
+// Lấy giá gốc của item trong giỏ (nếu có giảm giá)
+const getItemOriginalPrice = (item) => {
+    if (!item || !item.variant) return null;
+    const salePrice = Number(item.variant.price || 0);
+    const candidates = [
+        item.variant.original_price,
+        item.variant.compare_at_price,
+        item.variant.originalPrice,
+        item.variant.old_price,
+        item.product?.original_price,
+        item.product?.compare_at_price,
+        item.product?.originalPrice,
+        item.product?.max_price,
+        item.original_price,
+    ];
+    for (const val of candidates) {
+        const num = Number(val);
+        if (Number.isFinite(num) && num > salePrice) {
+            return num;
+        }
+    }
+    return null;
+};
+
+// Tổng giá gốc của các sản phẩm được chọn
+const totalOriginalPrice = computed(() => {
+    return selectedItems.value.reduce((sum, item) => {
+        const orig = getItemOriginalPrice(item) || item.variant?.price || 0;
+        return sum + orig * item.quantity;
+    }, 0);
+});
+
+// Tiết kiệm từ giảm giá sản phẩm
+const totalProductDiscount = computed(() => {
+    const diff = totalOriginalPrice.value - totalPrice.value;
+    return Math.max(0, diff);
+});
 
 // Format tiền VND
 const formatPrice = (price) => {
@@ -602,7 +788,30 @@ watch(totalPrice, (val) => {
     setTotalPrice(val);
 }, { immediate: true });
 
+// Theo dõi thay đổi trạng thái đăng nhập để tự động tải lại giỏ hàng đúng
+watch(() => authStore.isAuthenticated, async (newVal, oldVal) => {
+    if (newVal !== oldVal) {
+        await fetchCart(false);
+        fetchUpsellData();
+    }
+});
+
+watch(() => authStore.user, async (newVal, oldVal) => {
+    if (newVal && !oldVal) {
+        await fetchCart(false);
+        fetchUpsellData();
+    }
+});
+
 const handleCartUpdated = async () => {
+    await fetchCart(false);
+    fetchUpsellData();
+};
+
+const handleAuthChanged = async () => {
+    if (!authStore.isHydrated) {
+        authStore.hydrate();
+    }
     await fetchCart(false);
     fetchUpsellData();
 };
@@ -614,10 +823,14 @@ onMounted(async () => {
 
     // Khi QuickAddSlider thêm sản phẩm → cập nhật lại giỏ + upsell
     window.addEventListener('cart-updated', handleCartUpdated);
+    window.addEventListener('user-updated', handleAuthChanged);
+    window.addEventListener('auth-logout', handleAuthChanged);
 });
 
 onUnmounted(() => {
     window.removeEventListener('cart-updated', handleCartUpdated);
+    window.removeEventListener('user-updated', handleAuthChanged);
+    window.removeEventListener('auth-logout', handleAuthChanged);
     quantityInputTimers.forEach((timer) => clearTimeout(timer));
     quantityInputTimers.clear();
 });
@@ -723,15 +936,30 @@ onUnmounted(() => {
 
                 <!-- Vùng chứa khối liền mạch -->
                 <div class="seamless-cart-container">
+                    <!-- Banner cảnh báo nếu có sản phẩm hết hàng / không khả dụng -->
+                    <div class="cart-notice-banner" v-if="unavailableCount > 0">
+                        <div class="cart-notice-left">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <span>Có <strong>{{ unavailableCount }}</strong> sản phẩm tạm hết hàng hoặc ngừng bán đã tự động được bỏ chọn.</span>
+                        </div>
+                        <button type="button" class="btn-clear-unavailable" @click="removeAllUnavailable" :disabled="isClearingUnavailable">
+                            {{ isClearingUnavailable ? 'Đang xóa...' : 'Xóa sản phẩm hết hàng' }}
+                        </button>
+                    </div>
+
                     <div class="cart-action-bar">
-                        <label class="checkbox-wrapper" @click.prevent="toggleSelectAll">
-                            <div class="custom-checkbox" :class="{ checked: selectAll }">
-                                <svg v-if="selectAll" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white"
+                        <label class="checkbox-wrapper" @click.prevent="toggleSelectAll" :class="{ 'wrapper-disabled': availableCount === 0 }">
+                            <div class="custom-checkbox" :class="{ checked: selectAll && availableCount > 0, disabled: availableCount === 0 }">
+                                <svg v-if="selectAll && availableCount > 0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white"
                                     stroke-width="4">
                                     <polyline points="20 6 9 17 4 12" />
                                 </svg>
                             </div>
-                            <span>Chọn tất cả ({{ cartItems.length }})</span>
+                            <span>Chọn tất cả ({{ availableCount }})</span>
                         </label>
                         <button class="btn-clear" @click="clearCart" v-if="cartItems.length > 0">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -745,97 +973,107 @@ onUnmounted(() => {
     
                     <!-- Cart Items List -->
                     <TransitionGroup name="cart-item" tag="div" class="items-list">
-                        <div v-for="item in cartItems" :key="item.cart_item_id" class="cart-item-card"
-                            :class="{ 'item-unavailable': item.is_available === false || item.variant?.status !== 'active' }">
-                        <!-- Checkbox -->
-                        <div class="item-checkbox" @click="toggleSelect(item)" :style="item.is_available === false ? 'cursor: not-allowed; opacity: 0.5;' : ''">
-                            <div class="custom-checkbox" :class="{ checked: item.selected, disabled: item.is_available === false }">
-                                <svg v-if="item.selected" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                    stroke="white" stroke-width="4">
-                                    <polyline points="20 6 9 17 4 12" />
-                                </svg>
+                        <div v-for="item in cartItems" :key="item.cart_item_id || item.variant_id" class="cart-item-card"
+                            :class="{ 'item-unavailable': !isItemAvailable(item) }">
+                            <!-- Checkbox -->
+                            <div class="item-checkbox" @click="toggleSelect(item)" :class="{ 'checkbox-disabled': !isItemAvailable(item) }"
+                                :title="!isItemAvailable(item) ? (getItemUnavailableReason(item) || 'Sản phẩm không khả dụng') : 'Chọn sản phẩm'">
+                                <div class="custom-checkbox" :class="{ checked: item.selected && isItemAvailable(item), disabled: !isItemAvailable(item) }">
+                                    <svg v-if="item.selected && isItemAvailable(item)" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                        stroke="white" stroke-width="4">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                    <svg v-else-if="!isItemAvailable(item)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Product Image -->
-                        <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-image-link">
-                            <img :src="getProductImage(item)" :alt="item.product?.name" class="item-image" />
-                        </router-link>
-
-                        <!-- Product Info & Price -->
-                        <div class="item-details">
-                            <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-name">
-                                {{ item.product?.name || 'Sản phẩm' }}
+                            <!-- Product Image -->
+                            <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-image-link">
+                                <img :src="getProductImage(item)" :alt="item.product?.name" class="item-image" :class="{ 'img-grayscale': !isItemAvailable(item) }" />
                             </router-link>
 
-                            <!-- Variant Tag -->
-                            <div class="item-variant-row" v-if="item.variant">
-                                <span class="item-variant-text">
-                                    {{ item.variant.color && item.variant.size ? `Màu: ${item.variant.color} / Size:
-                                    ${item.variant.size}` : (item.variant.color ? `Màu: ${item.variant.color}` :
-                                        (item.variant.size ? `Size: ${item.variant.size}` : item.variant.variant_name)) }}
-                                </span>
-                            </div>
+                            <!-- Product Info & Actions -->
+                            <div class="item-details">
+                                <div class="item-title-row">
+                                    <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-name">
+                                        {{ item.product?.name || 'Sản phẩm không tồn tại' }}
+                                    </router-link>
+                                    <button class="btn-remove" @click="removeItem(item)" title="Xóa sản phẩm">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2.2">
+                                            <line x1="18" y1="6" x2="6" y2="18" />
+                                            <line x1="6" y1="6" x2="18" y2="18" />
+                                        </svg>
+                                    </button>
+                                </div>
 
-                            <div class="item-stock" v-if="item.variant?.stock <= 5 && item.variant?.stock > 0 && item.quantity <= item.variant.stock && item.is_available !== false">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                Chỉ còn {{ item.variant.stock }} sản phẩm
+                                <!-- Variant Tag (Clickable to change) -->
+                                <div class="item-variant-row" v-if="item.variant">
+                                    <button type="button" class="item-variant-btn" @click.stop="openVariantModal(item)" title="Bấm để đổi màu sắc / kích thước">
+                                        <span class="item-variant-text">
+                                            {{ item.variant.color && item.variant.size ? `Phân loại: ${item.variant.color} - ${item.variant.size}` : (item.variant.color ? `Màu: ${item.variant.color}` : (item.variant.size ? `Size: ${item.variant.size}` : item.variant.variant_name)) }}
+                                        </span>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="variant-caret">
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Alert Box & Badges -->
+                                <div class="unavailable-alert-box" v-if="!isItemAvailable(item)">
+                                    <span class="alert-icon">⚠️</span>
+                                    <span class="alert-msg">{{ getItemUnavailableReason(item) }}</span>
+                                    <button v-if="item.product" type="button" class="btn-inline-change-var" @click.stop="openVariantModal(item)">
+                                        Đổi phân loại
+                                    </button>
+                                </div>
+                                <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
+                                    ⚠️ Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
+                                </div>
+                                <div class="item-stock" v-else-if="item.variant?.stock <= 5 && item.variant?.stock > 0">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                    Chỉ còn {{ item.variant.stock }} sản phẩm
+                                </div>
+
+                                <!-- Bottom Row: Price & Quantity Stepper -->
+                                <div class="item-bottom-row">
+                                    <div class="item-price-row">
+                                        <span class="item-price">{{ formatPrice(item.variant?.price) }}</span>
+                                        <span class="item-price-original" v-if="getItemOriginalPrice(item)">
+                                            {{ formatPrice(getItemOriginalPrice(item)) }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Quantity Stepper -->
+                                    <div class="quantity-control" :class="{ 'qty-disabled': !isItemAvailable(item) }">
+                                        <button class="qty-btn" @click="changeQuantity(item, item.quantity - 1)"
+                                            :disabled="item.quantity <= 1 || updating[item.cart_item_id] || !isItemAvailable(item)">
+                                            -
+                                        </button>
+                                        <input
+                                            class="qty-display qty-input"
+                                            :class="{ 'qty-updating': updating[item.cart_item_id] }"
+                                            type="text"
+                                            inputmode="numeric"
+                                            autocomplete="off"
+                                            :value="item.quantity"
+                                            :disabled="updating[item.cart_item_id] || !isItemAvailable(item)"
+                                            @input="scheduleQuantityInputUpdate(item, $event)"
+                                            @keydown.enter.prevent="scheduleQuantityInputUpdate(item, $event)"
+                                            @blur="handleQuantityInputBlur(item, $event)"
+                                        />
+                                        <button class="qty-btn" @click="changeQuantity(item, item.quantity + 1)"
+                                            :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id] || !isItemAvailable(item)">
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <div class="item-unavailable-badge" v-if="item.is_available === false">
-                                {{ item.error_message || 'Sản phẩm ngừng kinh doanh' }}
-                            </div>
-                            <div class="item-unavailable-badge" v-else-if="item.variant?.status !== 'active'">
-                                Sản phẩm ngừng kinh doanh
-                            </div>
-                            <div class="item-unavailable-badge out-of-stock" v-else-if="item.variant?.stock <= 0">
-                                Sản phẩm tạm hết hàng
-                            </div>
-                            <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
-                                Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
-                            </div>
-                            
-                            <!-- Moved price inside details -->
-                            <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
                         </div>
-
-                        <!-- Spacer -->
-                        <div class="item-spacer"></div>
-
-                        <!-- Quantity -->
-                        <div class="quantity-control" :style="item.is_available === false ? 'opacity: 0.5; pointer-events: none;' : ''">
-                            <button class="qty-btn" @click="changeQuantity(item, item.quantity - 1)"
-                                :disabled="item.quantity <= 1 || updating[item.cart_item_id] || item.is_available === false">
-                                -
-                            </button>
-                            <input
-                                class="qty-display qty-input"
-                                :class="{ 'qty-updating': updating[item.cart_item_id] }"
-                                type="text"
-                                inputmode="numeric"
-                                autocomplete="off"
-                                :value="item.quantity"
-                                :disabled="updating[item.cart_item_id] || item.is_available === false"
-                                @input="scheduleQuantityInputUpdate(item, $event)"
-                                @keydown.enter.prevent="scheduleQuantityInputUpdate(item, $event)"
-                                @blur="handleQuantityInputBlur(item, $event)"
-                            />
-                            <button class="qty-btn" @click="changeQuantity(item, item.quantity + 1)"
-                                :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id] || item.is_available === false">
-                                +
-                            </button>
-                        </div>
-
-                        <!-- Remove Button -->
-                        <button class="btn-remove" @click="removeItem(item)" title="Xóa">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                        </button>
-                    </div>
-                </TransitionGroup>
+                    </TransitionGroup>
                 </div> <!-- END seamless-cart-container -->
 
                 <!-- ── Quick Add Slider ── -->
@@ -849,11 +1087,13 @@ onUnmounted(() => {
 
                     <div class="summary-row">
                         <span>Tạm tính ({{ totalSelectedQuantity }} sản phẩm)</span>
-                        <strong>{{ formatPrice(totalPrice) }}</strong>
+                        <strong>{{ formatPrice(totalProductDiscount > 0 ? totalOriginalPrice : totalPrice) }}</strong>
                     </div>
                     <div class="summary-row">
                         <span>Giảm giá</span>
-                        <strong style="color: #22c55e;">- 0đ</strong>
+                        <strong :style="totalProductDiscount > 0 ? 'color: #E63B6F;' : ''">
+                            {{ totalProductDiscount > 0 ? `- ${formatPrice(totalProductDiscount)}` : '0đ' }}
+                        </strong>
                     </div>
                     <div class="summary-row">
                         <span>Phí giao hàng</span>
@@ -890,6 +1130,28 @@ onUnmounted(() => {
                     </router-link>
                 </div>
             </div>
+        </div>
+
+        <!-- Mobile Sticky Checkout Bar (Hiển thị khi màn hình mobile) -->
+        <div v-if="!loading && cartItems.length > 0" class="mobile-sticky-checkout-bar">
+            <label class="mobile-sticky-select-all" @click.prevent="toggleSelectAll" :class="{ 'wrapper-disabled': availableCount === 0 }">
+                <div class="custom-checkbox" :class="{ checked: selectAll && availableCount > 0, disabled: availableCount === 0 }">
+                    <svg v-if="selectAll && availableCount > 0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                </div>
+                <span>Tất cả ({{ availableCount }})</span>
+            </label>
+
+            <div class="mobile-sticky-price-box">
+                <div class="mobile-sticky-label">Tổng cộng:</div>
+                <div class="mobile-sticky-total">{{ formatPrice(totalPrice > 0 ? totalPrice + 35000 : 0) }}</div>
+            </div>
+
+            <button class="btn-mobile-sticky-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0 || isAnyItemUpdating">
+                <span v-if="isAnyItemUpdating" class="vmodal-spinner" style="width: 14px; height: 14px; border-width: 2px; border-top-color: #fff"></span>
+                <span>Thanh toán ({{ totalSelectedQuantity }})</span>
+            </button>
         </div>
     </div>
 
@@ -997,16 +1259,16 @@ onUnmounted(() => {
         </Transition>
     </Teleport>
 
-    <section class="upsell-section container mb-5">
+    <section class="upsell-section container mb-4 mb-md-5">
         <h2 class="upsell-title">Có thể bạn cũng thích</h2>
         <div v-if="productRelated.length">
-            <div class="row mt-3">
-                <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
+            <div class="row g-2 g-md-3 mt-1">
+                <div class="col-6 col-md-4 col-lg-3" v-for="product in productRelated" :key="product.id || product.product_id">
                     <ProductCard :product="product" />
                 </div>
             </div>
         </div>
-        <div v-else class="empty-state mt-4">
+        <div v-else class="empty-state mt-3">
             <p>Không có sản phẩm liên quan</p>
         </div>
 
@@ -1016,16 +1278,20 @@ onUnmounted(() => {
 <style scoped>
 .cart-page {
     padding: 24px 0 60px;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
     color: #102a43;
     min-height: 60vh;
 }
 
 .upsell-title {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 800;
     color: #102a43;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+}
+
+.upsell-section {
+    padding-bottom: 40px;
 }
 
 /* Page Header */
@@ -1209,17 +1475,17 @@ onUnmounted(() => {
 }
 
 /* Cart Items */
+/* Cart Items */
 .items-list {
     display: flex;
     flex-direction: column;
-    /* Remove gap to use border-bottom instead */
 }
 
 .cart-item-card {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 14px 16px;
     background: #fff;
     border-bottom: 1px solid #e8ecf1;
     transition: all 0.25s ease;
@@ -1242,34 +1508,47 @@ onUnmounted(() => {
 .item-checkbox {
     cursor: pointer;
     flex-shrink: 0;
+    padding-top: 2px;
 }
 
 /* Product Image */
 .item-image-link {
     flex-shrink: 0;
+    display: block;
 }
 
 .item-image {
-    width: 70px;
-    height: 70px;
+    width: 75px;
+    height: 75px;
     object-fit: cover;
     border-radius: 10px;
     border: 1px solid #eef2f6;
+    display: block;
     transition: transform 0.3s;
 }
 
 .item-image:hover {
-    transform: scale(1.05);
+    transform: scale(1.04);
 }
 
 /* Product Details */
 .item-details {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.item-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
 }
 
 .item-name {
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     font-weight: 700;
     color: #1a2b4a;
     text-decoration: none;
@@ -1278,7 +1557,9 @@ onUnmounted(() => {
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    line-height: 1.4;
+    line-height: 1.35;
+    flex: 1;
+    min-width: 0;
     transition: color 0.2s;
 }
 
@@ -1286,35 +1567,226 @@ onUnmounted(() => {
     color: #E63B6F;
 }
 
+/* Remove Button */
+.btn-remove {
+    width: 24px;
+    height: 24px;
+    min-height: unset;
+    border: none;
+    background: #f8fafc;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.btn-remove:hover {
+    color: #E63B6F;
+    background: #fff0f4;
+}
+
+.item-variant-row {
+    display: flex;
+    align-items: center;
+    margin: 2px 0 4px;
+}
+
+.item-variant-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0 7px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    max-width: 100%;
+    box-sizing: border-box;
+    line-height: 1;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: #475569;
+}
+
+.item-variant-btn:hover {
+    background: #fff0f5;
+    border-color: #fbcfe8;
+}
+
+.item-variant-btn:hover .item-variant-text {
+    color: #E63B6F;
+}
+
+.item-variant-btn .variant-caret {
+    width: 9px;
+    height: 9px;
+    color: #94a3b8;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.item-variant-btn:hover .variant-caret {
+    color: #E63B6F;
+    transform: translateY(1px);
+}
+
 .item-variant-text {
+    font-size: 0.72rem;
+    line-height: 1;
+    color: #475569;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Cart Notice Banner */
+.cart-notice-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: #fff1f2;
+    border-bottom: 1px solid #fecdd3;
+    padding: 10px 16px;
+    transition: all 0.3s ease;
+}
+
+.cart-notice-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 0.85rem;
-    color: #627d98;
+    color: #9f1239;
+}
+
+.cart-notice-left strong {
+    color: #e11d48;
+    font-weight: 700;
+}
+
+.btn-clear-unavailable {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    background: #e11d48;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-clear-unavailable:hover:not(:disabled) {
+    background: #be123c;
+    box-shadow: 0 2px 8px rgba(225, 29, 72, 0.25);
+}
+
+.btn-clear-unavailable:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.wrapper-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.checkbox-disabled {
+    cursor: not-allowed !important;
+}
+
+.custom-checkbox.disabled {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    cursor: not-allowed;
+}
+
+.img-grayscale {
+    filter: grayscale(80%) opacity(0.75);
+}
+
+.unavailable-alert-box {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-radius: 6px;
+    padding: 4px 8px;
     margin-top: 4px;
-    display: inline-block;
+}
+
+.unavailable-alert-box .alert-icon {
+    font-size: 0.82rem;
+}
+
+.unavailable-alert-box .alert-msg {
+    font-size: 0.76rem;
+    color: #e11d48;
+    font-weight: 600;
+}
+
+.btn-inline-change-var {
+    background: #e11d48;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 2px;
+    font-family: inherit;
+}
+
+.btn-inline-change-var:hover {
+    background: #be123c;
+}
+
+.qty-disabled {
+    opacity: 0.45;
+    pointer-events: none;
 }
 
 .item-stock {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.78rem;
-    color: #f59e0b;
+    font-size: 0.76rem;
+    color: #d97706;
     font-weight: 600;
-    margin-top: 6px;
+    margin-top: 2px;
 }
 
 .item-unavailable-badge {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     color: #dc2626;
     font-weight: 600;
-    margin-top: 6px;
+    margin-top: 2px;
 }
+
 .item-low-stock-badge {
-    font-size: 0.78rem;
-    color: #f59e0b;
+    font-size: 0.76rem;
+    color: #d97706;
     font-weight: 600;
-    margin-top: 6px;
+    margin-top: 2px;
 }
+
 .stock-warning-text {
     font-size: 0.8rem;
     color: #dc2626;
@@ -1328,16 +1800,33 @@ onUnmounted(() => {
     line-height: 1.4;
 }
 
-/* Price & Quantity */
-.item-price {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: #E63B6F;
-    margin-top: 4px;
+/* Bottom Row: Price & Quantity */
+.item-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
 }
 
-.item-spacer {
-    flex: 1;
+.item-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.item-price-original {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #94a3b8;
+    text-decoration: line-through;
+}
+
+.item-price {
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: #E63B6F;
 }
 
 .quantity-control {
@@ -1347,10 +1836,12 @@ onUnmounted(() => {
     border-radius: 8px;
     overflow: hidden;
     background: #fff;
+    height: 28px;
+    flex-shrink: 0;
 }
 
 .qty-btn {
-    width: 28px;
+    width: 26px;
     height: 28px;
     border: none;
     background: transparent;
@@ -1359,7 +1850,9 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     color: #486581;
+    font-size: 0.95rem;
     transition: all 0.15s;
+    padding: 0;
 }
 
 .qty-btn:hover:not(:disabled) {
@@ -1373,7 +1866,7 @@ onUnmounted(() => {
 }
 
 .qty-display {
-    width: 36px;
+    width: 32px;
     height: 28px;
     text-align: center;
     font-size: 0.85rem;
@@ -1385,6 +1878,7 @@ onUnmounted(() => {
     line-height: 28px;
     outline: none;
     background: #fff;
+    padding: 0;
 }
 
 .qty-input:focus {
@@ -1397,26 +1891,9 @@ onUnmounted(() => {
     background: #f8fafc;
 }
 
-/* Remove Button */
-.btn-remove {
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: #f8fafc;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #94a3b8;
-    transition: all 0.2s;
-    flex-shrink: 0;
-    margin-left: 8px;
-}
-
-.btn-remove:hover {
-    color: #E63B6F;
-    background: #fff5f8;
+/* Mobile Sticky Checkout Bar */
+.mobile-sticky-checkout-bar {
+    display: none;
 }
 
 /* Order Summary */
@@ -1703,6 +2180,8 @@ onUnmounted(() => {
 @media (max-width: 900px) {
     .cart-layout {
         flex-direction: column;
+        gap: 20px;
+        padding-bottom: 90px;
     }
 
     .cart-items-section,
@@ -1710,76 +2189,281 @@ onUnmounted(() => {
         width: 100%;
         position: static;
     }
+}
 
-    .cart-item-card {
-        flex-wrap: wrap;
-        gap: 12px;
+@media (max-width: 768px) {
+    .cart-layout {
+        padding-bottom: 120px;
     }
 
-    .item-price-qty {
-        flex-direction: row;
-        min-width: auto;
-        gap: 12px;
-        width: 100%;
+    .summary-card .btn-checkout,
+    .summary-card .btn-continue {
+        display: none;
+    }
+
+    .summary-card {
+        margin-bottom: 20px;
+    }
+
+    .mobile-sticky-checkout-bar {
+        display: flex;
+        align-items: center;
         justify-content: space-between;
-        padding-left: 36px;
+        gap: 8px;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 9990;
+        background: #ffffff;
+        padding: 6px 12px;
+        border-top: 1px solid #eef2f6;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .mobile-sticky-select-all {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+        user-select: none;
+        flex-shrink: 0;
+    }
+
+    .mobile-sticky-price-box {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        flex: 1;
+        min-width: 0;
+        padding: 0 4px;
+    }
+
+    .mobile-sticky-label {
+        font-size: 0.65rem;
+        color: #64748b;
+        font-weight: 500;
+        line-height: 1.1;
+    }
+
+    .mobile-sticky-total {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #E63B6F;
+        white-space: nowrap;
+        line-height: 1.2;
+    }
+
+    .btn-mobile-sticky-checkout {
+        flex-shrink: 0;
+        padding: 7px 14px;
+        background: var(--primary, #E63B6F);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        box-shadow: 0 2px 8px rgba(230, 59, 111, 0.25);
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .btn-mobile-sticky-checkout:hover:not(:disabled) {
+        background: #C4305D;
+    }
+
+    .btn-mobile-sticky-checkout:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+        box-shadow: none;
     }
 }
 
 @media (max-width: 600px) {
+    .cart-page {
+        padding: 14px 0 80px;
+    }
+
+    .page-header {
+        margin-bottom: 12px;
+    }
+
+    .page-header h1 {
+        font-size: 1.25rem;
+        margin-bottom: 4px;
+    }
+
     .item-image {
-        width: 70px;
-        height: 70px;
+        width: 64px;
+        height: 64px;
+        border-radius: 8px;
     }
 
     .cart-item-card {
-        padding: 12px 14px;
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .item-name {
+        font-size: 0.86rem;
+        line-height: 1.3;
+    }
+
+    .item-price {
+        font-size: 0.95rem;
+    }
+
+    .item-price-original {
+        font-size: 0.74rem;
+    }
+
+    .item-variant-row {
+        margin: 1px 0 3px;
+    }
+
+    .item-variant-btn {
+        height: 20px;
+        min-height: 20px;
+        max-height: 20px;
+        padding: 0 6px;
+        font-size: 0.7rem;
+        gap: 3px;
+        border-radius: 4px;
+    }
+
+    .item-variant-text {
+        font-size: 0.7rem;
+        line-height: 1;
+    }
+
+    .item-variant-btn .variant-caret {
+        width: 8px;
+        height: 8px;
+    }
+
+    .btn-remove {
+        width: 22px;
+        height: 22px;
+        min-height: unset;
+        border-radius: 5px;
+    }
+
+    .quantity-control {
+        height: 26px;
+        border-radius: 6px;
+    }
+
+    .qty-btn {
+        width: 24px;
+        height: 26px;
+        min-height: unset;
+        font-size: 0.85rem;
+    }
+
+    .qty-display {
+        width: 28px;
+        height: 26px;
+        font-size: 0.8rem;
+        line-height: 26px;
+    }
+
+    .cart-action-bar {
+        padding: 6px 12px;
+    }
+
+    .summary-card {
+        padding: 12px;
+    }
+
+    /* Empty Cart Mobile */
+    .empty-cart {
+        padding: 28px 14px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+
+    .empty-icon {
+        margin-bottom: 10px;
+    }
+
+    .empty-icon svg {
+        width: 48px;
+        height: 48px;
+    }
+
+    .empty-cart h2 {
+        font-size: 1.15rem;
+        margin-bottom: 4px;
+    }
+
+    .empty-cart p {
+        font-size: 0.82rem;
+        margin-bottom: 16px;
+    }
+
+    .btn-shop {
+        padding: 8px 18px;
+        font-size: 0.85rem;
+        border-radius: 8px;
+    }
+
+    .upsell-title {
+        font-size: 1.05rem;
+        margin-bottom: 8px;
+    }
+
+    .upsell-section {
+        padding-bottom: 30px;
+    }
+
+    .vmodal-footer {
+        padding: 12px 16px;
+        margin-top: 10px;
+    }
+
+    .vmodal-btn-cancel,
+    .vmodal-btn-confirm {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        border-radius: 8px;
     }
 }
 
-/* ====== VARIANT ROW + CHANGE BTN ====== */
-.item-variant-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-    flex-wrap: wrap;
-}
+@media (max-width: 380px) {
+    .item-image {
+        width: 56px;
+        height: 56px;
+    }
 
-.item-variant-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.8rem;
-    color: #627d98;
-    font-weight: 500;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 3px 10px;
-    line-height: 1.4;
-}
+    .cart-item-card {
+        padding: 8px 10px;
+        gap: 8px;
+    }
 
-.btn-change-variant {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
-    border: 1px solid #E63B6F;
-    border-radius: 20px;
-    background: transparent;
-    color: #E63B6F;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.18s;
-    white-space: nowrap;
-}
+    .item-name {
+        font-size: 0.82rem;
+    }
 
-.btn-change-variant:hover {
-    background: #E63B6F;
-    color: white;
+    .item-price {
+        font-size: 0.88rem;
+    }
+
+    .btn-mobile-sticky-checkout {
+        padding: 6px 10px;
+        font-size: 0.78rem;
+        border-radius: 6px;
+    }
+
+    .mobile-sticky-total {
+        font-size: 0.88rem;
+    }
 }
 
 /* ====== VARIANT MODAL ====== */
@@ -1802,7 +2486,7 @@ onUnmounted(() => {
     max-width: 480px;
     box-shadow: 0 24px 60px rgba(230, 59, 111, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 .vmodal-header {
@@ -2016,7 +2700,7 @@ onUnmounted(() => {
     padding: 11px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #E63B6F, #039be5);
+    background: #E63B6F;
     color: #fff;
     font-size: 0.95rem;
     font-weight: 700;
@@ -2027,8 +2711,9 @@ onUnmounted(() => {
 }
 
 .vmodal-btn-confirm:hover:not(:disabled) {
-    background: linear-gradient(135deg, #C4305D, #E63B6F);
+    background: #C4305D;
     transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.4);
 }
 
 .vmodal-btn-confirm:disabled {
@@ -2052,5 +2737,90 @@ onUnmounted(() => {
 .vmodal-enter-from .vmodal-box,
 .vmodal-leave-to .vmodal-box {
     transform: scale(0.94) translateY(20px);
+}
+
+/* =======================================================
+   RESPONSIVE BREAKPOINTS FOR CART
+   ======================================================= */
+@media (max-width: 992px) {
+    .cart-layout {
+        flex-direction: column;
+        gap: 20px;
+        padding-bottom: 60px;
+    }
+
+    .cart-items-section {
+        width: 100%;
+    }
+
+    .order-summary {
+        width: 100%;
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .cart-page {
+        padding: 16px 0 40px;
+    }
+
+    .page-header {
+        margin-bottom: 16px;
+    }
+
+    .page-header h1 {
+        font-size: 1.35rem;
+    }
+
+    .upsell-title {
+        font-size: 1.35rem;
+        margin-bottom: 16px;
+    }
+
+    .cart-action-bar {
+        padding: 8px 12px;
+    }
+
+    .checkbox-wrapper {
+        font-size: 0.85rem;
+    }
+
+    .cart-item-card {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .item-image {
+        width: 56px;
+        height: 56px;
+        border-radius: 8px;
+    }
+
+    .item-name {
+        font-size: 0.85rem;
+    }
+
+    .item-price {
+        font-size: 0.95rem;
+    }
+
+    .item-price-original {
+        font-size: 0.78rem;
+    }
+
+    .summary-card {
+        padding: 14px;
+    }
+
+    .summary-title {
+        font-size: 1.05rem;
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+    }
+
+    .btn-checkout {
+        padding: 12px;
+        font-size: 0.92rem;
+    }
 }
 </style>

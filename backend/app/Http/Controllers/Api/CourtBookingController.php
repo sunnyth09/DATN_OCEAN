@@ -207,6 +207,7 @@ class CourtBookingController extends Controller
                 'booking_id' => $booking->booking_id,
                 'booking_code' => $booking->booking_code,
                 'qr_token' => $this->workflowService->qrToken($booking),
+                'qr_data' => $this->workflowService->qrPayload($booking),
             ],
         ]);
     }

@@ -22,10 +22,7 @@ class UpdateReturnRequestStatusRequest extends FormRequest
     public function rules(): array
     {
         $action = $this->route()?->getActionMethod();
-        $refundMethods = Rule::in(array_map(
-            static fn (RefundMethod $method) => $method->value,
-            RefundMethod::cases()
-        ));
+        $refundMethods = Rule::in(RefundMethod::returnRequestValues());
 
         return match ($action) {
             'approve' => [

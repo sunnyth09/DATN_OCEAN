@@ -4,10 +4,13 @@
     <!-- ── HEADER ── -->
     <div class="board-header">
       <div class="sale-badge">
-        <span>⚡</span>
+        <AppIcon name="zap" size="14" />
         <span class="badge-text">FLASH SALE</span>
       </div>
-      <span class="hot-chip" v-if="stockPercent >= 70 && !isEnded">🔥 Sắp hết hàng</span>
+      <span class="hot-chip" v-if="stockPercent >= 70 && !isEnded">
+        <AppIcon name="flame" size="13" />
+        Sắp hết hàng
+      </span>
     </div>
 
     <!-- ── LOADING ── -->
@@ -34,13 +37,16 @@
             <span class="sale-price">{{ fmtPrice(sale.sale_price) }}</span>
             <span class="orig-price">{{ fmtPrice(sale.original_price) }}</span>
           </div>
-          <p class="limit-note">🛒 Tối đa {{ sale.max_per_user }} sản phẩm / khách</p>
+          <p class="limit-note"><AppIcon name="cart" size="13" /> Tối đa {{ sale.max_per_user }} sản phẩm / khách</p>
         </div>
       </div>
 
       <!-- ── COUNTDOWN — DOM refs, không dùng reactive ── -->
       <div class="timer-section">
-        <p class="timer-label" ref="timerLabelEl">⏰ Kết thúc sau:</p>
+        <p class="timer-label">
+          <AppIcon :name="timerIcon" size="13" />
+          {{ timerLabel }}
+        </p>
         <div class="countdown" ref="countdownEl">
           <div class="time-unit">
             <span class="time-num" ref="hoursEl">00</span>
@@ -78,15 +84,16 @@
           id="flash-sale-buy-btn"
           class="buy-btn"
           :class="btnClass"
-          :disabled="isBuying || soldOut || isBought"
+          :disabled="isBuying || soldOut || isBought || isUpcoming"
           @click="handleBuy"
         >
-          <span v-if="isBought">✅ Đặt hàng thành công!</span>
+          <span v-if="isBought" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><AppIcon name="check-circle" size="16" /> Đặt hàng thành công!</span>
           <span v-else-if="isBuying">Đang xử lý...</span>
           <span v-else-if="soldOut">Đã hết hàng</span>
-          <span v-else>⚡ Săn Deal Ngay</span>
+          <span v-else-if="isUpcoming" class="btn-content"><AppIcon name="hourglass" size="16" /> Sắp Mở Bán</span>
+          <span v-else class="btn-content"><AppIcon name="zap" size="16" /> Săn Deal Ngay</span>
         </button>
-        <p class="auth-note" v-if="!isLoggedIn">
+        <p class="auth-note" v-if="!isLoggedIn && !isUpcoming">
           <router-link to="/client/login">Đăng nhập</router-link> để tham gia
         </p>
       </div>
@@ -95,6 +102,13 @@
       </div>
 
     </template>
+
+    <!-- ── FAST CHECKOUT MODAL ── -->
+    <FlashSaleBuyModal
+      v-model="showBuyModal"
+      :sale-item="sale"
+      @success="onBuySuccess"
+    />
 
     <!-- ── TOAST ── -->
     <div v-if="toast.visible" class="toast-box" :class="`toast--${toast.type}`">
@@ -108,8 +122,12 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api, { getUser } from '@/axios.js';
+import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
+import AppIcon from '@/components/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
+const showBuyModal = ref(false);
 
 const props = defineProps({
   flashSaleId: { type: Number, default: null },
@@ -124,13 +142,14 @@ const isBought  = ref(false);
 const isLoading = ref(true);
 const ended     = ref(false);
 const toast     = ref({ visible: false, type: 'info', message: '' });
+const timerLabel = ref('Kết thúc sau:');
+const timerIcon  = ref('clock');
 
 // ── Template refs cho countdown (cập nhật DOM trực tiếp, KHÔNG qua Vue reactivity) ──
 const hoursEl     = ref(null);
 const minsEl      = ref(null);
 const secsEl      = ref(null);
 const countdownEl = ref(null);
-const timerLabelEl = ref(null);
 
 // ── Non-reactive ──
 let serverOffset = 0;
@@ -142,6 +161,10 @@ let stockRequest  = null;
 // ── Computed ──
 const isLoggedIn   = computed(() => !!getUser());
 const soldOut      = computed(() => !!stockData.value?.is_sold_out);
+const isUpcoming   = computed(() => {
+  if (!sale.value?.starts_at) return false;
+  return new Date(sale.value.starts_at).getTime() > Date.now();
+});
 const stockPercent = computed(() => {
   if (!sale.value || !stockData.value) return 0;
   return (stockData.value.sold_count / sale.value.total_stock) * 100;
@@ -153,24 +176,25 @@ const fillClass = computed(() => {
 });
 const btnClass = computed(() => {
   if (isBought.value) return 'btn--success';
-  if (soldOut.value || ended.value) return 'btn--disabled';
+  if (soldOut.value || ended.value || isUpcoming.value) return 'btn--disabled';
   if (isBuying.value) return 'btn--loading';
   return 'btn--active';
 });
 const isEnded = computed(() => ended.value);
 const productThumb = computed(() => {
-  const t = sale.value?.product_thumbnail;
+  const t = sale.value?.product_thumbnail || sale.value?.thumbnail_url || sale.value?.image_url || sale.value?.image || sale.value?.thumbnail || sale.value?.product?.thumbnail;
   if (!t) return 'https://placehold.co/400x400/E63B6F/FFF?text=Sale';
-  if (t.startsWith('http')) return t;
-  const apiUrl = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8383/api`;
-  const base = apiUrl.replace('/api', '');
-  return `${base}/storage/${t}`;
+  return getStorageUrl(t);
 });
 
 // ── Helpers ──
 const pad      = n => String(n).padStart(2, '0');
 const fmtPrice = p => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
-const imgFallback = e => { e.target.src = 'https://placehold.co/400x400/E63B6F/FFF?text=Sale'; };
+const imgFallback = e => {
+  if (e.target.src !== 'https://placehold.co/400x400/E63B6F/FFF?text=Sale') {
+    e.target.src = 'https://placehold.co/400x400/E63B6F/FFF?text=Sale';
+  }
+};
 
 function showToast(type, msg, ms = 4000) {
   clearTimeout(toastTimer);
@@ -193,14 +217,20 @@ function tickTimer() {
     ended.value = true;
     clearInterval(timerInterval);
     if (countdownEl.value) countdownEl.value.style.display = 'none';
-    if (timerLabelEl.value) timerLabelEl.value.textContent = 'Chiến dịch đã kết thúc';
+    timerLabel.value = 'Chiến dịch đã kết thúc';
     return;
   }
 
   const target = now < start ? start : end;
 
-  if (now < start && timerLabelEl.value) timerLabelEl.value.textContent = '⏳ Bắt đầu sau:';
-  if (now >= start && timerLabelEl.value) timerLabelEl.value.textContent = '⏰ Kết thúc sau:';
+  if (now < start) {
+    timerIcon.value = 'hourglass';
+    timerLabel.value = 'Bắt đầu sau:';
+  }
+  if (now >= start) {
+    timerIcon.value = 'clock';
+    timerLabel.value = 'Kết thúc sau:';
+  }
 
   const diff = Math.max(0, target - now);
   const h = Math.floor(diff / 3_600_000);
@@ -261,19 +291,20 @@ async function fetchStock() {
 }
 
 // ── Buy ──
-async function handleBuy() {
+function handleBuy() {
   if (!isLoggedIn.value) {
-    showToast('warn', 'Vui lòng đăng nhập để tham gia Flash Sale!'); return;
+    showToast('warn', 'Vui lòng đăng nhập để tham gia Flash Sale!');
+    router.push('/client/login');
+    return;
   }
   if (isBuying.value || isBought.value || soldOut.value) return;
 
-  router.push({
-    path: '/checkout',
-    query: {
-      flash_sale_id: sale.value.id,
-      product_id: sale.value.product_id
-    }
-  });
+  showBuyModal.value = true;
+}
+
+function onBuySuccess(orderData) {
+  isBought.value = true;
+  fetchStock();
 }
 
 // ── Lifecycle ──

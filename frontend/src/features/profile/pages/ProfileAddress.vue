@@ -11,9 +11,19 @@
       </button>
     </div>
 
-    <!-- Loading -->
+    <!-- Modern Skeleton Loading -->
     <div v-if="loading" class="address-list-skeleton">
-      <div class="skeleton-pulse" style="height:120px; border-radius:12px; margin-bottom:20px;" v-for="i in 3" :key="i"></div>
+      <div v-for="i in 3" :key="i" class="skeleton-address-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 4px;"></div>
+            <div class="skeleton-box" style="width: 70px; height: 20px; border-radius: 20px;"></div>
+          </div>
+          <div class="skeleton-box" style="width: 80px; height: 32px; border-radius: 8px;"></div>
+        </div>
+        <div class="skeleton-box" style="width: 110px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+        <div class="skeleton-box" style="width: 80%; height: 14px; border-radius: 4px;"></div>
+      </div>
     </div>
 
     <!-- Address List -->
@@ -584,6 +594,8 @@ onMounted(fetchAddresses);
 .action-btn {
   width: 34px;
   height: 34px;
+  min-height: unset;
+  aspect-ratio: 1 / 1;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   background: var(--card-bg);
@@ -1037,6 +1049,49 @@ onMounted(fetchAddresses);
   .btn-save {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.address-list-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.skeleton-address-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>

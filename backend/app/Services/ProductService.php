@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exports\ProductsExport;
 use App\Exports\ProductsTemplateExport;
 use App\Imports\ProductsImport;
 use App\Imports\ProductsRowImport;
@@ -89,20 +90,22 @@ class ProductService
         ];
 
         if ($search) {
+            $filters['search_query'] = $search;
             try {
                 // Sử dụng Meilisearch thông qua Laravel Scout
-                $matchedIds = Product::search($search)->keys()->toArray();
-                Log::info('Admin Product Search: Sử dụng Meilisearch thành công', [
-                    'query' => $search,
-                    'results_count' => count($matchedIds)
-                ]);
+                $ids = Product::search($search)->keys()->toArray();
+                if (! empty($ids)) {
+                    $matchedIds = $ids;
+                    Log::info('Admin Product Search: Sử dụng Meilisearch thành công', [
+                        'query' => $search,
+                        'results_count' => count($matchedIds),
+                    ]);
+                }
             } catch (\Exception $e) {
-                // Fallback nếu Meilisearch bị lỗi hoặc chưa khởi động
-                Log::warning('Admin Product Search: Meilisearch thất bại, dùng SQL LIKE làm dự phòng', [
+                Log::warning('Admin Product Search: Meilisearch exception', [
                     'error' => $e->getMessage(),
-                    'query' => $search
+                    'query' => $search,
                 ]);
-                $filters['search_like'] = $search;
             }
         }
 
@@ -116,6 +119,70 @@ class ProductService
         }
 
         return $this->productRepository->getAdminProducts($matchedIds, $filters, $page, $limit);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  CLIENT PUBLIC: DANH SÁCH SẢN PHẨM CHO NGƯỜI DÙNG
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Client (public): danh sách sản phẩm active với tìm kiếm, lọc, phân trang.
+     *
+     * Khác biệt so với listAdminProducts():
+     *  - Luôn filter status=active, whereNull(deleted_at) → không leak dữ liệu admin
+     *  - Fix bug Meilisearch: khi trả về [] (index chưa sync hoặc lỗi), fallback về SQL LIKE
+     *    thay vì trả về 0 kết quả sai lệch
+     */
+    public function listClientProducts(Request $request): array
+    {
+        $page = (int) $request->query('page', 1);
+        $limit = (int) $request->query('limit', 12);
+        $search = trim($request->query('search', ''));
+
+        $filters = [
+            'max_price' => $request->query('max_price'),
+            'price_range' => $request->query('price_range'),
+            'brand_ids' => $request->query('brand_ids'),
+            'sort_by' => $request->query('sort_by'),
+        ];
+
+        // ── Tìm kiếm qua Meilisearch + Database ──────────────────────
+        $matchedIds = null;
+
+        if ($search !== '') {
+            $filters['search_query'] = $search;
+            try {
+                $ids = Product::search($search)->keys()->toArray();
+                if (! empty($ids)) {
+                    $matchedIds = $ids;
+                    Log::info('Client Product Search: Meilisearch thành công', [
+                        'query' => $search,
+                        'results' => count($ids),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Client Product Search: Meilisearch exception', [
+                    'error' => $e->getMessage(),
+                    'query' => $search,
+                ]);
+            }
+        }
+
+        // ── Category filter (bao gồm danh mục con) ────────────────────
+        $categoryInput = $request->query('category_ids') ?? $request->query('category_id');
+        if (! empty($categoryInput) && $categoryInput !== 'All') {
+            $categoryIds = is_array($categoryInput)
+                ? $categoryInput
+                : explode(',', $categoryInput);
+
+            $childIds = Category::whereIn('parent_id', $categoryIds)
+                ->pluck('category_id')
+                ->toArray();
+
+            $filters['category_ids'] = array_unique(array_merge($categoryIds, $childIds));
+        }
+
+        return $this->productRepository->getClientProducts($matchedIds, $filters, $page, $limit);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -210,7 +277,7 @@ class ProductService
      */
     public function showProduct($identifier): array
     {
-        $product = Cache::remember("product:identifier:{$identifier}", 1800, function () use ($identifier) {
+        $product = Cache::remember("product:identifier:{$identifier}", 300, function () use ($identifier) {
             return $this->productRepository->findByIdentifier($identifier);
         });
 
@@ -218,7 +285,14 @@ class ProductService
             return ['_status' => 404, 'status' => 'error', 'message' => 'Product not found'];
         }
 
-        return ['_status' => 200, 'data' => $product];
+        $data = $product->toArray();
+        try {
+            $data['flash_sale'] = app(FlashSaleService::class)->getActiveForProduct($product->product_id);
+        } catch (\Throwable $e) {
+            $data['flash_sale'] = null;
+        }
+
+        return ['_status' => 200, 'data' => $data];
     }
 
     /**
@@ -258,6 +332,42 @@ class ProductService
     }
 
     /**
+     * Sản phẩm phối đồ (matching)
+     */
+    public function getMatchingProducts($slug): array
+    {
+        $product = Cache::remember("product:identifier:{$slug}", 1800, function () use ($slug) {
+            return $this->productRepository->findByIdentifierBasic($slug);
+        });
+
+        if (! $product) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Product not found'];
+        }
+
+        $cacheKey = "products:matching:{$product->product_id}";
+        $matching = Cache::remember($cacheKey, 900, function () use ($product) {
+            return $this->productRepository->getMatchingProducts(
+                $product->product_id,
+                $product->category_id
+            )->map(function ($p) {
+                return [
+                    'product_id' => $p->product_id,
+                    'name' => $p->name,
+                    'slug' => $p->slug,
+                    'min_price' => $p->min_price,
+                    'thumbnail_url' => $p->mainImage?->image_url ?? $p->thumbnail_url,
+                ];
+            });
+        });
+
+        return [
+            '_status' => 200,
+            'status' => 'success',
+            'data' => $matching,
+        ];
+    }
+
+    /**
      * Lấy danh sách biến thể active của sản phẩm
      */
     public function getProductVariants(int $id): array
@@ -274,8 +384,9 @@ class ProductService
                 'color' => $v->color,
                 'size' => $v->size,
                 'variant_name' => $v->variant_name,
-                'price' => $v->price,
-                'compare_at_price' => $v->compare_at_price,
+                'price' => $v->effective_price,
+                'original_price' => $v->original_price,
+                'compare_at_price' => $v->original_price ?: $v->compare_at_price,
                 'stock' => $v->stock,
                 'status' => $v->status,
                 'image_url' => $v->image_url,
@@ -345,6 +456,11 @@ class ProductService
                 'product_type' => $request->product_type,
                 'status' => $request->status,
                 'is_featured' => $request->boolean('is_featured'),
+                'sku' => $request->sku ?: 'SP-'.strtoupper(Str::random(6)),
+                'weight' => $request->weight ?? 0,
+                'material' => $request->material,
+                'origin' => $request->origin,
+                'style' => $request->style,
                 'min_price' => 0,
                 'max_price' => 0,
             ]);
@@ -438,6 +554,11 @@ class ProductService
                 'product_type' => $request->product_type,
                 'status' => $request->status,
                 'is_featured' => $request->boolean('is_featured'),
+                'sku' => $request->sku ?: $product->sku ?: 'SP-'.strtoupper(Str::random(6)),
+                'weight' => $request->weight ?? 0,
+                'material' => $request->material,
+                'origin' => $request->origin,
+                'style' => $request->style,
             ]);
 
             // Xóa gallery cũ
@@ -656,6 +777,26 @@ class ProductService
     public function downloadTemplate()
     {
         return Excel::download(new ProductsTemplateExport, 'mau_import_san_pham.xlsx');
+    }
+
+    /**
+     * Xuất danh sách sản phẩm ra Excel
+     */
+    public function exportProducts(Request $request)
+    {
+        $filters = [
+            'date_preset' => $request->query('date_preset', 'all'),
+            'from_date' => $request->query('from_date'),
+            'to_date' => $request->query('to_date'),
+            'status' => $request->query('status', 'all'),
+            'category_id' => $request->query('category_id'),
+            'brand_id' => $request->query('brand_id'),
+            'export_type' => $request->query('export_type', 'variant'),
+        ];
+
+        $fileName = 'danh_sach_san_pham_'.date('Ymd_His').'.xlsx';
+
+        return Excel::download(new ProductsExport($filters), $fileName);
     }
 
     // ═══════════════════════════════════════════════════════════════════

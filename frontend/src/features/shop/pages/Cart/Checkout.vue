@@ -8,6 +8,7 @@ import { useCartUpsell } from '@/composables/useCartUpsell';
 import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
 import CheckoutAddressModal from '@/features/shop/components/CheckoutAddressModal.vue';
+import SepayPaymentModal from '@/components/SepayPaymentModal.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
 import { walletService } from '@/services/walletService';
@@ -15,6 +16,7 @@ import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
 import { sanitizeAddressPayload, validateAddressPayload } from '@/utils/addressValidation';
 import AppIcon from '@/components/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
 // Debounce helper — tránh gửi quá nhiều request liên tiếp gây rate-limit 429
 const debounce = (fn, delay) => {
@@ -80,13 +82,31 @@ const showBankingModal = ref(false);
 const bankingInfo = ref(null); // { bank_bin, account_number, account_name, amount, order_code, qr_url }
 const bankingOrderCode = ref('');
 
+const onBankingPayLater = () => {
+    showToast('Sản phẩm/Đơn hàng của bạn chưa thanh toán! Vui lòng hoàn tất trong 15 phút tại Đơn hàng của tôi.', 'warning');
+    if (authStore.isAuthenticated) {
+        router.push({ name: 'profile-orders' });
+    } else {
+        router.push({ name: 'order-success', params: { order_code: bankingOrderCode.value } });
+    }
+};
+
+const onBankingPaySuccess = () => {
+    showToast('Thanh toán đơn hàng thành công!', 'success');
+};
+
 // --- Coupon ---
 const couponCode = ref('');
+const couponErrorMsg = ref('');
 const appliedCoupon = ref(null);
 const checkingCoupon = ref(false);
 const showCouponModal = ref(false);
 const availableCoupons = ref([]);
 const loadingCoupons = ref(false);
+
+watch(couponCode, () => {
+    couponErrorMsg.value = '';
+});
 
 // --- Wallet ---
 const useDeposit = ref(false);
@@ -532,6 +552,8 @@ const promptLoginForCoupon = () => {
     router.push({ name: 'login', query: { redirect: route.fullPath || '/checkout' } });
 };
 
+const formatVND = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(val) || 0);
+
 const applyCoupon = async () => {
     if (!authStore.isAuthenticated) {
         promptLoginForCoupon();
@@ -540,31 +562,39 @@ const applyCoupon = async () => {
     if (!couponCode.value.trim()) return;
 
     const code = couponCode.value.trim().toUpperCase();
-    const found = availableCoupons.value.find(c => c.code.toUpperCase() === code);
-    if (found) {
-        selectCoupon(found);
-    } else {
-        checkingCoupon.value = true;
-        try {
-            const response = await api.post('/profile/coupons/check', {
-                code: code,
-                subtotal: subtotal.value
-            });
-            if (response.data?.status === 'success') {
-                const couponData = response.data.data;
-                selectCoupon(couponData);
-            } else {
-                showToast(response.data?.message || 'Mã giảm giá không hợp lệ', 'error');
-                appliedCoupon.value = null;
-            }
-        } catch (error) {
-            console.error('Lỗi kiểm tra mã giảm giá:', error);
-            const msg = error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
-            showToast(msg, 'error');
+    couponCode.value = code;
+    checkingCoupon.value = true;
+    couponErrorMsg.value = '';
+    try {
+        const itemsPayload = cartItems.value.map(item => ({
+            product_id: item.product?.product_id,
+            category_id: item.product?.category_id,
+            price: item.variant?.price || 0,
+            quantity: item.quantity || 1
+        }));
+        const response = await api.post('/coupons/check', {
+            code: code,
+            subtotal: subtotal.value,
+            items: itemsPayload
+        });
+        if (response.data?.status === 'success') {
+            const couponData = response.data.data;
+            couponErrorMsg.value = '';
+            selectCoupon(couponData);
+        } else {
+            const msg = response.data?.message || 'Mã giảm giá không hợp lệ. Bạn vui lòng kiểm tra lại nhé!';
+            couponErrorMsg.value = msg;
+            showToast(msg, 'warning', { title: 'Mã giảm giá' });
             appliedCoupon.value = null;
-        } finally {
-            checkingCoupon.value = false;
         }
+    } catch (error) {
+        console.error('Lỗi kiểm tra mã giảm giá:', error);
+        const msg = error.response?.data?.message || 'Mã giảm giá không tồn tại hoặc đã hết hạn sử dụng. Bạn vui lòng kiểm tra lại nhé!';
+        couponErrorMsg.value = msg;
+        showToast(msg, 'warning', { title: 'Mã giảm giá' });
+        appliedCoupon.value = null;
+    } finally {
+        checkingCoupon.value = false;
     }
 };
 
@@ -573,6 +603,7 @@ const openCouponModal = () => {
         promptLoginForCoupon();
         return;
     }
+    couponErrorMsg.value = '';
     showCouponModal.value = true;
 };
 
@@ -581,33 +612,201 @@ const selectCoupon = (coupon) => {
         promptLoginForCoupon();
         return;
     }
+    if (coupon.min_order_value && subtotal.value < parseFloat(coupon.min_order_value)) {
+        const msg = `Đơn hàng cần đạt tối thiểu ${formatVND(coupon.min_order_value)} để áp dụng mã này.`;
+        couponErrorMsg.value = msg;
+        showToast(msg, 'warning', { title: 'Mã giảm giá' });
+        return;
+    }
     if (coupon.type === 'free_ship' && subtotal.value >= (upsellState.freeshipThreshold || 500000)) {
-        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển!', 'warning');
+        showToast('Đơn hàng của bạn đã đủ điều kiện tự động miễn phí vận chuyển!', 'info', { title: 'Ưu đãi vận chuyển' });
         return;
     }
     appliedCoupon.value = {
         code: coupon.code,
         type: coupon.type,
         value: coupon.value,
-        max_discount_value: coupon.max_discount_value
+        max_discount_value: coupon.max_discount_value,
+        min_order_value: coupon.min_order_value
     };
     couponCode.value = coupon.code;
+    couponErrorMsg.value = '';
     showCouponModal.value = false;
-    showToast(`Đã áp dụng mã giảm giá ${coupon.code}!`, 'success');
+    showToast(`Áp dụng thành công mã ưu đãi "${coupon.code}"!`, 'success', { title: 'Mã giảm giá' });
 };
 
 const removingCoupon = () => {
     appliedCoupon.value = null;
     couponCode.value = '';
+    couponErrorMsg.value = '';
 };
 
 watch(subtotal, (newSubtotal) => {
-    if (newSubtotal >= (upsellState.freeshipThreshold || 500000) && appliedCoupon.value && appliedCoupon.value.type === 'free_ship') {
-        appliedCoupon.value = null;
-        couponCode.value = '';
-        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển. Mã freeship đã được gỡ bỏ!', 'warning');
+    if (appliedCoupon.value) {
+        if (newSubtotal >= (upsellState.freeshipThreshold || 500000) && appliedCoupon.value.type === 'free_ship') {
+            appliedCoupon.value = null;
+            couponCode.value = '';
+            showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển. Mã freeship đã được gỡ bỏ!', 'warning');
+        } else if (appliedCoupon.value.min_order_value && newSubtotal < parseFloat(appliedCoupon.value.min_order_value)) {
+            appliedCoupon.value = null;
+            couponCode.value = '';
+            showToast(`Tổng tiền đơn hàng không còn đủ ${formatVND(appliedCoupon.value.min_order_value)} để áp dụng mã giảm giá.`, 'warning');
+        }
     }
 });
+
+// ====== VARIANT CHANGE IN CHECKOUT ======
+const isFlashSaleOrder = computed(() => isFlashSale.value || cartItems.value.some(i => i.is_flash_sale || i.flash_sale_id));
+const isDirectOrder = isBuyNow;
+
+const variantModal = ref({
+    show: false,
+    item: null,
+    variants: [],
+    loadingVariants: false,
+    selectedColor: null,
+    selectedSize: null,
+    confirming: false,
+});
+
+const openVariantModal = async (item) => {
+    if (isFlashSale.value || item?.is_flash_sale || item?.flash_sale_id) {
+        showToast('Sản phẩm Flash Sale không hỗ trợ đổi phân loại.', 'warning');
+        return;
+    }
+    const productId = item?.product?.product_id || item?.product?.id || item?.product_id;
+    if (!productId) return;
+
+    variantModal.value.show = true;
+    variantModal.value.item = item;
+    variantModal.value.variants = [];
+    variantModal.value.loadingVariants = true;
+    variantModal.value.selectedColor = item?.variant?.color || null;
+    variantModal.value.selectedSize = item?.variant?.size || null;
+
+    try {
+        const res = await api.get(`/products/${productId}/variants`);
+        variantModal.value.variants = res.data?.data || [];
+    } catch (e) {
+        showToast('Không thể tải thông tin phân loại sản phẩm.', 'error');
+        variantModal.value.show = false;
+    } finally {
+        variantModal.value.loadingVariants = false;
+    }
+};
+
+const closeVariantModal = () => {
+    variantModal.value.show = false;
+    variantModal.value.item = null;
+};
+
+const modalUniqueColors = computed(() => {
+    return [...new Set(variantModal.value.variants.map(v => v.color).filter(Boolean))];
+});
+
+const modalHasColors = computed(() => modalUniqueColors.value.length > 0);
+
+const modalAvailableSizes = computed(() => {
+    const variants = variantModal.value.variants;
+    if (!variants.length) return [];
+
+    const filtered = variantModal.value.selectedColor
+        ? variants.filter(v => v.color === variantModal.value.selectedColor)
+        : variants;
+
+    const sizeMap = {};
+    filtered.forEach(v => {
+        const key = v.size || '__no_size__';
+        if (!sizeMap[key]) sizeMap[key] = { size: v.size, stock: 0, variant_id: v.variant_id };
+        sizeMap[key].stock += v.stock;
+        sizeMap[key].variant_id = v.variant_id;
+    });
+    return Object.values(sizeMap);
+});
+
+const modalSelectedVariant = computed(() => {
+    const vars = variantModal.value.variants;
+    const color = variantModal.value.selectedColor;
+    const size = variantModal.value.selectedSize;
+
+    if (!vars.length) return null;
+
+    if (!modalHasColors.value && size) {
+        return vars.find(v => v.size === size) || null;
+    }
+    if (color && size) {
+        return vars.find(v => v.color === color && v.size === size) || null;
+    }
+    if (color && !modalAvailableSizes.value.some(s => s.size)) {
+        return vars.find(v => v.color === color) || null;
+    }
+    return null;
+});
+
+const onModalColorSelect = (color) => {
+    variantModal.value.selectedColor = color;
+    const available = variantModal.value.variants
+        .filter(v => v.color === color)
+        .map(v => v.size);
+    if (!available.includes(variantModal.value.selectedSize)) {
+        variantModal.value.selectedSize = null;
+    }
+};
+
+const confirmVariantChange = async () => {
+    if (!modalSelectedVariant.value) return;
+    const item = variantModal.value.item;
+    if (!item) return;
+
+    variantModal.value.confirming = true;
+    const newVariantId = modalSelectedVariant.value.variant_id;
+
+    try {
+        if (isBuyNow.value) {
+            // Mua ngay
+            buyNowItem.value = {
+                variant_id: newVariantId,
+                quantity: item.quantity || 1,
+            };
+            sessionStorage.setItem('buy_now_item', JSON.stringify(buyNowItem.value));
+            await fetchBuyNowItem();
+            showToast('Đã cập nhật phân loại sản phẩm!', 'success');
+            closeVariantModal();
+        } else if (!authStore.isAuthenticated) {
+            // Khách vãng lai
+            let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+            const idx = localItems.findIndex(i => i.variant_id === item.variant_id);
+            if (idx !== -1) {
+                const existingIdx = localItems.findIndex(i => i.variant_id === newVariantId);
+                if (existingIdx !== -1 && existingIdx !== idx) {
+                    localItems[existingIdx].quantity += item.quantity;
+                    localItems.splice(idx, 1);
+                } else {
+                    localItems[idx].variant_id = newVariantId;
+                }
+                localStorage.setItem('cart_items', JSON.stringify(localItems));
+            }
+            await fetchCart();
+            showToast('Đã cập nhật phân loại sản phẩm!', 'success');
+            closeVariantModal();
+        } else {
+            // User đã đăng nhập
+            const res = await api.put(`/cart/items/${item.cart_item_id}/variant`, {
+                variant_id: newVariantId,
+            });
+            if (res.data.status === 'success') {
+                showToast('Đã cập nhật phân loại sản phẩm!', 'success');
+                closeVariantModal();
+                await fetchCart();
+            }
+        }
+    } catch (e) {
+        const msg = e.response?.data?.message || 'Không thể đổi phân loại sản phẩm.';
+        showToast(msg, 'error');
+    } finally {
+        variantModal.value.confirming = false;
+    }
+};
 
 // Đặt hàng
 const placingOrder = ref(false);
@@ -704,16 +903,24 @@ const placeOrder = async () => {
             localStorage.removeItem('affiliate_ref');
 
             if (isBuyNow.value) {
-                // Mua nhanh: chỉ dọn item tạm, KHÔNG đụng giỏ hàng
+                // Mua nhanh: dọn item tạm
                 sessionStorage.removeItem('buy_now_item');
-            } else if (!isFlashSale.value) {
-                // Đặt từ giỏ hàng: backend đã xóa item khỏi giỏ (user đăng nhập),
-                // guest thì xóa giỏ local. Bắn cart-updated để badge refresh cho CẢ HAI.
-                if (!authStore.isAuthenticated) {
+            }
+            
+            // Xóa các sản phẩm đã mua khỏi giỏ hàng local nếu là khách vãng lai và thanh toán từ giỏ hàng
+            if (!authStore.isAuthenticated && !isBuyNow.value && !isFlashSale.value) {
+                const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+                const remaining = localItems.filter(i => i.selected === false);
+                if (remaining.length > 0) {
+                    localStorage.setItem('cart_items', JSON.stringify(remaining));
+                } else {
                     localStorage.removeItem('cart_items');
                 }
-                cartStore.fetchCount()
             }
+
+            // Đồng bộ và làm mới số lượng giỏ hàng
+            await cartStore.fetchCount();
+            window.dispatchEvent(new Event('cart-updated'));
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {
                 showToast('Đang chuyển đến cổng thanh toán VNPay...', 'success');
                 setTimeout(() => {
@@ -763,15 +970,8 @@ const placeOrder = async () => {
 
 // Các hàm tiện ích
 const getProductImage = (item) => {
-    const getStorageUrl = (path) => {
-        if (!path) return 'https://placehold.co/120x120?text=No+Image';
-        if (path.startsWith('http')) return path;
-        // Xử lý trường hợp path đã có chữ storage/ ở đầu
-        const cleanPath = path.replace(/^\/?storage\//, '');
-        return `${APP_URL}/storage/${cleanPath}`;
-    };
-
-    if (item.variant?.image_url) return getStorageUrl(item.variant.image_url);
+    if (!item) return 'https://placehold.co/120x120?text=No+Image';
+    if (item.variant?.image_url && item.variant.image_url !== '0') return getStorageUrl(item.variant.image_url);
     if (item.product?.main_image) return getStorageUrl(item.product.main_image);
     if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return getStorageUrl(item.product.thumbnail_url);
     return 'https://placehold.co/120x120?text=No+Image';
@@ -797,68 +997,17 @@ onMounted(async () => {
 <template>
     <div class="checkout-page theme-brown container">
 
-        <!-- ===== BANKING QR MODAL ===== -->
-        <Teleport to="body">
-            <div v-if="showBankingModal" class="banking-modal-overlay" @click.self="null">
-                <div class="banking-modal">
-                    <div class="banking-modal-header">
-                        <span class="banking-modal-icon">
-                            <AppIcon name="bank" size="24" />
-                        </span>
-                        <h2>Thanh toán chuyển khoản</h2>
-                        <p>Quét mã QR hoặc chuyển khoản thủ công theo thông tin dưới đây</p>
-                    </div>
-
-                    <div class="banking-modal-body">
-                        <div class="qr-section">
-                            <img v-if="bankingInfo?.qr_url" :src="bankingInfo.qr_url" alt="QR Chuyển khoản"
-                                class="qr-image" />
-                            <p class="qr-hint">Quét bằng app ngân hàng bất kỳ</p>
-                        </div>
-
-                        <div class="bank-info-section">
-                            <div class="bank-info-row">
-                                <span class="bank-label">Số tài khoản</span>
-                                <span class="bank-value highlight">{{ bankingInfo?.account_number }}</span>
-                            </div>
-                            <div class="bank-info-row">
-                                <span class="bank-label">Chủ tài khoản</span>
-                                <span class="bank-value">{{ bankingInfo?.account_name }}</span>
-                            </div>
-                            <div class="bank-info-row">
-                                <span class="bank-label">Số tiền</span>
-                                <span class="bank-value highlight">{{ formatPrice(bankingInfo?.amount) }}</span>
-                            </div>
-                            <div class="bank-info-row">
-                                <span class="bank-label">Nội dung CK</span>
-                                <span class="bank-value highlight">{{ bankingOrderCode }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="banking-note">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                        </svg>
-                        <span>Nhập đúng <strong>nội dung chuyển khoản</strong> là mã đơn hàng để hệ thống xác nhận tự
-                            động!</span>
-                    </div>
-
-                    <div class="banking-modal-actions">
-                        <button class="btn-banking-done"
-                            @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })">
-                            Tôi đã chuyển khoản xong
-                        </button>
-                        <button class="btn-banking-later"
-                            @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })">
-                            Chuyển khoản sau
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </Teleport>
+        <!-- ===== BANKING SEPAY MODAL ===== -->
+        <SepayPaymentModal
+            :show="showBankingModal"
+            :order-code="bankingOrderCode"
+            :amount="bankingInfo?.amount || total"
+            :banking-info="bankingInfo"
+            :is-guest="!authStore.isAuthenticated"
+            @close="showBankingModal = false"
+            @later="onBankingPayLater"
+            @success="onBankingPaySuccess"
+        />
 
         <div v-if="loading" class="checkout-skeleton-grid" style="margin-top: 30px;">
             <div class="row" style="display:flex; gap: 30px; flex-wrap: wrap;">
@@ -1103,8 +1252,6 @@ onMounted(async () => {
                                         <span class="payment-name-simple">VNPay</span>
                                     </div>
                                 </label>
-
-
                             </div>
                         </div>
                     </section>
@@ -1135,12 +1282,14 @@ onMounted(async () => {
                                         </div>
                                         <div class="bill-item-info">
                                             <h4 class="bill-item-name">{{ item.product?.name }}</h4>
-                                            <p class="bill-item-variant">
-                                                {{ item.variant?.color || '' }}
-                                                <span v-if="item.variant?.color && item.variant?.size"
-                                                    class="variant-divider">•</span>
-                                                {{ item.variant?.size || '' }}
-                                            </p>
+                                            <button type="button" class="bill-item-variant-btn" @click="openVariantModal(item)" title="Bấm để đổi màu sắc / kích thước">
+                                                <span class="bill-item-variant-text">
+                                                    {{ item.variant?.color && item.variant?.size ? `${item.variant?.color} • ${item.variant?.size}` : (item.variant?.color || item.variant?.size || item.variant?.variant_name || 'Chọn phân loại') }}
+                                                </span>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="variant-caret">
+                                                    <polyline points="6 9 12 15 18 9" />
+                                                </svg>
+                                            </button>
                                         </div>
                                         <div class="bill-item-price-col">
                                             <div class="bill-item-price">{{ formatPrice((item.variant?.price || 0) *
@@ -1158,14 +1307,18 @@ onMounted(async () => {
                                     <template v-if="authStore.isAuthenticated">
                                         <div class="coupon-input-group" v-if="!appliedCoupon">
                                             <input type="text" v-model="couponCode" placeholder="Nhập mã khuyến mãi"
-                                                class="coupon-input" @keyup.enter="applyCoupon" />
+                                                class="coupon-input" :class="{ 'is-invalid-coupon': !!couponErrorMsg }" @keyup.enter="applyCoupon" />
                                             <button class="btn-apply-coupon" @click="applyCoupon"
                                                 :disabled="checkingCoupon || !couponCode">
                                                 <span v-if="checkingCoupon" class="small-spinner"></span>
                                                 <span v-else>Áp dụng</span>
                                             </button>
                                         </div>
-                                        <div v-else class="coupon-applied-box">
+                                        <div v-if="couponErrorMsg && !appliedCoupon" class="coupon-inline-hint">
+                                            <AppIcon name="alert-circle" size="14" class="hint-icon" />
+                                            <span>{{ couponErrorMsg }}</span>
+                                        </div>
+                                        <div v-else-if="appliedCoupon" class="coupon-applied-box">
                                             <div class="coupon-tag">
                                                 <AppIcon name="voucher" size="20" color="#111" class="me-1" />{{
                                                 appliedCoupon.code }}
@@ -1402,6 +1555,108 @@ onMounted(async () => {
                 </div>
             </transition>
         </teleport>
+
+        <!-- ====== VARIANT CHANGE MODAL ====== -->
+        <teleport to="body">
+            <transition name="vmodal">
+                <div v-if="variantModal.show" class="vmodal-overlay" @click.self="closeVariantModal">
+                    <div class="vmodal-box">
+                        <!-- Header -->
+                        <div class="vmodal-header">
+                            <div class="vmodal-product-snippet" v-if="variantModal.item">
+                                <img :src="modalSelectedVariant?.image_url && modalSelectedVariant?.image_url !== '0' ? getStorageUrl(modalSelectedVariant.image_url) : getProductImage(variantModal.item)"
+                                    :alt="variantModal.item.product?.name" class="vmodal-product-img" />
+                                <div class="vmodal-product-info">
+                                    <h3 class="vmodal-title">Đổi phân loại hàng</h3>
+                                    <p class="vmodal-product-name" :title="variantModal.item.product?.name">{{
+                                        variantModal.item.product?.name }}</p>
+                                </div>
+                            </div>
+                            <button class="vmodal-close" @click="closeVariantModal" title="Đóng">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Loading -->
+                        <div v-if="variantModal.loadingVariants" class="vmodal-loading">
+                            <div class="vmodal-spinner"></div>
+                            <span>Đang tải biến thể...</span>
+                        </div>
+
+                        <template v-else>
+                            <!-- Chọn màu sắc -->
+                            <div class="vmodal-section" v-if="modalHasColors">
+                                <p class="vmodal-label">Màu sắc:</p>
+                                <div class="vmodal-options">
+                                    <button v-for="color in modalUniqueColors" :key="color" class="vmodal-opt-btn"
+                                        :class="{ active: variantModal.selectedColor === color }"
+                                        @click="onModalColorSelect(color)">{{ color }}</button>
+                                </div>
+                            </div>
+
+                            <!-- Chọn kích thước -->
+                            <div class="vmodal-section" v-if="modalAvailableSizes.some(s => s.size)">
+                                <p class="vmodal-label">Kích thước:</p>
+                                <div class="vmodal-options">
+                                    <button v-for="s in modalAvailableSizes" :key="s.size" class="vmodal-opt-btn"
+                                        :class="{ active: variantModal.selectedSize === s.size, 'out-of-stock': s.stock <= 0 }"
+                                        :disabled="s.stock <= 0" @click="variantModal.selectedSize = s.size">
+                                        {{ s.size }}
+                                        <span v-if="s.stock > 0 && s.stock <= 5" class="vmodal-opt-stock">(còn {{ s.stock }})</span>
+                                        <span v-else-if="s.stock <= 0" class="vmodal-opt-stock">Hết</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Thông tin variant đã chọn -->
+                            <div class="vmodal-selected-info" v-if="modalSelectedVariant">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F"
+                                    stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                <span>
+                                    Đã chọn:
+                                    <strong>{{ [modalSelectedVariant.color,
+                                    modalSelectedVariant.size].filter(Boolean).join(' / ') ||
+                                        modalSelectedVariant.variant_name }}</strong>
+                                    — {{ new Intl.NumberFormat('vi-VN', {
+                                        style: 'currency', currency: 'VND'
+                                    }).format(modalSelectedVariant.price) }}
+                                    <span v-if="modalSelectedVariant.stock <= 5" class="vmodal-low-stock">(còn {{
+                                        modalSelectedVariant.stock }})</span>
+                                </span>
+                            </div>
+                            <div class="vmodal-selected-info vmodal-unselected" v-else>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="8" x2="12" y2="12" />
+                                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                                </svg>
+                                <span>Vui lòng chọn {{ modalHasColors ? 'màu sắc' : '' }}{{modalHasColors &&
+                                    modalAvailableSizes.some(s=>s.size) ? ' và ' : '' }}{{
+                                        modalAvailableSizes.some(s => s.size) ? 'kích thước' : '' }}</span>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="vmodal-footer">
+                                <button class="vmodal-btn-cancel" @click="closeVariantModal">Hủy bỏ</button>
+                                <button class="vmodal-btn-confirm"
+                                    :disabled="!modalSelectedVariant || variantModal.confirming"
+                                    @click="confirmVariantChange">
+                                    <span v-if="variantModal.confirming">Đang cập nhật...</span>
+                                    <span v-else>Xác nhận</span>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </transition>
+        </teleport>
     </div>
 </template>
 
@@ -1504,7 +1759,7 @@ onMounted(async () => {
 
 .checkout-page {
     padding: 16px 0 80px;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
     color: var(--text-main);
     min-height: 80vh;
 }
@@ -2205,6 +2460,68 @@ textarea.note-input {
     line-height: 1.4;
 }
 
+.bill-item-variant-btn {
+    margin: 4px 0 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    align-self: flex-start;
+    width: fit-content;
+    max-width: 100%;
+    height: 24px;
+    padding: 0 9px;
+    background: rgba(230, 59, 111, 0.08);
+    border: 1px solid rgba(230, 59, 111, 0.22);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+    box-sizing: border-box;
+    line-height: 1;
+    font-family: inherit;
+}
+
+.bill-item-variant-btn:hover {
+    background: rgba(230, 59, 111, 0.15);
+    border-color: var(--primary, #E63B6F);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(230, 59, 111, 0.18);
+}
+
+.bill-item-variant-btn .variant-caret {
+    width: 10px;
+    height: 10px;
+    color: var(--primary, #E63B6F);
+    opacity: 0.85;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.bill-item-variant-btn:hover .variant-caret {
+    opacity: 1;
+    transform: translateY(1px);
+}
+
+.bill-item-variant-text {
+    font-size: 0.75rem;
+    line-height: 1;
+    color: var(--primary, #E63B6F);
+    font-weight: 600;
+}
+
+html.dark .bill-item-variant-btn {
+    background: rgba(230, 59, 111, 0.16);
+    border-color: rgba(230, 59, 111, 0.35);
+}
+
+html.dark .bill-item-variant-text {
+    color: #ff85a2;
+}
+
+html.dark .bill-item-variant-btn .variant-caret {
+    color: #ff85a2;
+}
+
 .bill-item-variant {
     margin: 4px 0 0;
     font-size: 0.82rem;
@@ -2270,9 +2587,51 @@ textarea.note-input {
     border-color: var(--primary);
 }
 
+.coupon-input.is-invalid-coupon {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.04);
+}
+
+.coupon-inline-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(245, 158, 11, 0.08);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #d97706;
+    line-height: 1.35;
+    animation: fadeInHint 0.25s ease;
+}
+
+html.dark .coupon-inline-hint {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.coupon-inline-hint .hint-icon {
+    flex-shrink: 0;
+}
+
+@keyframes fadeInHint {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .btn-apply-coupon {
-    padding: 0 20px;
+    padding: 0 16px;
     font-weight: 600;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
     background: var(--primary);
     color: white;
     border: none;
@@ -2440,17 +2799,17 @@ textarea.note-input {
 .btn-place-order {
     width: 100%;
     background: var(--primary);
-    /* Deep elegant ocean blue */
     color: white;
     border: none;
-    border-radius: 6px;
-    padding: 12px;
-    font-size: 1.05rem;
+    border-radius: 8px;
+    height: 46px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 6px 20px rgba(230, 59, 111, 0.2);
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3066,6 +3425,412 @@ textarea.note-input {
     .qr-image {
         width: 180px;
         height: 180px;
+    }
+}
+
+/* ====== VARIANT MODAL ====== */
+.vmodal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 20, 40, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+}
+
+.vmodal-box {
+    background: #fff;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 24px 60px rgba(230, 59, 111, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    font-family: var(--font-inter, 'Inter', sans-serif);
+}
+
+.vmodal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f4f8;
+    gap: 16px;
+}
+
+.vmodal-product-snippet {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.vmodal-product-img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #eef2f6;
+    flex-shrink: 0;
+}
+
+.vmodal-product-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.vmodal-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1a2b4a;
+    margin: 0 0 4px;
+}
+
+.vmodal-product-name {
+    font-size: 0.85rem;
+    color: #627d98;
+    margin: 0;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vmodal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    transition: all 0.18s;
+    flex-shrink: 0;
+}
+
+.vmodal-close:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.vmodal-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 24px;
+    color: #627d98;
+    font-size: 0.9rem;
+}
+
+.vmodal-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #E63B6F;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.vmodal-section {
+    padding: 16px 24px 0;
+}
+
+.vmodal-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #334e68;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 10px;
+}
+
+.vmodal-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.vmodal-opt-btn {
+    padding: 7px 16px;
+    border: 1.5px solid #d9e2ec;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #334e68;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vmodal-opt-btn:hover:not(:disabled) {
+    border-color: #E63B6F;
+    color: #E63B6F;
+}
+
+.vmodal-opt-btn.active {
+    border-color: #E63B6F;
+    background: #E63B6F;
+    color: #fff;
+}
+
+.vmodal-opt-btn.out-of-stock {
+    opacity: 0.4;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
+
+.vmodal-opt-stock {
+    font-size: 0.72rem;
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+.vmodal-selected-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 24px 0;
+    padding: 12px 16px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    color: #0369a1;
+}
+
+.vmodal-selected-info strong {
+    font-weight: 700;
+}
+
+.vmodal-low-stock {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.vmodal-unselected {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+}
+
+.vmodal-footer {
+    display: flex;
+    gap: 10px;
+    padding: 20px 24px;
+    border-top: 1px solid #f0f4f8;
+    margin-top: 16px;
+}
+
+.vmodal-btn-cancel {
+    flex: 1;
+    padding: 11px;
+    border: 1.5px solid #d9e2ec;
+    border-radius: 10px;
+    background: #fff;
+    color: #627d98;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.18s;
+}
+
+.vmodal-btn-cancel:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.vmodal-btn-confirm {
+    flex: 2;
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    background: #E63B6F;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
+}
+
+.vmodal-btn-confirm:hover:not(:disabled) {
+    background: #C4305D;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.4);
+}
+
+.vmodal-btn-confirm:disabled {
+    background: #c8d6e0;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Modal Transition */
+.vmodal-enter-active,
+.vmodal-leave-active {
+    transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vmodal-enter-from,
+.vmodal-leave-to {
+    opacity: 0;
+}
+
+.vmodal-enter-from .vmodal-box,
+.vmodal-leave-to .vmodal-box {
+    transform: scale(0.94) translateY(20px);
+}
+
+/* =======================================================
+   RESPONSIVE BREAKPOINTS FOR CHECKOUT
+   ======================================================= */
+@media (max-width: 992px) {
+    .checkout-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .sticky-sidebar {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .checkout-page {
+        padding: 12px 0 60px;
+    }
+
+    .page-header {
+        margin-bottom: 12px;
+    }
+
+    .back-link {
+        font-size: 0.88rem;
+        padding: 6px 10px;
+    }
+
+    .checkout-section {
+        margin-bottom: 18px;
+    }
+
+    .section-header {
+        margin-bottom: 12px;
+    }
+
+    .section-header h2 {
+        font-size: 1.15rem;
+    }
+
+    .block-border {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .address-tabs {
+        padding: 4px;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .add-tab {
+        font-size: 0.82rem;
+        padding: 8px 12px;
+    }
+
+    .form-box {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .form-group {
+        margin-bottom: 12px;
+    }
+
+    .form-label {
+        font-size: 0.85rem;
+    }
+
+    .form-input {
+        padding: 9px 12px;
+        font-size: 0.88rem;
+    }
+
+    .address-card {
+        padding: 12px 14px;
+        border-radius: 10px;
+        gap: 12px;
+    }
+
+    .addr-name {
+        font-size: 0.95rem;
+    }
+
+    .addr-phone {
+        font-size: 0.85rem;
+    }
+
+    .addr-body {
+        font-size: 0.85rem;
+    }
+
+    .payment-card-simple {
+        padding: 12px 14px;
+    }
+
+    .payment-name-simple {
+        font-size: 0.9rem;
+    }
+
+    .bill-summary-card {
+        border-radius: 14px;
+    }
+
+    .bill-header {
+        padding: 14px 16px;
+        font-size: 1.1rem;
+    }
+
+    .bill-body {
+        padding: 16px;
+    }
+
+    .bill-item-img {
+        width: 48px;
+        height: 48px;
+    }
+
+    .bill-item-name {
+        font-size: 0.85rem;
+    }
+
+    .btn-checkout {
+        padding: 14px;
+        font-size: 0.95rem;
     }
 }
 </style>

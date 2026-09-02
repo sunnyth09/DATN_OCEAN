@@ -97,16 +97,18 @@ service cron start || true
 echo "  Cron daemon started successfully!"
 
 # -----------------------------------------------
-# 8. Start Reverb and PHP-FPM
+# 8. Start Service
 # -----------------------------------------------
-echo "[8/8] Starting Reverb and PHP-FPM..."
+if [ $# -gt 0 ]; then
+    echo "[8/8] Executing custom container command: $@"
+    exec "$@"
+fi
+
+echo "[8/8] Starting PHP-FPM for Backend..."
 echo "======================================="
 echo " Backend READY on port 9000"
-echo " WebSocket (Reverb) READY on port 8383"
 echo " Cron (Laravel Scheduler) RUNNING"
 echo "======================================="
 
-(while true; do php artisan reverb:start --host="0.0.0.0" --port=8383 >> /var/www/storage/logs/reverb.log 2>&1; sleep 2; done) &
-(while true; do php artisan queue:work --sleep=3 --tries=3 >> /var/www/storage/logs/queue.log 2>&1; sleep 2; done) &
-
 exec php-fpm
+

@@ -8,6 +8,7 @@ use App\Mail\CourtBookingCancelledMail;
 use App\Models\Admin;
 use App\Models\CourtActivityLog;
 use App\Models\CourtBooking;
+use App\Models\CourtBookingLock;
 use App\Models\CourtBookingPayment;
 use App\Models\CourtBookingStatusHistory;
 use App\Models\User;
@@ -25,14 +26,14 @@ use InvalidArgumentException;
 class CourtBookingWorkflowService
 {
     private const ALLOWED_TRANSITIONS = [
-        'pending' => ['confirmed', 'cancelled', 'no_show', 'expired'],
+        'pending' => ['confirmed', 'checked_in', 'cancelled', 'no_show', 'expired'],
         'confirmed' => ['checked_in', 'cancelled', 'no_show'],
         'checked_in' => ['playing', 'extended', 'completed'],
         'playing' => ['extended', 'completed'],
         'extended' => ['extended', 'completed'],
         'completed' => [],
         'cancelled' => [],
-        'no_show' => [],
+        'no_show' => ['checked_in', 'cancelled'],
         'expired' => [],
     ];
 
@@ -58,6 +59,15 @@ class CourtBookingWorkflowService
             $booking->status = $newStatus;
             $booking->save();
 
+            // Nếu booking bị hủy, lập tức xóa bất kỳ lock nào cho sân & khung giờ này
+            if ($newStatus === 'cancelled') {
+                CourtBookingLock::where('court_id', $booking->court_id)
+                    ->where('booking_date', $booking->booking_date->format('Y-m-d'))
+                    ->where('start_time', '<', $booking->end_time)
+                    ->where('end_time', '>', $booking->start_time)
+                    ->delete();
+            }
+
             CourtBookingStatusHistory::create([
                 'booking_id' => $booking->booking_id,
                 'old_status' => $oldStatus,
@@ -81,15 +91,23 @@ class CourtBookingWorkflowService
             DB::afterCommit(function () use ($booking, $newStatus, $oldStatus, $note) {
                 $eventName = $newStatus === 'cancelled' ? 'CourtBookingCancelled' : 'CourtBookingStatusChanged';
                 $this->broadcast($eventName, $booking, ['old_status' => $oldStatus, 'new_status' => $newStatus]);
+
+                // Phát thêm sự kiện CourtSlotReleased để cả Web và App lập tức mở lại slot cho người khác đặt
+                if ($newStatus === 'cancelled') {
+                    CourtBookingRealtimeEvent::dispatch('CourtSlotReleased', [
+                        'court_id' => $booking->court_id,
+                        'booking_date' => $booking->booking_date->format('Y-m-d'),
+                        'start_time' => $booking->start_time,
+                        'end_time' => $booking->end_time,
+                    ]);
+                    $this->notifyAdmins($booking, 'cancelled');
+                }
+
                 $this->notifyUser($booking, $eventName, [
                     'old_status' => $oldStatus,
                     'new_status' => $newStatus,
                     'note' => $note,
                 ]);
-
-                if ($newStatus === 'cancelled') {
-                    $this->notifyAdmins($booking, 'cancelled');
-                }
             });
 
             return $booking;
@@ -234,6 +252,11 @@ class CourtBookingWorkflowService
         ]), config('app.key'));
     }
 
+    public function qrPayload(CourtBooking $booking): string
+    {
+        return 'OSBK:'.$booking->booking_code.':'.$this->qrToken($booking);
+    }
+
     public function assertValidQrToken(CourtBooking $booking, string $token): void
     {
         if (! hash_equals($this->qrToken($booking), $token)) {
@@ -241,9 +264,13 @@ class CourtBookingWorkflowService
         }
     }
 
-    // check in window: từ 30 phút trước đến khi kết thúc thời gian đặt sân
-    public function assertCheckInWindow(CourtBooking $booking): void
+    // check in window: từ 30 phút trước đến khi kết thúc thời gian đặt sân (hỗ trợ Admin Override)
+    public function assertCheckInWindow(CourtBooking $booking, bool $allowOverride = false): void
     {
+        if ($allowOverride) {
+            return;
+        }
+
         $startAt = Carbon::parse($booking->booking_date->format('Y-m-d').' '.$booking->start_time);
         $endAt = Carbon::parse($booking->booking_date->format('Y-m-d').' '.$booking->end_time);
 

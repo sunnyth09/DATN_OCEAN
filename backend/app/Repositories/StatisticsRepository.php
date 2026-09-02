@@ -23,16 +23,16 @@ class StatisticsRepository
             $q->where('payment_status', PaymentStatus::PAID->value)
                 ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
         })
-        ->whereNotIn('fulfillment_status', [
-            OrderStatus::CANCELLED->value,
-            OrderStatus::RETURN_APPROVED->value,
-            OrderStatus::RETURNED->value,
-            OrderStatus::REFUNDED->value,
-        ])
-        ->where(function ($q) {
-            $q->whereNull('is_abandoned_checkout')
-                ->orWhere('is_abandoned_checkout', 0);
-        });
+            ->whereNotIn('fulfillment_status', [
+                OrderStatus::CANCELLED->value,
+                OrderStatus::RETURN_APPROVED->value,
+                OrderStatus::RETURNED->value,
+                OrderStatus::REFUNDED->value,
+            ])
+            ->where(function ($q) {
+                $q->whereNull('is_abandoned_checkout')
+                    ->orWhere('is_abandoned_checkout', 0);
+            });
     }
 
     /**
@@ -161,26 +161,25 @@ class StatisticsRepository
      */
     public function getTopSellingProducts($startDate, $endDate, int $limit = 10)
     {
-        return OrderItem::select(
-            'product_id',
-            'product_name',
-            DB::raw('SUM(quantity) as total_sold'),
-            DB::raw('SUM(line_total) as total_revenue')
-        )
-            ->whereHas('order', function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('created_at', [$startDate, $endDate])
-                    ->where(function ($sub) {
-                        $sub->where('payment_status', PaymentStatus::PAID->value)
-                            ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
-                    })
-                    ->whereNotIn('fulfillment_status', [
-                        OrderStatus::CANCELLED->value,
-                        OrderStatus::RETURN_APPROVED->value,
-                        OrderStatus::RETURNED->value,
-                        OrderStatus::REFUNDED->value,
-                    ]);
+        return OrderItem::join('orders', 'orders.order_id', '=', 'order_items.order_id')
+            ->select(
+                'order_items.product_id',
+                'order_items.product_name',
+                DB::raw('SUM(order_items.quantity) as total_sold'),
+                DB::raw('SUM(order_items.line_total) as total_revenue')
+            )
+            ->whereBetween('orders.created_at', [$startDate, $endDate])
+            ->where(function ($sub) {
+                $sub->where('orders.payment_status', PaymentStatus::PAID->value)
+                    ->orWhere('orders.fulfillment_status', OrderStatus::COMPLETED->value);
             })
-            ->groupBy('product_id', 'product_name')
+            ->whereNotIn('orders.fulfillment_status', [
+                OrderStatus::CANCELLED->value,
+                OrderStatus::RETURN_APPROVED->value,
+                OrderStatus::RETURNED->value,
+                OrderStatus::REFUNDED->value,
+            ])
+            ->groupBy('order_items.product_id', 'order_items.product_name')
             ->orderByDesc('total_sold')
             ->limit($limit)
             ->with(['product' => function ($q) {
@@ -256,9 +255,9 @@ class StatisticsRepository
     /**
      * Lấy danh sách sản phẩm tồn kho lâu & bán chậm (Dead Stock / Slow Moving Inventory)
      *
-     * @param int $daysThreshold Số ngày đăng bán tối thiểu (mặc định 60 ngày)
-     * @param int $salesLimit Ngưỡng số lượng bán ra trong 30 ngày qua (mặc định <= 2 đơn vị)
-     * @param int $limit Số lượng bản ghi tối đa
+     * @param  int  $daysThreshold  Số ngày đăng bán tối thiểu (mặc định 60 ngày)
+     * @param  int  $salesLimit  Ngưỡng số lượng bán ra trong 30 ngày qua (mặc định <= 2 đơn vị)
+     * @param  int  $limit  Số lượng bản ghi tối đa
      */
     public function getSlowMovingProducts(int $daysThreshold = 60, int $salesLimit = 2, int $limit = 20)
     {
@@ -266,16 +265,16 @@ class StatisticsRepository
         $salesWindow = Carbon::now()->subDays(30);
 
         return Product::select(
-                'products.product_id',
-                'products.name',
-                'products.slug',
-                'products.thumbnail_url',
-                'products.min_price',
-                'products.category_id',
-                'products.brand_id',
-                'products.created_at',
-                'products.published_at'
-            )
+            'products.product_id',
+            'products.name',
+            'products.slug',
+            'products.thumbnail_url',
+            'products.min_price',
+            'products.category_id',
+            'products.brand_id',
+            'products.created_at',
+            'products.published_at'
+        )
             ->with(['category:category_id,name', 'brand:brand_id,name'])
             ->withSum('variants as total_stock', 'stock')
             ->withSum(['orderItems as recent_sold' => function ($q) use ($salesWindow) {

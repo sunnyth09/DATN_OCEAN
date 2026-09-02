@@ -44,8 +44,11 @@ class DatabaseSeeder extends Seeder
             echo "ℹ️ Normal User already exists, skipping.\n";
         }
 
-        // Gọi thêm CouponSeeder
+        // Gọi thêm Master Data Seeders
         $this->call([
+            SizeGuideSeeder::class,
+            WorkLocationSeeder::class,
+            WorkShiftSeeder::class,
             CouponSeeder::class,
         ]);
 

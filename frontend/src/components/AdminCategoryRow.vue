@@ -93,7 +93,7 @@ const emit = defineEmits(['edit', 'delete']);
 /* Actions — match AdminProduct style */
 .actions-cell { display: flex; gap: 6px; }
 .btn-icon {
-    width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border-color);
+    width: 32px; height: 32px; min-height: unset; aspect-ratio: 1 / 1; border-radius: 6px; border: 1px solid var(--border-color);
     background: var(--ocean-deepest); color: var(--text-muted);
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: all 0.2s;

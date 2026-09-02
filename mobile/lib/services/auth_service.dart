@@ -1,13 +1,124 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
+import '../config/app_config.dart';
+import '../screens/google_oauth_webview_screen.dart';
 import 'api_client.dart';
 import 'storage_service.dart';
 
 class AuthService {
   static const String keyToken = 'access_token';
   static const String keyUser = 'user_data';
+
+  static Future<Map<String, dynamic>> exchangeGoogleCode(String code) async {
+    try {
+      final response = await ApiClient().dio.post(
+        '/auth/google/callback',
+        data: {'code': code},
+      );
+
+      final data = response.data;
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        await StorageService.write(keyToken, data['access_token']);
+        await StorageService.write(keyUser, jsonEncode(data['user']));
+        return {
+          'success': true,
+          'message': 'Đăng nhập Google thành công',
+          'user': data['user'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Đăng nhập Google thất bại!',
+        };
+      }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      return {
+        'success': false,
+        'message': data?['message'] ?? 'Lỗi kết nối khi xác thực Google.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi xác thực Google: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginWithGoogle({BuildContext? context}) async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: AppConfig.kGoogleClientId,
+        scopes: ['email', 'profile'],
+      );
+
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account == null) {
+        return {'success': false, 'message': 'Đã hủy đăng nhập Google.'};
+      }
+
+      final GoogleSignInAuthentication auth = await account.authentication;
+
+      final response = await ApiClient().dio.post(
+        '/auth/google/mobile',
+        data: {
+          'id_token': auth.idToken,
+          'google_id': account.id,
+          'email': account.email,
+          'name': account.displayName,
+          'avatar_url': account.photoUrl,
+        },
+      );
+
+      final data = response.data;
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        await StorageService.write(keyToken, data['access_token']);
+        await StorageService.write(keyUser, jsonEncode(data['user']));
+        return {
+          'success': true,
+          'message': 'Đăng nhập Google thành công',
+          'user': data['user'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Đăng nhập Google thất bại!',
+        };
+      }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      return {
+        'success': false,
+        'message': data?['message'] ?? 'Lỗi kết nối máy chủ khi đăng nhập Google.',
+      };
+    } catch (e) {
+      // If native Google Sign-In throws PlatformException (e.g. SHA-1 mismatch / ApiException: 10)
+      // seamlessly fallback to the OAuth WebView!
+      if (context != null && context.mounted) {
+        final code = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (context) => const GoogleOAuthWebViewScreen(),
+          ),
+        );
+
+        if (code != null && code.isNotEmpty) {
+          return await exchangeGoogleCode(code);
+        } else {
+          return {'success': false, 'message': 'Đã hủy đăng nhập Google.'};
+        }
+      }
+
+      return {
+        'success': false,
+        'message': 'Lỗi đăng nhập Google: $e',
+      };
+    }
+  }
 
   static Future<Map<String, dynamic>> login(
     String email,
@@ -24,7 +135,12 @@ class AuthService {
       if (response.statusCode == 200 && data['status'] == 'success') {
         await StorageService.write(keyToken, data['access_token']);
         await StorageService.write(keyUser, jsonEncode(data['user']));
-        return {'success': true, 'message': 'Đăng nhập thành công'};
+        return {
+          'success': true,
+          'message': 'Đăng nhập thành công',
+          'user': data['user'],
+          'access_token': data['access_token'],
+        };
       } else {
         return {
           'success': false,
@@ -40,6 +156,66 @@ class AuthService {
       };
     } catch (e) {
       return {'success': false, 'message': 'Không thể kết nối đến máy chủ: $e'};
+    }
+  }
+
+  /// Đăng nhập bằng Token phiên hợp lệ (dùng cho Passkey & Biometric Auto-Login)
+  static Future<Map<String, dynamic>> loginWithSavedToken(
+    String token, {
+    Map<String, dynamic>? cachedUser,
+  }) async {
+    try {
+      if (_isTokenExpired(token)) {
+        return {
+          'success': false,
+          'message': 'Phiên đăng nhập Passkey đã hết hạn.',
+        };
+      }
+
+      await StorageService.write(keyToken, token);
+      if (cachedUser != null) {
+        await StorageService.write(keyUser, jsonEncode(cachedUser));
+      }
+
+      // Xác thực lại với server
+      final response = await ApiClient().dio.get('/me');
+      final data = response.data;
+      if (response.statusCode == 200 && data != null && data['user'] != null) {
+        await StorageService.write(keyUser, jsonEncode(data['user']));
+        return {
+          'success': true,
+          'message': 'Đăng nhập Passkey thành công!',
+          'user': data['user'],
+          'access_token': token,
+        };
+      }
+
+      if (cachedUser != null) {
+        return {
+          'success': true,
+          'message': 'Đăng nhập Passkey thành công!',
+          'user': cachedUser,
+          'access_token': token,
+        };
+      }
+
+      return {'success': false, 'message': 'Không thể xác thực phiên đăng nhập.'};
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await _clearLocalSession();
+        return {'success': false, 'message': 'Phiên đăng nhập đã hết hạn.'};
+      }
+      if (cachedUser != null) {
+        return {
+          'success': true,
+          'message': 'Đăng nhập Passkey thành công!',
+          'user': cachedUser,
+          'access_token': token,
+        };
+      }
+      return {'success': false, 'message': 'Lỗi kết nối máy chủ.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi xác thực: $e'};
     }
   }
 

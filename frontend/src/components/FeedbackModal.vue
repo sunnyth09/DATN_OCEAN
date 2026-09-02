@@ -1,17 +1,10 @@
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue';
 import api from '@/axios';
-import { Toast } from 'bootstrap';
+import { useToast } from '@/composables/useToast';
 import { getStorageUrl } from '@/utils/url';
 
-const toastData = ref({ message: '', type: 'success' });
-const showToast = (message, type = 'success') => {
-  toastData.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('feedbackToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
-  });
-};
+const { showToast } = useToast();
 
 const props = defineProps({
   modelValue: {
@@ -363,16 +356,6 @@ const getImageUrl = (path) => {
       </div>
     </Transition>
   </Teleport>
-
-  <!-- Bootstrap Toast (outside teleport so it's always accessible) -->
-  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 10050">
-    <div class="toast align-items-center border-0" :class="toastData.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="feedbackToast" role="alert">
-      <div class="d-flex">
-        <div class="toast-body">{{ toastData.message }}</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-      </div>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -457,6 +440,7 @@ const getImageUrl = (path) => {
 .btn-remove-img {
   position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6);
   color: white; border: none; border-radius: 50%; width: 18px; height: 18px;
+  min-height: unset; aspect-ratio: 1 / 1;
   font-size: 12px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; line-height: 1; padding: 0;
 }
@@ -465,9 +449,9 @@ const getImageUrl = (path) => {
 .modal-footer {
   padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;
 }
-.btn-cancel { padding: 10px 20px; background: var(--card-bg); border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; }
+.btn-cancel { height: 40px; padding: 0 18px; background: var(--card-bg); border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; font-size: 0.88rem; color: #475569; cursor: pointer; }
 .btn-cancel:hover { background: #f1f5f9; }
-.btn-submit { padding: 10px 20px; background: var(--primary); border: 1px solid var(--primary); border-radius: 8px; font-weight: 600; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; min-width: 120px; }
+.btn-submit { height: 40px; padding: 0 20px; background: var(--primary); border: 1px solid var(--primary); border-radius: 8px; font-weight: 600; font-size: 0.88rem; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; min-width: 120px; }
 .btn-submit:hover:not(:disabled) { background: #0369a1; }
 .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
 

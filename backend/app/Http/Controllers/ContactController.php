@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\UserNotificationEvent;
 use App\Helpers\ProfanityFilter;
+use App\Mail\ContactReplyMail;
 use App\Models\Contact;
 use App\Models\User;
 use Carbon\Carbon;
@@ -11,12 +12,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
-use Symfony\Component\Mime\Email;
 
 class ContactController extends Controller
 {
@@ -187,7 +186,7 @@ class ContactController extends Controller
             $query->where('status', $status);
         }
 
-        $contacts = $query->paginate(20);
+        $contacts = $query->paginate(10);
 
         return response()->json([
             'status' => 'success',
@@ -225,52 +224,11 @@ class ContactController extends Controller
             ], 422);
         }
 
-        // Gửi email phản hồi
+        // Gửi email phản hồi qua Queue (không block request)
         try {
-            $emailUser = config('mail.mailers.smtp.username');
-            $emailPass = config('mail.mailers.smtp.password');
-
-            if (! $emailUser || ! $emailPass) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Chưa cấu hình email. Vui lòng kiểm tra .env.',
-                ], 500);
-            }
-
-            $replyContent = $request->reply;
-            $subject = "Re: {$contact->subject} — Ocean Store";
-
-            $htmlBody = '
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-                <div style="background:#E63B6F;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-                    <h2 style="color:#fff;margin:0;font-size:20px">Ocean Store — Phản hồi hỗ trợ</h2>
-                </div>
-                <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
-                    <p style="color:#4b5563;margin:0 0 8px"><strong>Xin chào '.htmlspecialchars($contact->name).',</strong></p>
-                    <p style="color:#6b7280;font-size:14px;margin:0 0 16px">Cảm ơn bạn đã liên hệ với chúng tôi về: <em>"'.htmlspecialchars($contact->subject).'"</em></p>
-                    <div style="background:#FFF0F3;border-left:4px solid #E63B6F;padding:16px;border-radius:8px;margin:0 0 16px">
-                        <p style="color:#1a1a2e;margin:0;white-space:pre-wrap">'.htmlspecialchars($replyContent).'</p>
-                    </div>
-                    <p style="color:#6b7280;font-size:13px;margin:0">Nếu cần thêm hỗ trợ, hãy trả lời email này hoặc liên hệ Hotline 1900-OCEAN.</p>
-                </div>
-                <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px">© 2026 Ocean Store. All rights reserved.</p>
-            </div>';
-
-            $transport = new EsmtpTransport(
-                'smtp.gmail.com', 587, false
+            Mail::to($contact->email)->queue(
+                new ContactReplyMail($contact->name, $contact->subject, $request->reply)
             );
-            $transport->setUsername($emailUser);
-            $transport->setPassword($emailPass);
-
-            $mailer = new Mailer($transport);
-
-            $email = (new Email)
-                ->from($emailUser)
-                ->to($contact->email)
-                ->subject($subject)
-                ->html($htmlBody);
-
-            $mailer->send($email);
 
             // --- Ghi notification cho khách hàng (nếu khách là User hệ thống) ---
             try {
@@ -284,7 +242,7 @@ class ContactController extends Controller
 
                     DB::table('notifications')->insert([
                         'id' => Str::uuid(),
-                        'type' => 'App\Notifications\ContactReplyNotification',
+                        'type' => 'App\\Notifications\\ContactReplyNotification',
                         'notifiable_type' => User::class,
                         'notifiable_id' => $user->user_id,
                         'data' => json_encode($notificationData),
@@ -301,11 +259,11 @@ class ContactController extends Controller
             }
 
         } catch (\Exception $e) {
-            Log::error('Contact reply email error: '.$e->getMessage());
+            Log::error('Contact reply mail queue error: '.$e->getMessage());
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gửi email thất bại, vui lòng thử lại sau.',
+                'message' => 'Không thể gửi email phản hồi, vui lòng thử lại sau.',
             ], 500);
         }
 

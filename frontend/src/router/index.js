@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { pinia } from '@/stores';
-import { useAuthStore } from '@/stores/auth';
+import { pinia } from '../stores';
+import { useAuthStore } from '../stores/auth';
 
 // ==================== CORE LAYOUTS (eager load) ====================
 import ClientLayout from "../layouts/ClientLayout.vue";
@@ -25,6 +25,7 @@ const AdminProduct = () => import("@/features/shop/pages/admin/AdminProduct.vue"
 const AdminCreateProduct = () => import("@/features/shop/pages/admin/AdminCreateProduct.vue");
 const AdminUsers = () => import("@/features/admin/pages/AdminUsers.vue");
 const AdminCategory = () => import("@/features/shop/pages/admin/AdminCategory.vue");
+const AdminBrand = () => import("@/features/shop/pages/admin/AdminBrand.vue");
 const AdminStaff = () => import("@/features/hr/pages/AdminStaff.vue");
 const AdminContact = () => import("@/features/support/pages/AdminContact.vue");
 const AdminCoupon = () => import("@/features/shop/pages/admin/AdminCoupon.vue");
@@ -64,6 +65,7 @@ const routes = [
                     { path: "orders/:id", name: "profile-order-detail", component: () => import("@/features/profile/pages/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
                     { path: "return-requests", name: "profile-return-requests", component: () => import("@/features/profile/pages/ProfileReturnRequests.vue"), meta: { title: 'Yêu cầu hoàn hàng' } },
                     { path: "return-requests/:id", name: "profile-return-request-detail", component: () => import("@/features/profile/pages/ProfileReturnRequestDetail.vue"), meta: { title: 'Chi tiết yêu cầu hoàn hàng' } },
+                    { path: "tickets", name: "profile-tickets", component: () => import("@/features/profile/pages/ProfileTickets.vue"), meta: { title: 'Khiếu nại của tôi' } },
                     { path: "addresses", name: "profile-address", component: () => import("@/features/profile/pages/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
                     { path: "change-password", name: "profile-change-password", component: () => import("@/features/profile/pages/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
                     { path: "wishlist", name: "profile-wishlist", component: () => import("@/features/profile/pages/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
@@ -142,7 +144,7 @@ const routes = [
                 path: "product",
                 name: "admin-product",
                 component: AdminProduct,
-                meta: { roles: ['admin', 'staff'], title: 'Quản lý sản phẩm' },
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý sản phẩm', fluid: true },
             },
             {
                 path: "product/create",
@@ -154,13 +156,13 @@ const routes = [
                 path: "pos",
                 name: "admin-pos",
                 component: () => import("@/features/shop/pages/admin/AdminPOS.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Bán Hàng Trực Tiếp (POS)' },
+                meta: { roles: ['admin', 'seller'], title: 'Bán Hàng Trực Tiếp (POS)', fluid: true },
             },
             {
                 path: "order",
                 name: "admin-order",
                 component: () => import("@/features/shop/pages/admin/AdminOrder.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng', fluid: true },
             },
             {
                 path: "return-requests",
@@ -190,13 +192,25 @@ const routes = [
                 path: "users",
                 name: "admin-users",
                 component: AdminUsers,
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý khách hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý khách hàng', fluid: true },
             },
             {
                 path: "category",
                 name: "admin-category",
                 component: AdminCategory,
                 meta: { roles: ['admin', 'staff'], title: 'Quản lý danh mục' },
+            },
+            {
+                path: "brand",
+                name: "admin-brand",
+                component: AdminBrand,
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý thương hiệu' },
+            },
+            {
+                path: "size-guide",
+                name: "admin-size-guide",
+                component: () => import("@/features/shop/pages/admin/AdminSizeGuide.vue"),
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý bảng size' },
             },
             {
                 path: "staff",
@@ -214,7 +228,7 @@ const routes = [
                 path: "chat",
                 name: "admin-chat",
                 component: () => import("@/features/support/pages/AdminChat.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng', fluid: true },
             },
             {
                 path: "coupon",
@@ -305,7 +319,7 @@ const routes = [
                 path: "tickets",
                 name: "admin-tickets",
                 component: () => import("@/features/support/pages/AdminTicketList.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý khiếu nại' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý khiếu nại', fluid: true },
             },
             {
                 path: "attendance",
@@ -329,7 +343,7 @@ const routes = [
                 path: "stats",
                 name: "admin-stats",
                 component: () => import("@/features/admin/pages/AdminStats.vue"),
-                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê', fluid: true },
             },
             {
                 path: "attendance-list",
@@ -354,19 +368,19 @@ const routes = [
                 path: "courts",
                 name: "admin-courts",
                 component: () => import("@/features/courts/pages/admin/AdminCourtManagement.vue"),
-                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân', fluid: true },
             },
             {
                 path: "court-bookings",
                 name: "admin-court-bookings",
                 component: () => import("@/features/courts/pages/admin/AdminBookingManagement.vue"),
-                meta: { roles: ['admin', 'staff', 'seller'], title: 'Quản lý Đặt Sân' },
+                meta: { roles: ['admin', 'staff', 'seller'], title: 'Quản lý Đặt Sân', fluid: true },
             },
             {
                 path: "court-dashboard",
                 name: "admin-court-dashboard",
                 component: () => import("@/features/courts/pages/admin/AdminCourtDashboard.vue"),
-                meta: { roles: ['admin', 'staff', 'seller'], title: 'Dashboard Lễ Tân' },
+                meta: { roles: ['admin', 'staff', 'seller'], title: 'Dashboard Lễ Tân', fluid: true },
             },
             {
                 path: "court-reports",
@@ -447,7 +461,6 @@ router.afterEach((to, from) => {
     // Lấy số thông báo chưa đọc từ auth store (nếu đã init)
     let unreadCount = 0;
     try {
-        const { useAuthStore } = require('@/stores/auth');
         const authStore = useAuthStore();
         unreadCount = authStore.unreadNotificationCount || 0;
     } catch (_) {}
@@ -457,6 +470,17 @@ router.afterEach((to, from) => {
         : 'Ocean Sport';
 
     document.title = unreadCount > 0 ? `(${unreadCount}) thông báo mới - ${baseTitle}` : baseTitle;
+});
+
+// ==================== Dynamic Chunk Error Handling ====================
+router.onError((error, to) => {
+    if (error?.message?.includes('Failed to fetch dynamically imported module') || error?.message?.includes('Importing a module script failed')) {
+        const isReloaded = sessionStorage.getItem('chunk_reload_' + to.fullPath);
+        if (!isReloaded) {
+            sessionStorage.setItem('chunk_reload_' + to.fullPath, 'true');
+            window.location.href = to.fullPath;
+        }
+    }
 });
 
 export default router;

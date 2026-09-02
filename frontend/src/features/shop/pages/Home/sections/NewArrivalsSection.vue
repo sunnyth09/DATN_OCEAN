@@ -1,6 +1,7 @@
 <script setup>
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
+import AppIcon from '@/components/AppIcon.vue';
 </script>
 <template>
         <section class="py-5 reveal-on-scroll">
@@ -49,7 +50,7 @@ import ProductSkeleton from '@/components/ProductSkeleton.vue';
                             <div class="promo-banner-deco">
                                 <div class="deco-circle deco-c3"></div>
                                 <div class="deco-circle deco-c4"></div>
-                                <span class="deco-badge deco-badge--light">⚡ HOT</span>
+                                <span class="deco-badge deco-badge--light" style="display: flex; align-items: center; gap: 4px;"><AppIcon name="zap" size="18" /> HOT</span>
                             </div>
                         </div>
                     </div>
@@ -155,34 +156,36 @@ import ProductSkeleton from '@/components/ProductSkeleton.vue';
 .promo-banner-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: var(--primary);
     color: #fff;
-    padding: 11px 26px;
-    border-radius: 99px;
+    height: 42px;
+    padding: 0 22px;
+    border-radius: 8px;
     font-size: .88rem;
     font-weight: 700;
     text-decoration: none;
     transition: all .2s;
-    box-shadow: 0 4px 16px rgba(230, 59, 111, .4);
+    box-shadow: 0 4px 14px rgba(230, 59, 111, .35);
 }
 
 .promo-banner-btn:hover {
     background: #d82f65;
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(230, 59, 111, .5);
+    box-shadow: 0 6px 20px rgba(230, 59, 111, .45);
     color: #fff;
 }
 
 .promo-banner-btn--outline {
     background: transparent;
-    border: 2px solid rgba(255, 255, 255, .4);
+    border: 1.5px solid rgba(255, 255, 255, .5);
     box-shadow: none;
 }
 
 .promo-banner-btn--outline:hover {
-    background: rgba(255, 255, 255, .1);
-    border-color: rgba(255, 255, 255, .8);
+    background: rgba(255, 255, 255, .15);
+    border-color: rgba(255, 255, 255, .9);
 }
 
 /* Deco elements */

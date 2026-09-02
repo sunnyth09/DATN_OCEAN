@@ -12,7 +12,7 @@ const selectedCategory = ref('all');
 
 // Load more
 const currentPage = ref(1);
-const postsPerPage = 6;
+const postsPerPage = 8;
 
 const fetchPosts = async () => {
   try {
@@ -91,9 +91,15 @@ watch([searchQuery, selectedCategory], () => {
   currentPage.value = 1;
 });
 
+const FALLBACK_POST_IMG = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+
 const getImageUrl = (url) => {
-  if (!url || url === '0') return 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+  if (!url || url === '0' || url === 'null') return FALLBACK_POST_IMG;
   return getStorageUrl(url);
+};
+
+const handleImgError = (e) => {
+  e.target.src = FALLBACK_POST_IMG;
 };
 
 const formatDate = (dateStr) => {
@@ -126,7 +132,8 @@ const getAuthorAvatarUrl = (author) => {
       <div class="page-hero-card">
         <div class="hero-pill">OCEAN SPORT NEWS</div>
         <h1>Tin Tức &amp; Sự Kiện</h1>
-        <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ Ocean Sport</p>
+        <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ
+          Ocean Sport</p>
       </div>
     </div>
 
@@ -135,27 +142,19 @@ const getAuthorAvatarUrl = (author) => {
       <!-- Search & Category Filters -->
       <div class="filter-section">
         <div class="category-tabs" v-if="categories.length <= 4">
-          <button
-            type="button"
-            class="category-tab-btn"
-            :class="{ active: selectedCategory === 'all' }"
-            @click="selectedCategory = 'all'"
-          >
+          <button type="button" class="category-tab-btn" :class="{ active: selectedCategory === 'all' }"
+            @click="selectedCategory = 'all'">
             Tất cả
           </button>
-          <button
-            v-for="cat in categories"
-            :key="cat.post_category_id"
-            type="button"
-            class="category-tab-btn"
+          <button v-for="cat in categories" :key="cat.post_category_id" type="button" class="category-tab-btn"
             :class="{ active: String(selectedCategory) === String(cat.post_category_id) }"
-            @click="selectedCategory = cat.post_category_id"
-          >
+            @click="selectedCategory = cat.post_category_id">
             {{ cat.name }}
           </button>
         </div>
         <div class="category-select-wrap" v-else>
-          <select id="post-category-filter" v-model="selectedCategory" class="category-select" aria-label="Lọc bài viết theo danh mục">
+          <select id="post-category-filter" v-model="selectedCategory" class="category-select"
+            aria-label="Lọc bài viết theo danh mục">
             <option value="all">Tất cả</option>
             <option v-for="cat in categories" :key="cat.post_category_id" :value="cat.post_category_id">
               {{ cat.name }}
@@ -172,12 +171,13 @@ const getAuthorAvatarUrl = (author) => {
       <!-- Loading State -->
       <div v-if="isLoading" class="post-list-skeleton">
         <div class="posts-grid">
-          <div class="post-card-skeleton" v-for="i in 6" :key="i" style="background:#fff; border-radius:12px; overflow:hidden; border:1px solid #eee;">
-            <div class="skeleton-pulse" style="height:200px; width:100%;"></div>
-            <div style="padding: 20px;">
-              <div class="skeleton-pulse" style="height:24px; width:80%; margin-bottom:12px; border-radius:4px;"></div>
-              <div class="skeleton-pulse" style="height:16px; width:100%; margin-bottom:8px; border-radius:4px;"></div>
-              <div class="skeleton-pulse" style="height:16px; width:60%; border-radius:4px;"></div>
+          <div class="post-card-skeleton" v-for="i in 8" :key="i"
+            style="background:#fff; border-radius:12px; overflow:hidden; border:1px solid #eee;">
+            <div class="skeleton-pulse" style="height:170px; width:100%;"></div>
+            <div style="padding: 16px;">
+              <div class="skeleton-pulse" style="height:20px; width:80%; margin-bottom:10px; border-radius:4px;"></div>
+              <div class="skeleton-pulse" style="height:14px; width:100%; margin-bottom:8px; border-radius:4px;"></div>
+              <div class="skeleton-pulse" style="height:14px; width:60%; border-radius:4px;"></div>
             </div>
           </div>
         </div>
@@ -194,7 +194,8 @@ const getAuthorAvatarUrl = (author) => {
         <!-- Featured Post (only on page 1 of All/Category) -->
         <div v-if="featuredPost" class="featured-post-card">
           <router-link :to="'/posts/' + (featuredPost.slug || featuredPost.post_id)" class="featured-img-wrap">
-            <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" />
+            <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img"
+              @error="handleImgError" />
           </router-link>
           <div class="featured-info">
             <div class="post-meta">
@@ -214,12 +215,8 @@ const getAuthorAvatarUrl = (author) => {
                 {{ featuredPost.view_count || 0 }} lượt xem
               </span>
               <span class="post-author-chip">
-                <img
-                  :src="getAuthorAvatarUrl(featuredPost.author)"
-                  :alt="getAuthorName(featuredPost.author)"
-                  class="author-avt"
-                  @error="e => e.target.src = getAuthorFallbackAvatar(featuredPost.author)"
-                />
+                <img :src="getAuthorAvatarUrl(featuredPost.author)" :alt="getAuthorName(featuredPost.author)"
+                  class="author-avt" @error="e => e.target.src = getAuthorFallbackAvatar(featuredPost.author)" />
                 {{ getAuthorName(featuredPost.author) }}
               </span>
             </div>
@@ -244,7 +241,7 @@ const getAuthorAvatarUrl = (author) => {
         <div v-if="regularPosts.length > 0" class="posts-grid">
           <article v-for="post in visiblePosts" :key="post.post_id" class="post-card">
             <router-link :to="'/posts/' + (post.slug || post.post_id)" class="post-img-wrap">
-              <img :src="getImageUrl(post.thumbnail_url)" :alt="post.title" class="post-img" />
+              <img :src="getImageUrl(post.thumbnail_url)" :alt="post.title" class="post-img" @error="handleImgError" />
               <span class="post-card-tag">{{ post.category?.name || 'Tin tức' }}</span>
             </router-link>
             <div class="post-card-content">
@@ -265,12 +262,8 @@ const getAuthorAvatarUrl = (author) => {
               </h3>
               <p class="post-card-summary">{{ post.summary }}</p>
               <div class="post-card-author">
-                <img
-                  :src="getAuthorAvatarUrl(post.author)"
-                  :alt="getAuthorName(post.author)"
-                  class="author-avt"
-                  @error="e => e.target.src = getAuthorFallbackAvatar(post.author)"
-                />
+                <img :src="getAuthorAvatarUrl(post.author)" :alt="getAuthorName(post.author)" class="author-avt"
+                  @error="e => e.target.src = getAuthorFallbackAvatar(post.author)" />
                 <span class="post-card-author-name">{{ getAuthorName(post.author) }}</span>
               </div>
             </div>
@@ -293,7 +286,7 @@ const getAuthorAvatarUrl = (author) => {
 
 <style scoped>
 .static-page {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 /* Author elements */
@@ -319,8 +312,8 @@ const getAuthorAvatarUrl = (author) => {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: auto;
+  padding-top: 12px;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -329,7 +322,6 @@ const getAuthorAvatarUrl = (author) => {
   font-weight: 600;
   color: #64748b;
 }
-
 
 
 
@@ -349,7 +341,9 @@ const getAuthorAvatarUrl = (author) => {
 }
 
 .hero-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.2);
   padding: 5px 14px;
   border-radius: 20px;
@@ -363,15 +357,17 @@ const getAuthorAvatarUrl = (author) => {
 .page-hero-card h1 {
   font-size: 1.75rem;
   font-weight: 800;
+  letter-spacing: -0.5px;
   margin: 0 0 8px;
+  line-height: 1.2;
 }
 
 .hero-sub {
-  opacity: 0.85;
+  opacity: 0.95;
   font-size: 0.95rem;
-  max-width: 500px;
+  max-width: 580px;
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .page-content {
@@ -614,17 +610,17 @@ const getAuthorAvatarUrl = (author) => {
   margin: 40px 0;
 }
 
-/* Regular Grid */
+/* Regular Grid (4 Cột Desktop) */
 .posts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
 }
 
 .post-card {
   background: var(--card-bg);
   border: 1px solid #f1f5f9;
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -633,7 +629,7 @@ const getAuthorAvatarUrl = (author) => {
 }
 
 .post-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-5px);
   box-shadow: 0 12px 25px rgba(0, 0, 0, 0.06);
 }
 
@@ -660,19 +656,19 @@ const getAuthorAvatarUrl = (author) => {
 
 .post-card-tag {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 10px;
+  left: 10px;
   background: var(--primary);
   color: #fff;
-  padding: 4px 10px;
-  border-radius: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
 }
 
 .post-card-content {
-  padding: 24px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
@@ -682,8 +678,8 @@ const getAuthorAvatarUrl = (author) => {
   display: flex;
   justify-content: space-between;
   color: #94a3b8;
-  font-size: 0.8rem;
-  margin-bottom: 12px;
+  font-size: 0.78rem;
+  margin-bottom: 10px;
 }
 
 .post-card-views {
@@ -693,7 +689,7 @@ const getAuthorAvatarUrl = (author) => {
 }
 
 .post-card-title {
-  font-size: 1.15rem;
+  font-size: 1.02rem;
   font-weight: 700;
   line-height: 1.4;
   margin-bottom: 8px;
@@ -716,9 +712,9 @@ const getAuthorAvatarUrl = (author) => {
 
 .post-card-summary {
   color: #64748b;
-  font-size: 0.88rem;
-  line-height: 1.6;
-  margin-bottom: 16px;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  margin-bottom: 14px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -828,9 +824,19 @@ const getAuthorAvatarUrl = (author) => {
     gap: 0;
     height: auto;
   }
+}
 
-  .featured-img-wrap {
-    height: 240px;
+@media (max-width: 1200px) {
+  .posts-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+}
+
+@media (max-width: 900px) {
+  .posts-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
   }
 }
 
@@ -840,24 +846,26 @@ const getAuthorAvatarUrl = (author) => {
   }
 
   .page-hero {
-    padding: 40px 0;
+    padding: 32px 0;
   }
 
   .page-hero .container {
-    padding: 0 20px;
+    padding: 0 16px;
   }
 
   .page-hero h1 {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
   }
 
   .page-content {
-    padding: 36px 24px 56px;
+    padding: 16px 0 60px;
   }
 
   .filter-section {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
+    margin-bottom: 24px;
   }
 
   .search-bar {
@@ -865,15 +873,98 @@ const getAuthorAvatarUrl = (author) => {
   }
 
   .featured-info {
-    padding: 24px;
+    padding: 18px;
   }
 
   .featured-title {
-    font-size: 1.3rem;
+    font-size: 1.15rem;
   }
 
+  /* 2 Cột Trên Điện Thoại */
   .posts-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .post-card {
+    border-radius: 12px;
+  }
+
+  .post-card-content {
+    padding: 12px 10px 14px;
+  }
+
+  .post-card-tag {
+    top: 8px;
+    left: 8px;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  .post-card-meta {
+    font-size: 0.72rem;
+    margin-bottom: 6px;
+  }
+
+  .post-card-title {
+    font-size: 0.88rem;
+    line-height: 1.35;
+    margin-bottom: 6px;
+    height: 2.7em;
+  }
+
+  .post-card-summary {
+    display: none;
+    /* Ẩn tóm tắt trên mobile 2 cột để thẻ gọn gàng, sắc sảo */
+  }
+
+  .post-card-author {
+    padding-top: 8px;
+    gap: 5px;
+  }
+
+  .post-card-author-name {
+    font-size: 0.72rem;
+  }
+
+  .author-avt {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.post-list-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-pulse {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-pulse::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.4) 30%,
+      rgba(255, 255, 255, 0.75) 60%,
+      rgba(255, 255, 255, 0) 100%);
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>

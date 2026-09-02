@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use App\Models\Order;
 use App\Services\GhnOrderStatusSyncService;
 use App\Services\GHNService;
+use App\Services\OceanExpressOrderStatusSyncService;
+use App\Services\OceanExpressService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -16,10 +18,10 @@ class SyncGhnOrderStatus extends Command
 
     public function handle(GhnOrderStatusSyncService $statusSyncService): int
     {
-        $query = Order::where(function($q) {
-                $q->whereNotNull('tracking_number')
-                  ->where('tracking_number', '!=', 'SELF-DELIVERY');
-            })
+        $query = Order::where(function ($q) {
+            $q->whereNotNull('tracking_number')
+                ->where('tracking_number', '!=', 'SELF-DELIVERY');
+        })
             ->orWhereNotNull('ghn_order_code')
             ->where('created_at', '>=', now()->subDays(30))
             ->whereIn('fulfillment_status', ['pending', 'confirmed', 'processing', 'packing', 'shipping', 'delivered']);
@@ -35,48 +37,44 @@ class SyncGhnOrderStatus extends Command
         foreach ($orders as $order) {
             try {
                 $trackingCode = $order->tracking_number ?? $order->ghn_order_code;
-                
+
                 // Giả định tracking_number là OceanExpress nếu trùng
                 if ($order->tracking_number === $trackingCode) {
-                    $detail = \App\Services\OceanExpressService::getTracking($trackingCode);
+                    $detail = OceanExpressService::getTracking($trackingCode);
                     if (empty($detail)) {
                         $this->warn("Order #{$order->order_id}: OceanExpress không trả dữ liệu.");
+
                         continue;
                     }
-                    
+
                     $oeStatus = $detail['status'] ?? null;
-                    $mappedStatus = match ($oeStatus) {
-                        'ready_to_pick' => 'confirmed',
-                        'picking', 'in_hub', 'delivering' => 'shipping',
-                        'delivered' => 'delivered',
-                        'returned' => 'return_requested',
-                        default => null,
-                    };
-                    
-                    if ($mappedStatus && $mappedStatus !== $order->fulfillment_status) {
-                        $oldStatus = $order->fulfillment_status;
-                        $order->update(['fulfillment_status' => $mappedStatus]);
-                        
-                        $latestLog = collect($detail['logs'] ?? [])->sortByDesc('timestamp')->first();
-                        \App\Models\OrderStatusHistory::create([
-                            'order_id' => $order->order_id,
-                            'old_status' => $oldStatus,
-                            'new_status' => $mappedStatus,
-                            'note' => 'Auto-sync từ Ocean Express',
+                    if ($oeStatus) {
+                        $oeSyncService = app(OceanExpressOrderStatusSyncService::class);
+                        $rawLogs = $detail['tracking_logs'] ?? $detail['logs'] ?? [];
+                        $latestLog = collect($rawLogs)->sortByDesc('created_at')->first() ?? collect($rawLogs)->sortByDesc('timestamp')->first();
+                        $logTime = ! empty($latestLog['created_at'])
+                            ? $latestLog['created_at']
+                            : (! empty($latestLog['timestamp']) ? $latestLog['timestamp'] : now());
+
+                        $syncResult = $oeSyncService->syncFromWebhookPayload($order, [
+                            'status' => $oeStatus,
+                            'timestamp' => $logTime,
+                            'note' => $latestLog['note'] ?? ($detail['status_description'] ?? $oeStatus),
+                            'location' => $detail['receiver_address_detail'] ?? $detail['receiver_address'] ?? null,
                             'source' => 'system',
-                            'description' => $latestLog['note'] ?? $oeStatus,
-                            'happened_at' => $latestLog['timestamp'] ? \Carbon\Carbon::parse($latestLog['timestamp']) : now(),
-                            'location' => $detail['receiver_address'] ?? null,
-                            'ghn_status' => $oeStatus,
                         ]);
-                        $synced++;
-                        $this->info("Order #{$order->order_id} (OE): {$oeStatus} -> {$mappedStatus} (changed)");
+
+                        if ($syncResult['changed'] ?? false) {
+                            $synced++;
+                            $this->info("Order #{$order->order_id} (OE): {$oeStatus} -> {$syncResult['new_status']} (changed)");
+                        }
                     }
                 } else {
                     // Fallback GHN cũ
                     $detail = GHNService::getOrderDetail($order->ghn_order_code);
                     if (empty($detail)) {
                         $this->warn("Order #{$order->order_id}: GHN không trả dữ liệu.");
+
                         continue;
                     }
 

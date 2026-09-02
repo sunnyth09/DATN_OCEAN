@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -16,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * - Gửi email HTML chúc mừng sinh nhật kèm mã giảm giá
  * - Lưu notification vào bảng notifications để user xem trong inbox
  */
-class BirthdayNotification extends Notification
+class BirthdayNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -63,15 +64,17 @@ class BirthdayNotification extends Notification
      */
     public function toMail(mixed $notifiable): MailMessage
     {
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
+
         return (new MailMessage)
-            ->subject('🎂 Chúc Mừng Sinh Nhật - Ocean Shop tặng bạn mã giảm giá!')
+            ->subject('[Ocean Sport] 🎂 Chúc Mừng Sinh Nhật — Quà tặng đặc biệt dành riêng cho bạn!')
             ->greeting("Xin chào {$notifiable->full_name}! 🎉")
-            ->line('Hôm nay là sinh nhật của bạn! Ocean Shop xin gửi lời chúc mừng sinh nhật tốt đẹp nhất! 🎊')
+            ->line('Hôm nay là sinh nhật của bạn! Đội ngũ Ocean Sport xin gửi lời chúc mừng sinh nhật tốt đẹp, may mắn và hạnh phúc nhất! 🎊')
             ->line("🎁 Quà tặng sinh nhật: Mã giảm giá **{$this->discountValue}**")
             ->line("📋 Mã coupon của bạn: **{$this->couponCode}**")
             ->line('⏰ Mã có hiệu lực trong 7 ngày kể từ hôm nay.')
-            ->action('🛒 Mua sắm ngay', url('/'))
-            ->line('Chúc bạn có một ngày sinh nhật thật vui vẻ! 🥳');
+            ->action('🛒 Mua sắm & Áp dụng mã ngay ➔', $frontendUrl.'/coupon')
+            ->line('Chúc bạn có một ngày sinh nhật thật trọn vẹn và nhiều niềm vui! 🥳');
     }
 
     /**

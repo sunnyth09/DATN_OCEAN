@@ -13,6 +13,8 @@ import {
   getReturnShippingMethodLabel,
 } from '@/utils/orderStatus';
 
+import MediaPreviewModal from '@/components/MediaPreviewModal.vue';
+
 const route = useRoute();
 const router = useRouter();
 const store = useReturnRequestStore();
@@ -20,6 +22,34 @@ const { currentRequest, detailLoading } = storeToRefs(store);
 const APP_URL = import.meta.env.VITE_BASE_URL || window.location.origin;
 
 const detail = computed(() => currentRequest.value);
+
+const mediaList = computed(() => {
+  const list = [];
+  if (detail.value?.images?.length) {
+    detail.value.images.forEach((img) => {
+      list.push({ url: imageUrl(img), type: 'image' });
+    });
+  }
+  if (detail.value?.videos?.length) {
+    detail.value.videos.forEach((vid) => {
+      list.push({ url: imageUrl(vid), type: 'video' });
+    });
+  }
+  return list;
+});
+
+const previewShow = ref(false);
+const previewIndex = ref(0);
+
+const openPreview = (url) => {
+  const foundIdx = mediaList.value.findIndex((item) => item.url === url);
+  previewIndex.value = foundIdx >= 0 ? foundIdx : 0;
+  previewShow.value = true;
+};
+
+const closePreview = () => {
+  previewShow.value = false;
+};
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -61,10 +91,35 @@ const goBack = () => {
         <span class="order-code">{{ detail.return_code || `#${detail.order?.order_code || detail.order_id}` }}</span>
       </div>
     </div>
+    <!-- Modern Skeleton Loading -->
     <div v-if="detailLoading" class="profile-order-detail-skeleton">
-      <div class="skeleton-pulse" style="height:100px; border-radius:12px; margin-bottom:20px;"></div>
-      <div class="skeleton-pulse" style="height:300px; border-radius:12px; margin-bottom:20px;"></div>
-      <div class="skeleton-pulse" style="height:200px; border-radius:12px;"></div>
+      <div class="skeleton-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div class="skeleton-box" style="width: 180px; height: 22px; border-radius: 6px;"></div>
+          <div class="skeleton-box" style="width: 120px; height: 28px; border-radius: 20px;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div>
+            <div class="skeleton-box" style="width: 80px; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 50%; height: 16px; border-radius: 4px;"></div>
+          </div>
+          <div>
+            <div class="skeleton-box" style="width: 120px; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 80%; height: 14px; border-radius: 4px; margin-bottom: 6px;"></div>
+            <div class="skeleton-box" style="width: 60%; height: 14px; border-radius: 4px;"></div>
+          </div>
+          <div>
+            <div class="skeleton-box" style="width: 140px; height: 16px; border-radius: 4px; margin-bottom: 12px;"></div>
+            <div style="display: flex; gap: 12px;">
+              <div v-for="i in 3" :key="i" class="skeleton-box" style="width: 80px; height: 80px; border-radius: 8px;"></div>
+            </div>
+          </div>
+          <div style="margin-top: 10px;">
+            <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px;"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="detail" class="detail-grid">
@@ -89,10 +144,29 @@ const goBack = () => {
           <div v-if="detail.images?.length || detail.videos?.length" class="detail-block">
             <h3>Minh chứng</h3>
             <div v-if="detail.images?.length" class="evidence-grid">
-              <img v-for="image in detail.images" :key="image" :src="imageUrl(image)" alt="Ảnh minh chứng hoàn hàng" />
+              <img
+                v-for="image in detail.images"
+                :key="image"
+                :src="imageUrl(image)"
+                alt="Ảnh minh chứng hoàn hàng"
+                class="clickable-evidence"
+                @click="openPreview(imageUrl(image))"
+              />
             </div>
             <div v-if="detail.videos?.length" class="evidence-grid evidence-grid--video">
-              <video v-for="video in detail.videos" :key="video" :src="imageUrl(video)" controls />
+              <div
+                v-for="video in detail.videos"
+                :key="video"
+                class="video-thumbnail-container"
+                @click="openPreview(imageUrl(video))"
+              >
+                <video :src="imageUrl(video)" preload="metadata" />
+                <div class="play-overlay">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -109,10 +183,6 @@ const goBack = () => {
             </p>
           </div>
 
-          <div v-if="detail.refund_method === 'vnpay' && detail.refund_status === 'pending'" class="detail-block refund-pending-note">
-            <h3>Hoàn tiền VNPay</h3>
-            <p>Hoàn tiền VNPay đang chờ xử lý/đối soát. Shop sẽ cập nhật sau khi hoàn tất.</p>
-          </div>
 
           <div v-if="detail.items?.length" class="detail-block">
             <h3>Sản phẩm hoàn hàng</h3>
@@ -219,6 +289,14 @@ const goBack = () => {
         </div>
       </aside>
     </div>
+
+    <!-- Media Preview Lightbox Modal -->
+    <MediaPreviewModal
+      :show="previewShow"
+      :media-list="mediaList"
+      :initial-index="previewIndex"
+      @close="closePreview"
+    />
   </div>
 </template>
 
@@ -351,9 +429,18 @@ const goBack = () => {
 .evidence-grid img,
 .evidence-grid video {
   width: 100%;
-  height: auto;
+  height: 120px;
+  object-fit: cover;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.evidence-grid img:hover,
+.evidence-grid video:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .return-items-table {
@@ -512,5 +599,46 @@ const goBack = () => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.profile-order-detail-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.profile-order-detail-skeleton .skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(45, 52, 70, 0.04);
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

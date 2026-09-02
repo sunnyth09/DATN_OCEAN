@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Route;
 Broadcast::routes(['middleware' => ['api', 'auth:api,admin']]);
 
 use App\Http\Controllers\AddressController;
-use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\Api\Client\TrackingController;
 use App\Http\Controllers\Api\DeviceTokenController;
@@ -31,6 +30,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderTrackingController;
 use App\Http\Controllers\PostCategoryController;
+use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProductCommentController;
 use App\Http\Controllers\ProductController;
@@ -42,13 +42,9 @@ use App\Http\Controllers\UserBankAccountController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\WalletDepositController;
 use App\Models\Cart;
-use App\Models\Order;
 use App\Services\FcmService;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 
 // use Illuminate\Http\Request;
-
 
 // Route debug gửi push — CHỈ đăng ký ở môi trường local để tránh bị lạm dụng
 // (spam FCM / dò token hợp lệ) trên production. Bọc thêm throttle phòng hờ.
@@ -89,6 +85,7 @@ Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'resetPa
 
 // OAuth callbacks (Public)
 Route::post('/auth/google/callback', [AuthController::class, 'googleCallback']);
+Route::post('/auth/google/mobile', [AuthController::class, 'googleMobileLogin']);
 Route::post('/auth/facebook/callback', [AuthController::class, 'facebookCallback']);
 Route::middleware('throttle:20,1')->post('/refresh', [AuthController::class, 'refresh']);
 
@@ -163,6 +160,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::middleware('customer.only')->group(function () {
         Route::middleware('throttle:strict_api')->get('/coupons', [CouponController::class, 'getUserCoupons']);
         Route::middleware('throttle:strict_api')->post('/coupons/save', [CouponController::class, 'saveCoupon']);
+        Route::middleware('throttle:strict_api')->post('/coupons/check', [CouponController::class, 'checkCoupon']);
     });
 
     // Đơn hàng của tôi
@@ -201,6 +199,12 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::middleware('throttle:3,1')->post('/tickets', [TicketController::class, 'clientStore']);
 });
 
+// Alias for tickets route outside profile prefix
+Route::middleware('auth:api,admin')->group(function () {
+    Route::get('/tickets', [TicketController::class, 'clientIndex']);
+    Route::middleware('throttle:3,1')->post('/tickets', [TicketController::class, 'clientStore']);
+});
+
 // Tracking routes (Public, optional auth logic handled inside controller)
 Route::prefix('tracking')->group(function () {
     Route::middleware('throttle:120,1')->post('/view-product', [TrackingController::class, 'viewProduct']);
@@ -225,6 +229,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
 Route::middleware('throttle:30,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:120,1')->get('/orders/status/{order_code}', [OrderController::class, 'publicStatus']);
 Route::middleware('throttle:strict_api')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
@@ -251,12 +256,16 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products/home/best-selling', [ProductController::class, 'bestSelling']);
 Route::get('products/home/on-sale', [ProductController::class, 'onSale']);
+Route::get('products/import-template', [ProductController::class, 'downloadTemplate'])->middleware(['auth:api,admin', 'role:admin,staff']);
+// Khai báo trước products/{id} để tránh route shadowing (Laravel khớp từ trên xuống)
+Route::get('products/export', [ProductController::class, 'exportExcel'])->middleware(['auth:api,admin', 'role:admin,staff']);
 Route::get('products', [ProductController::class, 'index']);
-Route::get('products/{id}', [ProductController::class, 'show']);
-Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);
 Route::get('products/slug/{slug}', [ProductController::class, 'show']);
+Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);
 Route::get('products/{slug}/related', [ProductController::class, 'related']);
+Route::get('products/{slug}/matching', [ProductController::class, 'matching']);
 Route::get('products/{product_id}/comments', [ProductCommentController::class, 'getByProduct']);
+Route::get('products/{id}', [ProductController::class, 'show']);
 Route::get('productFeatured', [ProductController::class, 'productFeatured']);
 
 // ==========================================
@@ -267,6 +276,7 @@ Route::get('brands', [BrandController::class, 'index']);
 
 // Coupons (Công khai)
 Route::get('coupons/public', [CouponController::class, 'getPublicCoupons']);
+Route::post('coupons/check', [CouponController::class, 'checkCoupon']);
 
 // ==========================================
 // COMBO / BUNDLE PROMOTION (Public)
@@ -283,8 +293,11 @@ Route::middleware('auth:api')->post('/combos/check-cart', [ComboController::clas
 Route::get('/loyalty/rules', [LoyaltyController::class, 'rules']);
 
 // Routes yêu cầu đăng nhập
-Route::middleware('auth:api')->prefix('loyalty')->group(function () {
+Route::middleware('auth:api,admin')->prefix('loyalty')->group(function () {
+    Route::get('/lucky-wheel', [LoyaltyController::class, 'luckyWheelPrizes']);   // Danh sách quà vòng quay
+    Route::post('/lucky-wheel/spin', [LoyaltyController::class, 'spinLuckyWheel']); // Quay vòng quay
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
+    Route::post('/check-in', [LoyaltyController::class, 'checkIn']);      // Điểm danh
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
     Route::middleware('throttle:strict_api')->post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
 });
@@ -307,6 +320,7 @@ Route::middleware('auth:api')->prefix('wallet')->group(function () {
     // Tài khoản ngân hàng liên kết
     Route::get('/bank-accounts', [UserBankAccountController::class, 'index']);
     Route::post('/bank-accounts', [UserBankAccountController::class, 'store']);
+    Route::post('/bank-accounts/verify', [UserBankAccountController::class, 'verifyAccount']);
     Route::put('/bank-accounts/{id}', [UserBankAccountController::class, 'update']);
     Route::delete('/bank-accounts/{id}', [UserBankAccountController::class, 'destroy']);
     Route::post('/bank-accounts/{id}/default', [UserBankAccountController::class, 'setDefault']);

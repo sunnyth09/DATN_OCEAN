@@ -71,7 +71,7 @@ class SendBulkCouponEmail implements ShouldQueue
                             $emailMessage = (new Email)
                                 ->from($emailUser)
                                 ->to($user->email)
-                                ->subject('🎉 Mã giảm giá mới từ Ocean Store — '.$this->coupon->code)
+                                ->subject('[Ocean Sport] 🎁 Quà tặng mã giảm giá mới: '.$this->coupon->code)
                                 ->html($htmlBody);
 
                             $mailer->send($emailMessage);
@@ -154,49 +154,57 @@ class SendBulkCouponEmail implements ShouldQueue
             $categoriesText = '<tr><td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Áp dụng danh mục</td><td style="padding: 6px 0; color: #1a1a2e; font-size: 13px; font-weight: 600; text-align: right;">'.htmlspecialchars($catNames).'</td></tr>';
         }
 
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
+
         return '
         <!DOCTYPE html>
         <html>
-        <head><meta charset="UTF-8"></head>
-        <body style="margin: 0; padding: 0; background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Arial, sans-serif;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0f2f5; padding: 40px 20px;">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Mã giảm giá mới dành cho bạn</title>
+        </head>
+        <body style="margin: 0; padding: 30px 15px; background: #f8f9fa; font-family: \'Plus Jakarta Sans\', -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Arial, sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0">
                 <tr><td align="center">
-                    <table width="480" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,0.08);">
+                    <table width="480" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(230, 59, 111, 0.08); border: 1px solid #f1f3f5;">
                         <!-- Header -->
-                        <tr><td style="background: linear-gradient(135deg, #0288d1 0%, #03a9f4 100%); padding: 28px 32px; text-align: center;">
-                            <h1 style="color: #ffffff; font-size: 20px; margin: 0; font-weight: 600;">🎁 Mã Giảm Giá Mới!</h1>
-                            <p style="color: rgba(255,255,255,0.85); font-size: 13px; margin: 6px 0 0;">Ocean Store gửi tặng bạn</p>
+                        <tr><td style="background: linear-gradient(135deg, #E63B6F 0%, #b50c4d 100%); padding: 32px 24px; text-align: center;">
+                            <div style="font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; color: #ffd9de;">OCEAN SPORT</div>
+                            <h1 style="color: #ffffff; font-size: 22px; margin: 0; font-weight: 800;">🎁 Quà Tặng Mã Giảm Giá!</h1>
+                            <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Ocean Sport trân trọng gửi tặng bạn ưu đãi đặc biệt</p>
                         </td></tr>
 
                         <!-- Body -->
-                        <tr><td style="padding: 32px 32px 24px;">
-                            <p style="color: #1a1a2e; font-size: 15px; margin: 0 0 20px; line-height: 1.5;">Xin chào <strong>'.htmlspecialchars($customerName).'</strong>,</p>
-                            <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px; line-height: 1.6;">Chúng tôi vừa tạo mã giảm giá đặc biệt dành cho bạn. Hãy sử dụng ngay nhé!</p>
+                        <tr><td style="padding: 32px 28px 24px;">
+                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">'.htmlspecialchars($customerName).'</strong>,</p>
+                            <p style="color: #64748b; font-size: 14px; margin: 0 0 24px; line-height: 1.6;">Ocean Sport gửi tặng bạn voucher ưu đãi để bạn thỏa sức mua sắm các sản phẩm thể thao yêu thích:</p>
 
                             <!-- Coupon Code Box -->
-                            <div style="background: linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%); border: 2px dashed #ff9800; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
-                                <p style="color: #e65100; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px;">'.htmlspecialchars($typeLabel).'</p>
-                                <p style="color: #d84315; font-size: 32px; font-weight: 800; margin: 0 0 4px; font-family: \'Courier New\', monospace; letter-spacing: 3px;">'.htmlspecialchars($coupon->code).'</p>
-                                <p style="color: #2e7d32; font-size: 22px; font-weight: 700; margin: 8px 0 0;">Giảm '.$valueText.'</p>
+                            <div style="background: #FFF0F3; border: 2px dashed #E63B6F; border-radius: 14px; padding: 24px; text-align: center; margin-bottom: 24px;">
+                                <p style="color: #b50c4d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px;">'.htmlspecialchars($typeLabel).'</p>
+                                <p style="color: #E63B6F; font-size: 32px; font-weight: 800; margin: 0 0 4px; font-family: \'Courier New\', monospace; letter-spacing: 3px;">'.htmlspecialchars($coupon->code).'</p>
+                                <p style="color: #16a34a; font-size: 20px; font-weight: 800; margin: 8px 0 0;">Giảm '.$valueText.'</p>
                             </div>
 
                             <!-- Info Table -->
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #e5e7eb; margin-bottom: 24px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #f1f5f9; margin-bottom: 24px; font-size: 13px;">
                                 '.$extraInfo.$categoriesText.'
                             </table>
 
                             <!-- CTA -->
                             <div style="text-align: center;">
-                                <a href="'.rtrim(config('app.frontend_url', 'https://oceansport.bcbdev.id.vn'), '/').'" style="display: inline-block; background: linear-gradient(135deg, #0288d1, #03a9f4); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 10px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px;">Mua sắm ngay</a>
+                                <a href="'.$frontendUrl.'/coupon" style="display: inline-block; background: linear-gradient(135deg, #E63B6F 0%, #C4305D 100%); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 10px; font-size: 15px; font-weight: 700; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.35);">Khám phá & Mua sắm ngay ➔</a>
                             </div>
                         </td></tr>
 
                         <!-- Footer -->
-                        <tr><td style="background: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
-                            <p style="color: #9ca3af; font-size: 11px; margin: 0; text-align: center; line-height: 1.5;">
-                                © '.date('Y').' Ocean Fashion. All rights reserved.<br>
-                                Email này được gửi tự động, vui lòng không trả lời.
-                            </p>
+                        <tr><td style="background: #f8fafc; padding: 20px 24px; border-top: 1px solid #f1f5f9; text-align: center;">
+                            <div style="font-weight: 700; color: #64748b; font-size: 12px; margin-bottom: 4px;">OCEAN SPORT — CỬA HÀNG THỂ THAO CAO CẤP</div>
+                            <div style="font-size: 11px; color: #94a3b8; line-height: 1.5;">
+                                Hotline: <strong style="color: #E63B6F;">1900 6868</strong> | Email: <strong style="color: #E63B6F;">contact@oceansport.vn</strong><br>
+                                © '.date('Y').' Ocean Sport. All rights reserved.
+                            </div>
                         </td></tr>
                     </table>
                 </td></tr>

@@ -36,19 +36,32 @@ const logisticsForm = reactive({
 const receivedItems = ref({});
 const inspectionItems = ref({});
 
+const mediaList = computed(() => {
+  const list = [];
+  if (detail.value?.images?.length) {
+    detail.value.images.forEach((img) => {
+      list.push({ url: imageUrl(img), type: 'image' });
+    });
+  }
+  if (detail.value?.videos?.length) {
+    detail.value.videos.forEach((vid) => {
+      list.push({ url: imageUrl(vid), type: 'video' });
+    });
+  }
+  return list;
+});
+
 const previewShow = ref(false);
-const previewUrl = ref('');
-const previewType = ref('image');
+const previewIndex = ref(0);
 
 const openPreview = (url, type = 'image') => {
-  previewUrl.value = url;
-  previewType.value = type;
+  const foundIdx = mediaList.value.findIndex((item) => item.url === url);
+  previewIndex.value = foundIdx >= 0 ? foundIdx : 0;
   previewShow.value = true;
 };
 
 const closePreview = () => {
   previewShow.value = false;
-  previewUrl.value = '';
 };
 
 const refundAmountDisplay = ref('');
@@ -112,6 +125,16 @@ const imageUrl = (path) => {
   return `${storageBaseUrl()}/storage/${normalizedPath}`;
 };
 const isStatus = (...statuses) => statuses.includes(detail.value?.status);
+
+const getReasonTone = (reason) => {
+  if (!reason) return 'neutral';
+  const r = reason.toLowerCase();
+  if (r.includes('lỗi') || r.includes('hư') || r.includes('hỏng') || r.includes('rách') || r.includes('vỡ') || r.includes('kém chất lượng')) return 'danger';
+  if (r.includes('mô tả') || r.includes('sai') || r.includes('thiếu') || r.includes('nhầm') || r.includes('giao sai')) return 'warning';
+  if (r.includes('size') || r.includes('vừa') || r.includes('kích') || r.includes('màu')) return 'info';
+  if (r.includes('đổi ý') || r.includes('nhu cầu') || r.includes('không thích') || r.includes('mua nhầm')) return 'purple';
+  return 'neutral';
+};
 
 const refreshDetail = async () => {
   await store.fetchAdminReturnRequestDetail(route.params.id);
@@ -219,8 +242,8 @@ const refund = () => {
 
   return runAction(() => store.refundReturnRequest(route.params.id, {
     refund_amount: Number(refundForm.refund_amount),
-    refund_method: refundForm.refund_method,
-    admin_note: refundForm.admin_note || null,
+    refund_method: refundForm.refund_method || detail.value?.refund_method || 'wallet',
+    admin_note: adminNote.value || null,
   }));
 };
 
@@ -240,9 +263,55 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="detailLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải chi tiết yêu cầu hoàn hàng...</p>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="detailLoading" class="admin-return-detail-skeleton">
+      <div class="detail-grid">
+        <!-- Main Card Skeleton -->
+        <section class="detail-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div class="skeleton-box" style="width: 42px; height: 42px; border-radius: 10px;"></div>
+              <div>
+                <div class="skeleton-box" style="width: 130px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                <div class="skeleton-box" style="width: 220px; height: 26px; border-radius: 6px;"></div>
+              </div>
+            </div>
+            <div class="skeleton-box" style="width: 110px; height: 32px; border-radius: 20px;"></div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px;">
+            <div v-for="i in 3" :key="i" style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9;">
+              <div class="skeleton-box" style="width: 90px; height: 16px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 180px; height: 16px; border-radius: 4px;"></div>
+            </div>
+          </div>
+
+          <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+          <div class="skeleton-box" style="width: 100%; height: 60px; border-radius: 8px; margin-bottom: 24px;"></div>
+
+          <div class="skeleton-box" style="width: 160px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+          <div class="skeleton-box" style="width: 100%; height: 120px; border-radius: 10px;"></div>
+        </section>
+
+        <!-- Sidebar Card Skeleton -->
+        <aside class="sidebar-cards">
+          <section class="sidebar-card">
+            <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 42px; border-radius: 8px; margin-bottom: 12px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 80px; border-radius: 8px;"></div>
+          </section>
+          <section class="sidebar-card" style="margin-top: 20px;">
+            <div class="skeleton-box" style="width: 120px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+            <div v-for="i in 3" :key="i" style="display: flex; gap: 10px; margin-bottom: 12px;">
+              <div class="skeleton-box" style="width: 10px; height: 10px; border-radius: 50%; margin-top: 4px;"></div>
+              <div style="flex: 1;">
+                <div class="skeleton-box" style="width: 70%; height: 14px; border-radius: 4px; margin-bottom: 4px;"></div>
+                <div class="skeleton-box" style="width: 40%; height: 12px; border-radius: 4px;"></div>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
 
     <div v-else-if="detail" class="detail-grid">
@@ -265,7 +334,38 @@ onMounted(() => {
         <div class="info-list">
           <div class="info-row"><span>Khách hàng</span><strong>{{ detail.user?.full_name || detail.order?.recipient_name }}</strong></div>
           <div class="info-row"><span>Email / SĐT</span><strong>{{ detail.user?.email || detail.order?.recipient_phone || '—' }}</strong></div>
-          <div class="info-row"><span>Lý do</span><strong>{{ detail.reason }}</strong></div>
+          <div class="info-row">
+            <span>Lý do</span>
+            <div class="reason-pill" :class="`reason-pill--${getReasonTone(detail.reason)}`">
+              <span class="reason-icon">
+                <svg v-if="getReasonTone(detail.reason) === 'danger'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <svg v-else-if="getReasonTone(detail.reason) === 'warning'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <svg v-else-if="getReasonTone(detail.reason) === 'info'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                  <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                </svg>
+                <svg v-else-if="getReasonTone(detail.reason) === 'purple'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+              </span>
+              <strong class="reason-text">{{ detail.reason }}</strong>
+            </div>
+          </div>
           <div class="info-row"><span>Đơn hàng</span><strong>{{ getOrderStatusLabel(detail.order?.fulfillment_status) }}</strong></div>
           <div class="info-row"><span>Thanh toán</span><strong>{{ getPaymentStatusLabel(detail.order?.payment_status) }}</strong></div>
           <div class="info-row"><span>Hoàn tiền</span><strong>{{ getReturnRefundStatusLabel(detail.refund_status) }}</strong></div>
@@ -274,7 +374,7 @@ onMounted(() => {
 
         <div class="detail-block">
           <h3>Mô tả</h3>
-          <p>{{ detail.description || 'Không có mô tả bổ sung.' }}</p>
+          <div class="description-content" v-html="detail.description || 'Không có mô tả bổ sung.'"></div>
         </div>
 
         <div v-if="detail.images?.length || detail.videos?.length" class="detail-block">
@@ -468,15 +568,20 @@ onMounted(() => {
             <span class="currency-unit">VND</span>
           </div>
 
-          <label class="field-label">Phương thức hoàn tiền</label>
-          <select v-model="refundForm.refund_method" class="field-input">
-            <option v-for="method in RETURN_REQUEST_REFUND_METHOD_OPTIONS" :key="method.value" :value="method.value">
-              {{ method.label }}
-            </option>
-          </select>
-
-          <label class="field-label">Ghi chú hoàn tiền</label>
-          <textarea v-model="refundForm.admin_note" class="field-textarea" placeholder="Nhập thông tin hoàn tiền..."></textarea>
+          <label class="field-label">Phương thức hoàn tiền (Khách đã chọn)</label>
+          <div class="refund-method-readonly-badge">
+            <span class="method-icon">
+              <svg v-if="refundForm.refund_method === 'wallet'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
+              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </span>
+            <strong>{{ getRefundMethodLabel(refundForm.refund_method) }}</strong>
+          </div>
+          <p v-if="refundForm.refund_method === 'wallet'" class="method-help-text">
+            💡 Tiền sẽ được <strong>tự động cộng vào Ví điện tử</strong> của khách hàng ngay sau khi bấm Xác nhận.
+          </p>
+          <p v-else class="method-help-text">
+            💡 Admin thực hiện chuyển khoản thủ công cho khách hàng theo thông tin tài khoản bên dưới, sau đó bấm Xác nhận.
+          </p>
 
           <button class="action-btn action-btn--refund" :disabled="actionLoading" @click="refund">
             {{ isStatus('refund_failed', 'refund_pending') ? 'Thử hoàn tiền lại' : 'Xác nhận hoàn tiền' }}
@@ -491,6 +596,15 @@ onMounted(() => {
           <p><strong>Số tiền đơn hàng:</strong> {{ formatPrice(detail.order?.grand_total) }}</p>
           <p v-if="Number(detail.refund_amount || 0) > 0"><strong>{{ refundAmountLabel }}</strong> {{ formatPrice(detail.refund_amount) }}</p>
           <p v-if="detail.refund_method"><strong>Phương thức:</strong> {{ getRefundMethodLabel(detail.refund_method) }}</p>
+          
+          <div v-if="detail.refund_method === 'bank_transfer' && detail.user?.bank_accounts?.length" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+            <p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">THÔNG TIN CHUYỂN KHOẢN (MẶC ĐỊNH):</p>
+            <div v-for="bank in detail.user.bank_accounts.filter(b => b.is_default)" :key="bank.id" style="background: var(--surface-container-low); padding: 10px; border-radius: 8px; font-size: 0.9rem;">
+              <p style="margin: 0 0 4px 0;">Ngân hàng: <strong>{{ bank.bank_name }}</strong></p>
+              <p style="margin: 0 0 4px 0;">STK: <strong>{{ bank.account_number }}</strong></p>
+              <p style="margin: 0;">Chủ TK: <strong>{{ bank.account_name }}</strong></p>
+            </div>
+          </div>
         </div>
       </aside>
     </div>
@@ -498,8 +612,8 @@ onMounted(() => {
     <!-- Image & Video Media Preview Lightbox -->
     <MediaPreviewModal
       :show="previewShow"
-      :media-url="previewUrl"
-      :media-type="previewType"
+      :media-list="mediaList"
+      :initial-index="previewIndex"
       @close="closePreview"
     />
   </div>
@@ -626,6 +740,7 @@ onMounted(() => {
 .info-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 12px;
@@ -635,6 +750,81 @@ onMounted(() => {
 
 .info-row span:first-child {
   color: var(--text-muted);
+}
+
+.reason-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.reason-pill--danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.reason-pill--warning {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.reason-pill--info {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.reason-pill--purple {
+  background: #faf5ff;
+  color: #7e22ce;
+  border-color: #e9d5ff;
+}
+
+.reason-pill--neutral {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+
+:global(html.dark) .reason-pill--danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+:global(html.dark) .reason-pill--warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+:global(html.dark) .reason-pill--info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+:global(html.dark) .reason-pill--purple {
+  background: rgba(168, 85, 247, 0.15);
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+:global(html.dark) .reason-pill--neutral {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.reason-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .detail-block {
@@ -1032,5 +1222,68 @@ onMounted(() => {
 
 .text-center {
   text-align: center;
+}
+
+.refund-method-readonly-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface-container-low);
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.method-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+
+.method-help-text {
+  margin: 6px 0 12px;
+  font-size: 0.84rem;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 8px 12px;
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.admin-return-detail-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

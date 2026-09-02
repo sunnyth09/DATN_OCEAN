@@ -3,6 +3,7 @@ export const ORDER_STATUS_LABELS = {
   confirmed: 'Đã xác nhận',
   processing: 'Đang xử lý',
   packing: 'Đang xử lý',
+  awaiting_pickup: 'Chờ lấy hàng',
   shipping: 'Đang giao hàng',
   delivered: 'Đã giao hàng',
   completed: 'Hoàn thành',
@@ -23,6 +24,7 @@ export const ORDER_STATUS_DESCRIPTIONS = {
   confirmed: 'Đơn hàng đã được xác nhận',
   processing: 'Đơn hàng đang được xử lý',
   packing: 'Đơn hàng đang được xử lý',
+  awaiting_pickup: 'Đơn hàng đang chờ bên vận chuyển tiếp nhận',
   shipping: 'Đơn hàng đang được giao đến bạn',
   delivered: 'Đơn hàng đã được giao thành công',
   completed: 'Đơn hàng đã hoàn thành',
@@ -43,6 +45,7 @@ export const ORDER_STATUS_SUMMARY_LABELS = {
   confirmed: 'Đang xử lý',
   processing: 'Đang xử lý',
   packing: 'Đang xử lý',
+  awaiting_pickup: 'Chờ lấy hàng',
   shipping: 'Đang giao',
   delivered: 'Đã giao',
   completed: 'Hoàn thành',
@@ -135,9 +138,6 @@ export const RETURN_REQUEST_CUSTOMER_STATUS_OPTIONS = [
 export const RETURN_REQUEST_REFUND_METHOD_OPTIONS = [
   { value: 'wallet', label: 'Hoàn vào ví' },
   { value: 'bank_transfer', label: 'Chuyển khoản' },
-  { value: 'cash', label: 'Tiền mặt' },
-  { value: 'vnpay', label: 'VNPay' },
-  { value: 'other', label: 'Khác' },
 ];
 
 export const RETURN_SHIPPING_METHOD_OPTIONS = [
@@ -155,7 +155,7 @@ export const getRefundMethodLabel = (method) => RETURN_REQUEST_REFUND_METHOD_OPT
 export const getReturnShippingMethodLabel = (method) => RETURN_SHIPPING_METHOD_OPTIONS.find((item) => item.value === method)?.label || method || 'Chưa chọn';
 
 export const getOrderStatusTone = (status) => {
-  if (['pending', 'confirmed', 'processing', 'packing'].includes(status)) return 'status-info';
+  if (['pending', 'confirmed', 'processing', 'packing', 'awaiting_pickup'].includes(status)) return 'status-info';
   if (['shipping', 'return_requested', 'return_approved', 'returning', 'warehouse_received', 'inspected_ok'].includes(status)) return 'status-warning';
   if (['delivered', 'completed', 'refunded'].includes(status)) return 'status-success';
   if (['cancelled', 'return_rejected', 'returned', 'inspection_failed'].includes(status)) return 'status-danger';

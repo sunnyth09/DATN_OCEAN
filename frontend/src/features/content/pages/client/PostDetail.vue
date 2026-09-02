@@ -24,9 +24,126 @@ const isSubmitting = ref(false);
 const commentsPage = ref(1);
 const commentsLastPage = ref(1);
 
-const sanitizedContent = computed(() => DOMPurify.sanitize(post.value?.content || '', {
-  USE_PROFILES: { html: true },
-}));
+const parseMarkdownOrHtml = (input) => {
+  if (!input) return '';
+  let text = String(input).trim();
+  if (!text) return '';
+
+  // Kiểm tra xem đã có các thẻ HTML block chưa (p, h1-h6, ul, ol, li, div...)
+  const hasHtmlTags = /<\/?(p|h[1-6]|ul|ol|li|blockquote|div|table|section|article)\b/i.test(text);
+
+  // Nếu chưa có thẻ HTML block mà có ký tự Markdown (#, *, -, 1.)
+  if (!hasHtmlTags && (/(^|\n)#{1,6}\s/m.test(text) || /(^|\n)[\*\-]\s/m.test(text) || /(^|\n)\d+\.\s/m.test(text))) {
+    let lines = text.split(/\r?\n/);
+    let html = [];
+    let inList = false;
+    let listType = '';
+
+    const closeList = () => {
+      if (inList) {
+        html.push(listType === 'ul' ? '</ul>' : '</ol>');
+        inList = false;
+        listType = '';
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+
+      if (!line) {
+        closeList();
+        continue;
+      }
+
+      // Tiêu đề #, ##, ###, ####
+      let headerMatch = line.match(/^(#{1,6})\s+(.*)/);
+      if (headerMatch) {
+        closeList();
+        let level = headerMatch[1].length;
+        html.push(`<h${level}>${headerMatch[2]}</h${level}>`);
+        continue;
+      }
+
+      // Danh sách không thứ tự * hoặc -
+      let ulMatch = line.match(/^[\*\-]\s+(.*)/);
+      if (ulMatch) {
+        if (!inList || listType !== 'ul') {
+          closeList();
+          html.push('<ul>');
+          inList = true;
+          listType = 'ul';
+        }
+        html.push(`<li>${ulMatch[1]}</li>`);
+        continue;
+      }
+
+      // Danh sách có thứ tự 1. 2.
+      let olMatch = line.match(/^\d+\.\s+(.*)/);
+      if (olMatch) {
+        if (!inList || listType !== 'ol') {
+          closeList();
+          html.push('<ol>');
+          inList = true;
+          listType = 'ol';
+        }
+        html.push(`<li>${olMatch[1]}</li>`);
+        continue;
+      }
+
+      // Đoạn văn thông thường
+      closeList();
+      html.push(`<p>${line}</p>`);
+    }
+
+    closeList();
+    text = html.join('');
+
+    // Inline formatting: Link Markdown [text](url)
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    // Inline formatting: Image Markdown ![alt](url)
+    text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
+    // Inline formatting: Bold **bold**
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Inline formatting: Italic *italic*
+    text = text.replace(/(^|[^\*])\*(?!\*)(.*?)\*/g, '$1<em>$2</em>');
+  }
+
+  return text;
+};
+
+const sanitizedContent = computed(() => {
+  let content = post.value?.content || '';
+  if (content) {
+    // Chuyển đổi Markdown sang HTML nếu nội dung là Markdown thô
+    content = parseMarkdownOrHtml(content);
+
+    // Thay thế đường dẫn ảnh nếu dùng storage
+    content = content.replace(/src=["']([^"']+)["']/gi, (match, src) => {
+      return `src="${getStorageUrl(src)}"`;
+    });
+
+    // Loại bỏ các thẻ <p> rỗng (chứa khoảng trắng, <br>, &nbsp;) - Quill hay tự sinh khoảng trống thừa
+    content = content.replace(/<p>(\s|<br\s*\/?>|&nbsp;)*<\/p>/gi, '');
+
+    // Loại bỏ <br> đơn lẻ nằm giữa các block (ngay trước hoặc sau heading/ul/ol)
+    content = content.replace(/(<\/h[1-6]>)\s*<br\s*\/?>/gi, '$1');
+    content = content.replace(/<br\s*\/?>\s*(<h[1-6])/gi, '$1');
+    content = content.replace(/(<\/ul>|<\/ol>|<\/li>)\s*<br\s*\/?>/gi, '$1');
+    content = content.replace(/<br\s*\/?>\s*(<ul|<ol)/gi, '$1');
+
+    // Thu gọn nhiều <br> liên tiếp thành 1
+    content = content.replace(/(<br\s*\/?>\s*){2,}/gi, '<br/>');
+
+    // Xóa khoảng trắng thừa giữa các block tags
+    content = content.replace(/>\s{2,}</g, '> <');
+  }
+
+  return DOMPurify.sanitize(content, {
+    USE_PROFILES: { html: true },
+    ADD_TAGS: ['iframe', 'video', 'audio', 'source', 'figure', 'figcaption'],
+    ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target', 'style', 'class', 'controls', 'autoplay'],
+  });
+});
 
 const fetchPostDetail = async (idOrSlug) => {
   try {
@@ -250,7 +367,7 @@ const getUserAvatarUrl = (user) => {
           </div>
 
           <!-- Rich Text Content (Quill Render) -->
-          <div class="article-body ql-editor" v-html="sanitizedContent"></div>
+          <div class="article-body" v-html="sanitizedContent"></div>
 
           <!-- Author Bio Card -->
           <div class="author-bio-card">
@@ -395,7 +512,7 @@ const getUserAvatarUrl = (user) => {
 
 <style scoped>
 .static-page {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   padding-top: 24px;
 }
 
@@ -516,62 +633,286 @@ const getUserAvatarUrl = (user) => {
   object-fit: cover;
 }
 
-/* Quill Rendering */
+/* Rich Text Content (Quill & HTML Render) */
 .article-body {
   font-size: 1.05rem;
   line-height: 1.8;
   color: #334155;
   margin-bottom: 48px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Ẩn các thẻ p rỗng hoặc chỉ chứa <br> / &nbsp; do Quill tự sinh */
+.article-body :deep(p:empty),
+.article-body :deep(p:blank) {
+  display: none;
+  margin: 0;
+  height: 0;
+}
+
+/* Quill thêm class .ql-ui cho các element nội bộ - ẩn đi */
+.article-body :deep(.ql-ui) {
+  display: none;
 }
 
 .article-body :deep(p) {
-  margin-bottom: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 0.875rem;
+  line-height: 1.8;
+  color: #334155;
+}
+
+/* Heading styles - margin-top giảm so với trước để bớt khoảng trống */
+.article-body :deep(h1),
+.article-body :deep(h2),
+.article-body :deep(h3),
+.article-body :deep(h4),
+.article-body :deep(h5),
+.article-body :deep(h6) {
+  color: #0f172a;
+  font-weight: 700;
+  line-height: 1.35;
+  /* Heading đầu tiên không có margin-top */
+}
+
+.article-body :deep(h1) {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-top: 1.5rem;
+  margin-bottom: 0.625rem;
+  line-height: 1.3;
 }
 
 .article-body :deep(h2) {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
+  font-size: 1.4rem;
+  margin-top: 1.375rem;
+  margin-bottom: 0.5rem;
 }
 
 .article-body :deep(h3) {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  font-size: 1.2rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.article-body :deep(h4) {
+  font-size: 1.1rem;
+  margin-top: 1rem;
+  margin-bottom: 0.375rem;
+}
+
+.article-body :deep(h5),
+.article-body :deep(h6) {
+  font-size: 1rem;
+  margin-top: 0.875rem;
+  margin-bottom: 0.375rem;
+}
+
+/* Heading đầu tiên trong bài: không có khoảng trên */
+.article-body :deep(h1:first-child),
+.article-body :deep(h2:first-child),
+.article-body :deep(h3:first-child),
+.article-body :deep(h4:first-child),
+.article-body :deep(h5:first-child),
+.article-body :deep(h6:first-child) {
+  margin-top: 0;
+}
+
+/* Paragraph ngay sau heading: không thêm khoảng trên vì heading đã có margin-bottom */
+.article-body :deep(h1 + p),
+.article-body :deep(h2 + p),
+.article-body :deep(h3 + p),
+.article-body :deep(h4 + p),
+.article-body :deep(h5 + p),
+.article-body :deep(h6 + p) {
+  margin-top: 0;
 }
 
 .article-body :deep(img) {
   max-width: 100%;
   height: auto;
   border-radius: 12px;
-  margin: 1.5rem 0;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  margin: 1.25rem auto;
+  display: block;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  object-fit: cover;
 }
 
-.article-body :deep(ul), .article-body :deep(ol) {
-  margin-bottom: 1.5rem;
-  padding-left: 1.5rem;
+.article-body :deep(figure) {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.article-body :deep(figcaption) {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.article-body :deep(ul),
+.article-body :deep(ol) {
+  margin-top: 0.25rem;
+  margin-bottom: 0.875rem;
+  padding-left: 1.75rem;
+}
+
+/* List ngay sau heading: không thêm margin trên */
+.article-body :deep(h1 + ul),
+.article-body :deep(h2 + ul),
+.article-body :deep(h3 + ul),
+.article-body :deep(h1 + ol),
+.article-body :deep(h2 + ol),
+.article-body :deep(h3 + ol) {
+  margin-top: 0;
 }
 
 .article-body :deep(li) {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.7;
+}
+
+/* Nested lists */
+.article-body :deep(li > ul),
+.article-body :deep(li > ol) {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
 }
 
 .article-body :deep(a) {
   color: var(--primary);
   text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s ease;
+}
+
+.article-body :deep(a:hover) {
+  color: #d92f66;
 }
 
 .article-body :deep(blockquote) {
-  border-left: 4px solid #cbd5e1;
-  padding-left: 1.25rem;
+  border-left: 4px solid var(--primary);
+  background: #f8fafc;
+  padding: 1rem 1.25rem;
+  border-radius: 0 8px 8px 0;
   font-style: italic;
   color: #475569;
   margin: 1.5rem 0;
+}
+
+.article-body :deep(blockquote p) {
+  margin-bottom: 0;
+}
+
+.article-body :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+}
+
+.article-body :deep(th),
+.article-body :deep(td) {
+  border: 1px solid #e2e8f0;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.article-body :deep(th) {
+  background-color: #f1f5f9;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.article-body :deep(tr:nth-child(even)) {
+  background-color: #f8fafc;
+}
+
+.article-body :deep(iframe),
+.article-body :deep(video) {
+  max-width: 100%;
+  width: 100%;
+  border-radius: 12px;
+  margin: 1.5rem 0;
+  aspect-ratio: 16 / 9;
+}
+
+.article-body :deep(hr) {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 2rem 0;
+}
+
+.article-body :deep(code) {
+  background-color: #f1f5f9;
+  color: #e63b6f;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: monospace;
+}
+
+.article-body :deep(pre) {
+  background-color: #0f172a;
+  color: #f8fafc;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.article-body :deep(pre code) {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+/* Quill text alignment & indentation support */
+.article-body :deep(.ql-align-center) {
+  text-align: center;
+}
+
+.article-body :deep(.ql-align-right) {
+  text-align: right;
+}
+
+.article-body :deep(.ql-align-justify) {
+  text-align: justify;
+}
+
+.article-body :deep(.ql-indent-1) {
+  padding-left: 2rem;
+}
+
+.article-body :deep(.ql-indent-2) {
+  padding-left: 4rem;
+}
+
+.article-body :deep(.ql-indent-3) {
+  padding-left: 6rem;
+}
+
+.article-body :deep(.ql-size-small) {
+  font-size: 0.85em;
+}
+
+.article-body :deep(.ql-size-large) {
+  font-size: 1.3em;
+}
+
+.article-body :deep(.ql-size-huge) {
+  font-size: 1.8em;
+}
+
+/* Override Quill editor built-in styles nếu còn sót */
+.article-body :deep(.ql-editor) {
+  padding: 0;
+}
+
+/* Xóa khoảng trống cuối bài viết (phần tử cuối không cần margin-bottom) */
+.article-body :deep(*:last-child) {
+  margin-bottom: 0;
 }
 
 /* Author chip in meta */
@@ -1091,5 +1432,40 @@ const getUserAvatarUrl = (user) => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   display: inline-block;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.post-detail-skeleton {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  pointer-events: none;
+}
+
+.skeleton-pulse {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-pulse::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

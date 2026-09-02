@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'config/app_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,32 +12,54 @@ import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/home_provider.dart';
 import 'providers/category_provider.dart';
-import 'providers/product_detail_provider.dart';
+
 import 'providers/loyalty_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/favorite_provider.dart';
+import 'providers/coupon_provider.dart';
 import 'services/notification_service.dart';
 import 'widgets/offline_banner.dart';
 import 'router/app_router.dart';
 
+/// HttpOverrides cho phép bỏ qua lỗi chứng chỉ self-signed trên môi trường dev/emulator.
+/// ⚠️ CHỈ hoạt động khi KHÔNG phải Production để ngăn chặn tấn công MITM.
+class AppHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    final client = super.createHttpClient(context);
+    if (!AppConfig.isProduction) {
+      client.badCertificateCallback = (cert, host, port) => true;
+    }
+    return client;
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb) {
+    HttpOverrides.global = AppHttpOverrides();
+  }
+
   await initializeDateFormatting('vi_VN', null);
   await initializeDateFormatting('vi', null);
 
-  // Khởi tạo Firebase TRƯỚC khi dùng FCM
+  // Khởi tạo Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Khởi tạo NotificationService → xin quyền + đăng ký FCM handlers
-  await NotificationService().initialize();
+  final authProvider = AuthProvider();
+
+  // Chạy các tác vụ khởi động song song để mở app tức thì
+  await Future.wait([
+    authProvider.bootstrap(),
+    NotificationService().initialize(),
+    SharedPreferences.getInstance(),
+  ]);
 
   final prefs = await SharedPreferences.getInstance();
-  final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
-
-  // Khôi phục phiên đăng nhập từ SecureStorage vào AuthProvider.
-  final authProvider = AuthProvider();
-  await authProvider.bootstrap();
+  final isFirstLaunch = (prefs.getBool('is_first_launch') ?? true) && !authProvider.isAuthenticated;
 
   runApp(MyApp(isFirstLaunch: isFirstLaunch, authProvider: authProvider));
 }
@@ -59,9 +84,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
-        ChangeNotifierProvider(create: (_) => ProductDetailProvider()),
         ChangeNotifierProvider(create: (_) => LoyaltyProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => FavoriteProvider()),
+        ChangeNotifierProvider(create: (_) => CouponProvider()),
       ],
       child: MaterialApp.router(
         title: 'Ocean Sport',
@@ -69,6 +95,8 @@ class MyApp extends StatelessWidget {
         routerConfig: router,
         // Sử dụng theme tập trung đồng bộ với website
         theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
         builder: (context, child) {
           return OfflineBanner(child: child!);
         },

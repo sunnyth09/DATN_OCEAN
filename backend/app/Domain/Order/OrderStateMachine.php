@@ -223,14 +223,26 @@ class OrderStateMachine
         // ── Ràng buộc theo vận đơn ──
         $hasWaybill = self::hasWaybill($order);
 
-        if ($actor === OrderActor::ADMIN && $hasWaybill && in_array($to, self::CARRIER_OWNED, true)) {
-            return 'Đơn hàng đã có vận đơn — trạng thái giao hàng do hãng vận chuyển cập nhật tự động. Quản trị viên không thể đặt thủ công.';
-        }
+        if ($actor === OrderActor::ADMIN && $hasWaybill) {
+            if (in_array($to, self::CARRIER_OWNED, true)) {
+                return 'Đơn hàng đã có vận đơn — trạng thái giao hàng do hãng vận chuyển cập nhật tự động. Quản trị viên không thể đặt thủ công.';
+            }
 
-        // Huỷ đơn đã có vận đơn: phải huỷ vận đơn ở hãng trước, nếu không hàng
-        // vẫn được giao trong khi hệ thống đã hoàn tiền + hoàn tồn kho.
-        if ($actor === OrderActor::ADMIN && $hasWaybill && $to === OrderStatus::CANCELLED->value) {
-            return 'Đơn hàng đã có vận đơn. Vui lòng huỷ vận đơn ở hãng vận chuyển trước khi huỷ đơn hàng.';
+            if (in_array($to, [
+                OrderStatus::PENDING->value,
+                OrderStatus::CONFIRMED->value,
+                OrderStatus::PROCESSING->value,
+                OrderStatus::PACKING->value,
+                OrderStatus::AWAITING_PICKUP->value,
+            ], true)) {
+                return 'Đơn hàng đã được bàn giao cho đối tác vận chuyển. Không thể chuyển về các bước xử lý nội bộ.';
+            }
+
+            // Huỷ đơn đã có vận đơn: phải huỷ vận đơn ở hãng trước, nếu không hàng
+            // vẫn được giao trong khi hệ thống đã hoàn tiền + hoàn tồn kho.
+            if ($to === OrderStatus::CANCELLED->value) {
+                return 'Đơn hàng đã có vận đơn. Vui lòng huỷ vận đơn ở hãng vận chuyển trước khi huỷ đơn hàng.';
+            }
         }
 
         // Chặn lùi tiến độ trong luồng giao hàng.
@@ -258,10 +270,11 @@ class OrderStateMachine
         return "{$actor->label()} không có quyền chuyển đơn hàng sang trạng thái '{$label}'.";
     }
 
-    /** Đơn đã có vận đơn ở bất kỳ hãng nào? */
+    /** Đơn đã có vận đơn ở đối tác thứ 3 (GHN / Ocean Express)? */
     public static function hasWaybill(Order $order): bool
     {
-        return ! empty($order->tracking_number) || ! empty($order->ghn_order_code);
+        return (! empty($order->tracking_number) && $order->tracking_number !== 'SELF-DELIVERY')
+            || ! empty($order->ghn_order_code);
     }
 
     public static function isCarrierOwned(string $status): bool

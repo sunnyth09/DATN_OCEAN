@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class PosService
 {
+    public function __construct(
+        protected CouponService $couponService
+    ) {}
+
     /**
      * Quét barcode → 1 variant active.
      *
@@ -103,7 +107,15 @@ class PosService
             }
         }
 
-        return DB::transaction(function () use ($data, $staffId, $customerId, $customerName) {
+        // Tra cứu coupon nếu có truyền
+        $coupon = null;
+        if (! empty($data['coupon_id'])) {
+            $coupon = \App\Models\Coupon::find($data['coupon_id']);
+        } elseif (! empty($data['coupon_code'])) {
+            $coupon = \App\Models\Coupon::where('code', $data['coupon_code'])->first();
+        }
+
+        return DB::transaction(function () use ($data, $staffId, $customerId, $customerName, $coupon) {
             $subtotal = 0;
             $itemsData = [];
 
@@ -133,14 +145,45 @@ class PosService
                 ];
             }
 
-            $discountAmount = min($data['discount_amount'] ?? 0, $subtotal);
-            $grandTotal = $subtotal - $discountAmount;
+            $discountAmount = 0;
+            if ($coupon) {
+                if (! $coupon->is_active) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" hiện đang tạm ngưng áp dụng.');
+                }
+                if ($coupon->start_date && now()->lt($coupon->start_date)) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" chưa đến thời gian áp dụng.');
+                }
+                if ($coupon->end_date && now()->gt($coupon->end_date)) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" đã hết hạn sử dụng.');
+                }
+                if ($coupon->min_order_value && $subtotal < $coupon->min_order_value) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" yêu cầu giá trị đơn hàng tối thiểu từ '.number_format($coupon->min_order_value, 0, ',', '.').' đ.');
+                }
+                if ($coupon->usage_limit !== null && $coupon->used_count >= $coupon->usage_limit) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" đã hết lượt sử dụng.');
+                }
+
+                if ($coupon->type === 'percent') {
+                    $discountAmount = ($subtotal * $coupon->value) / 100;
+                    if ($coupon->max_discount_value) {
+                        $discountAmount = min($discountAmount, $coupon->max_discount_value);
+                    }
+                } elseif ($coupon->type === 'fixed') {
+                    $discountAmount = min($coupon->value, $subtotal);
+                }
+                $discountAmount = min($discountAmount, $subtotal);
+            } else {
+                $discountAmount = min($data['discount_amount'] ?? 0, $subtotal);
+            }
+
+            $grandTotal = max(0, $subtotal - $discountAmount);
 
             $order = Order::create([
                 'order_code' => 'POS'.strtoupper(uniqid()).rand(10, 99),
                 'order_type' => 'pos',
-                'user_id' => $customerId ?? $staffId,
+                'user_id' => $customerId,
                 'seller_id' => $staffId,
+                'promotion_id' => $coupon ? $coupon->id : null,
                 'recipient_name' => ! empty($customerName) ? $customerName : 'Khách lẻ',
                 'recipient_phone' => ! empty($data['customer_phone']) ? $data['customer_phone'] : '',
                 'shipping_address' => 'Mua tại cửa hàng',
@@ -177,6 +220,11 @@ class PosService
                     Product::where('product_id', $v->product_id)
                         ->increment('sold_count', $row['quantity']);
                 }
+            }
+
+            // Ghi nhận lượt sử dụng cho mã giảm giá (voucher)
+            if ($coupon) {
+                $this->couponService->markCouponAsUsed($customerId ?? 0, $coupon);
             }
 
             OrderStatusHistory::create([

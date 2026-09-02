@@ -54,9 +54,17 @@ PHÂN BIỆT QUAN TRỌNG — `get_product_detail` vs `search_products`:
   + Khi khách muốn đặt hàng/giao tới địa chỉ của tôi → gọi `get_my_addresses` nếu chưa có địa chỉ trong ngữ cảnh, sau đó gọi `prepare_order` khi đã có `address_id`.
 - Không gọi `confirm_order` trừ khi khách đã xem bản preview từ backend và xác nhận rõ ràng. Không bao giờ nói đơn hàng đã tạo nếu function chưa trả success.
 
-QUY TẮC TRA CỨU ĐƠN HÀNG:
-- Trạng thái user: Đã đăng nhập (is_authenticated = true) → Tự động tra cứu đơn hàng bằng `get_order_status` không cần hỏi thêm.
-- Trạng thái user: Chưa đăng nhập → Lịch sự yêu cầu khách hàng cung cấp MÃ ĐƠN HÀNG và EMAIL hoặc SỐ ĐIỆN THOẠI để bảo mật thông tin trước khi tra cứu.
+QUY TẮC TRA CỨU ĐƠN HÀNG / VẬN ĐƠN:
+- Khi khách hàng hỏi về đơn hàng, tra cứu vận đơn, hoặc CHỈ CẦN NHẬP MÃ ĐƠN HÀNG (VD: "ORD-123456", "tra cứu ORD-XXXXXX"):
+  + Lập tức trích xuất mã đơn hàng và gọi function `get_order_status` với `order_code`.
+  + KHÔNG BẮT BUỘC khách phải nhập Email hay Số điện thoại nếu đã có mã đơn hàng.
+  + Khi nhận được kết quả, hãy trả lời thật NGẮN GỌN, SÚC TÍCH, GỌN GÀNG (tuyệt đối không viết văn dài dòng, không lặp lại mô tả dài):
+    Dạ, thông tin đơn hàng **[order_code]** của anh/chị:
+    • 🚚 **Trạng thái**: [status]
+    • 💳 **Thanh toán**: [payment_status]
+    • 💰 **Tổng tiền**: [grand_total]
+    • 📍 **Địa chỉ**: [shipping_address]
+- Nếu khách đã đăng nhập mà chỉ hỏi chung chung "xem đơn của tôi" hoặc "đơn hàng của tôi" → Gọi `get_order_status` không cần tham số để liệt kê danh sách đơn gần nhất.
 
 QUY TẮC ĐẶT HÀNG AN TOÀN:
 - Nếu khách chưa đăng nhập mà muốn thêm giỏ/đặt hàng, hãy nói khách cần đăng nhập trước.
@@ -259,21 +267,21 @@ PROMPT;
                 'type' => 'function',
                 'function' => [
                     'name' => 'get_order_status',
-                    'description' => 'Tra cứu trạng thái đơn hàng. Nếu user đã đăng nhập thì tra theo tài khoản. Nếu chưa đăng nhập, cần mã đơn hàng kèm email hoặc số điện thoại để xác minh.',
+                    'description' => 'Tra cứu trạng thái và tiến độ vận đơn của đơn hàng. Chỉ cần truyền order_code (mã đơn hàng) là có thể tra cứu được ngay lập tức.',
                     'parameters' => [
                         'type' => 'object',
                         'properties' => [
                             'order_code' => [
                                 'type' => 'string',
-                                'description' => 'Mã đơn hàng (VD: ORD-XXXXXX)',
+                                'description' => 'Mã đơn hàng cần tra cứu (VD: ORD-XXXXXX hoặc chuỗi mã đơn)',
                             ],
                             'email' => [
                                 'type' => 'string',
-                                'description' => 'Email đã đặt hàng (dùng để xác minh khi chưa đăng nhập)',
+                                'description' => 'Email đặt hàng (tuỳ chọn, dùng để xác minh bổ sung nếu có)',
                             ],
                             'phone' => [
                                 'type' => 'string',
-                                'description' => 'Số điện thoại nhận hàng (dùng để xác minh khi chưa đăng nhập)',
+                                'description' => 'Số điện thoại nhận hàng (tuỳ chọn, dùng để xác minh bổ sung nếu có)',
                             ],
                         ],
                     ],

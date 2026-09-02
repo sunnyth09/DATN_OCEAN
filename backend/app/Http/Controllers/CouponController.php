@@ -140,6 +140,10 @@ class CouponController extends Controller
             return response()->json(['status' => 'error', 'message' => $result['message']], 404);
         }
 
+        if ($result['state'] === 'not_eligible') {
+            return response()->json(['status' => 'error', 'message' => $result['message']], 400);
+        }
+
         if ($result['state'] === 'already_saved') {
             return response()->json(['status' => 'info', 'message' => $result['message']]);
         }
@@ -158,9 +162,15 @@ class CouponController extends Controller
         $validated = $request->validate([
             'code' => 'required|string',
             'subtotal' => 'required|numeric|min:0',
+            'items' => 'nullable|array',
         ]);
 
-        $result = $this->couponService->checkCoupon($userId, $validated['code'], (float) $validated['subtotal']);
+        $result = $this->couponService->checkCoupon(
+            $userId,
+            $validated['code'],
+            (float) $validated['subtotal'],
+            $validated['items'] ?? null
+        );
 
         if (! $result['success']) {
             return response()->json([

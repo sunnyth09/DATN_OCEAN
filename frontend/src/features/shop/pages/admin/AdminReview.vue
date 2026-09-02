@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
@@ -194,9 +194,11 @@ const selectedTicket = ref(null);
 const replyContent = ref('');
 const updateStatus = ref('pending');
 
+const ticketPagination = ref({ current_page: 1, last_page: 1, total: 0 });
+
 let hasFetchedTickets = false;
 
-const fetchTickets = async () => {
+const fetchTickets = async (page = 1) => {
   if (ticketLoading.value) return;
   ticketLoading.value = true;
   hasFetchedTickets = true;
@@ -204,11 +206,19 @@ const fetchTickets = async () => {
     const res = await api.get('/admin/tickets', {
       params: {
         search: ticketSearchQuery.value,
-        status: ticketFilterStatus.value
+        status: ticketFilterStatus.value,
+        page,
+        per_page: 10,
       }
     });
     if (res.data.status === 'success') {
-      tickets.value = res.data.data.data || [];
+      const d = res.data.data;
+      tickets.value = d.data || [];
+      ticketPagination.value = {
+        current_page: d.current_page || 1,
+        last_page: d.last_page || 1,
+        total: d.total || 0,
+      };
     }
   } catch (error) {
     console.error("Lỗi lấy danh sách khiếu nại:", error);
@@ -261,8 +271,64 @@ const submitReply = async () => {
   }
 };
 
+// ─── Image Lightbox (Phóng to ảnh & Xem bộ sưu tập) ─────────────────────────
+const previewImages = ref([]);
+const currentImageIndex = ref(0);
+const showImageLightbox = ref(false);
+const previewImageUrl = computed(() => previewImages.value[currentImageIndex.value] || '');
+
+const openImageLightbox = (images, index = 0) => {
+  if (!images) return;
+  if (Array.isArray(images)) {
+    previewImages.value = images.filter(Boolean);
+    currentImageIndex.value = Math.max(0, Math.min(index, previewImages.value.length - 1));
+  } else if (typeof images === 'string') {
+    previewImages.value = [images];
+    currentImageIndex.value = 0;
+  }
+  if (previewImages.value.length > 0) {
+    showImageLightbox.value = true;
+  }
+};
+
+const closeImageLightbox = () => {
+  showImageLightbox.value = false;
+  previewImages.value = [];
+  currentImageIndex.value = 0;
+};
+
+const nextImage = () => {
+  if (previewImages.value.length <= 1) return;
+  currentImageIndex.value = (currentImageIndex.value + 1) % previewImages.value.length;
+};
+
+const prevImage = () => {
+  if (previewImages.value.length <= 1) return;
+  currentImageIndex.value = (currentImageIndex.value - 1 + previewImages.value.length) % previewImages.value.length;
+};
+
 const openImage = (path) => {
-  window.open(thumbUrl(path), '_blank');
+  openImageLightbox([thumbUrl(path)], 0);
+};
+
+const onKeydown = (e) => {
+  if (e.key === 'Escape') {
+    if (showImageLightbox.value) {
+      closeImageLightbox();
+    } else if (showReviewModal.value) {
+      closeReviewModal();
+    } else if (showTicketModal.value) {
+      closeTicketModal();
+    }
+  } else if (showImageLightbox.value && previewImages.value.length > 1) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      nextImage();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      prevImage();
+    }
+  }
 };
 
 watch(viewMode, (newVal) => {
@@ -272,6 +338,11 @@ watch(viewMode, (newVal) => {
 
 onMounted(() => {
   fetchReviews();
+  window.addEventListener('keydown', onKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown);
 });
 </script>
 
@@ -285,7 +356,7 @@ onMounted(() => {
       </div>
       <div class="header-badge">
         <span v-if="viewMode === 'reviews'">{{ reviewPagination.total }} đánh giá</span>
-        <span v-else>{{ tickets.length }} khiếu nại</span>
+        <span v-else>{{ ticketPagination.total }} khiếu nại</span>
       </div>
     </div>
 
@@ -413,15 +484,29 @@ onMounted(() => {
               </td>
               <!-- Có ảnh -->
               <td class="text-center">
-                <div v-if="parseReviewImages(r.images).length > 0" style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; max-width: 100px;">
-                  <img v-for="(img, idx) in parseReviewImages(r.images).slice(0, 3)" :key="idx" :src="getStorageUrl(img)" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer;" alt="img" @click="openReviewModal(r)" />
-                  <span v-if="parseReviewImages(r.images).length > 3" style="font-size: 11px; color: #64748b; align-self: center;">+{{ parseReviewImages(r.images).length - 3 }}</span>
+                <div v-if="parseReviewImages(r.images).length > 0" class="table-images-wrap">
+                  <img
+                    v-for="(img, idx) in parseReviewImages(r.images).slice(0, 3)"
+                    :key="idx"
+                    :src="getStorageUrl(img)"
+                    class="table-review-img"
+                    alt="img"
+                    title="Nhấn để xem ảnh to"
+                    @click.stop="openImageLightbox(parseReviewImages(r.images).map(i => getStorageUrl(i)), idx)"
+                  />
+                  <span
+                    v-if="parseReviewImages(r.images).length > 3"
+                    class="more-images-count"
+                    style="cursor: pointer;"
+                    title="Xem tất cả ảnh"
+                    @click.stop="openImageLightbox(parseReviewImages(r.images).map(i => getStorageUrl(i)), 3)"
+                  >+{{ parseReviewImages(r.images).length - 3 }}</span>
                 </div>
                 <span v-else class="text-muted">❌</span>
               </td>
               <!-- Nội dung -->
               <td>
-                <div class="review-content" style="max-height: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;" v-html="sanitizeHtml(r.content || '(Không có nội dung)')"></div>
+                <div class="review-content" v-html="sanitizeHtml(r.content || '(Không có nội dung)')"></div>
               </td>
               <!-- Ngày -->
               <td class="date-cell">{{ formatDate(r.created_at) }}</td>
@@ -433,14 +518,14 @@ onMounted(() => {
               </td>
               <!-- Thao tác -->
               <td>
-                <div class="action-btns" style="display: flex; gap: 4px; flex-wrap: wrap;">
-                  <button class="btn-action btn-view" style="background: #e2e8f0; color: #475569;" title="Xem chi tiết" @click="openReviewModal(r)">
+                <div class="action-btns">
+                  <button class="btn-action btn-view" title="Xem chi tiết" @click="openReviewModal(r)">
                     Xem
                   </button>
-                  <button class="btn-action" :class="r.is_approved ? 'btn-warn' : 'btn-success'" :title="r.is_approved ? 'Ẩn đánh giá' : 'Duyệt đánh giá'" @click="toggleApprove(r)">
+                  <button class="btn-action" :class="r.is_approved ? 'btn-danger' : 'btn-success'" :title="r.is_approved ? 'Ẩn đánh giá' : 'Duyệt đánh giá'" @click="toggleApprove(r)">
                     {{ r.is_approved ? 'Ẩn' : 'Duyệt' }}
                   </button>
-                  <button class="btn-action btn-danger" title="Xóa" @click="deleteReview(r)">
+                  <button class="btn-action btn-warn" title="Xóa" @click="deleteReview(r)">
                     Xóa
                   </button>
                 </div>
@@ -528,6 +613,21 @@ onMounted(() => {
           </tbody>
         </table>
       </div>
+
+      <!-- Ticket Pagination -->
+      <div v-if="!ticketLoading && ticketPagination.last_page > 1" class="pagination-wrap">
+        <button
+          class="page-btn"
+          :disabled="ticketPagination.current_page <= 1"
+          @click="fetchTickets(ticketPagination.current_page - 1)"
+        >← Trước</button>
+        <span class="page-info">{{ ticketPagination.current_page }} / {{ ticketPagination.last_page }}</span>
+        <button
+          class="page-btn"
+          :disabled="ticketPagination.current_page >= ticketPagination.last_page"
+          @click="fetchTickets(ticketPagination.current_page + 1)"
+        >Sau →</button>
+      </div>
     </div>
 
     <!-- Review Detail Modal -->
@@ -565,9 +665,20 @@ onMounted(() => {
               <h4>Nội dung đánh giá:</h4>
               <div class="description-box" v-html="sanitizeHtml(selectedReview.content || '(Không có nội dung)')"></div>
               <div class="image-box" v-if="parseReviewImages(selectedReview.images).length > 0" style="margin-top: 16px;">
-                 <p><strong>Ảnh đính kèm:</strong></p>
+                 <p class="image-box-title"><strong>Ảnh đính kèm (nhấn vào ảnh để xem to):</strong></p>
                  <div class="review-images">
-                   <img v-for="(img, idx) in parseReviewImages(selectedReview.images)" :key="idx" :src="getStorageUrl(img)" class="admin-review-img modal-review-img" alt="Review image" @click="window.open(getStorageUrl(img), '_blank')" style="cursor: pointer; width: 80px; height: 80px;" title="Nhấn để xem ảnh lớn" />
+                   <div
+                     v-for="(img, idx) in parseReviewImages(selectedReview.images)"
+                     :key="idx"
+                     class="modal-img-container"
+                     title="Nhấn để xem ảnh phóng to"
+                     @click="openImageLightbox(parseReviewImages(selectedReview.images).map(i => getStorageUrl(i)), idx)"
+                   >
+                     <img :src="getStorageUrl(img)" class="admin-review-img modal-review-img" alt="Review image" />
+                     <div class="zoom-overlay">
+                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                     </div>
+                   </div>
                  </div>
               </div>
             </div>
@@ -625,8 +736,17 @@ onMounted(() => {
                 {{ selectedTicket.description }}
               </div>
               <div class="image-box" v-if="selectedTicket.image_url">
-                 <p><strong>Ảnh minh chứng:</strong></p>
-                 <img :src="thumbUrl(selectedTicket.image_url)" alt="Minh chứng" class="evidence-img" @click="openImage(selectedTicket.image_url)">
+                 <p class="image-box-title"><strong>Ảnh minh chứng (nhấn vào ảnh để xem to):</strong></p>
+                 <div
+                   class="modal-img-container evidence-container"
+                   title="Nhấn để xem ảnh phóng to"
+                   @click="openImageLightbox([thumbUrl(selectedTicket.image_url)], 0)"
+                 >
+                   <img :src="thumbUrl(selectedTicket.image_url)" alt="Minh chứng" class="evidence-img" />
+                   <div class="zoom-overlay">
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                   </div>
+                 </div>
               </div>
             </div>
 
@@ -661,25 +781,98 @@ onMounted(() => {
         </div>
       </div>
     </Transition>
+
+    <!-- Image Lightbox Modal -->
+    <Teleport to="body">
+      <Transition name="lightbox-fade">
+        <div
+          v-if="showImageLightbox && previewImageUrl"
+          class="image-lightbox-overlay"
+          @click.self="closeImageLightbox"
+          role="dialog"
+          aria-modal="true"
+        >
+          <!-- Nút Đóng -->
+          <button class="lightbox-close-btn" @click="closeImageLightbox" title="Đóng (ESC)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          <!-- Nút Trước (Prev) -->
+          <button
+            v-if="previewImages.length > 1"
+            class="lightbox-nav-btn lightbox-prev-btn"
+            @click.stop="prevImage"
+            title="Ảnh trước (Phím ←)"
+            aria-label="Ảnh trước"
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          <!-- Nội dung ảnh & thanh footer -->
+          <div class="lightbox-content" @click.self="closeImageLightbox">
+            <div class="lightbox-img-wrapper">
+              <img :key="previewImageUrl" :src="previewImageUrl" class="lightbox-img" alt="Xem ảnh phóng to" />
+            </div>
+
+            <!-- Footer: Số thứ tự ảnh & Chấm chọn nhanh -->
+            <div v-if="previewImages.length > 1" class="lightbox-footer">
+              <div class="lightbox-counter">
+                <span>{{ currentImageIndex + 1 }} / {{ previewImages.length }}</span>
+              </div>
+              <div class="lightbox-dots">
+                <button
+                  v-for="(img, idx) in previewImages"
+                  :key="idx"
+                  class="lightbox-dot"
+                  :class="{ active: idx === currentImageIndex }"
+                  @click.stop="currentImageIndex = idx"
+                  :title="`Xem ảnh ${idx + 1}`"
+                ></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nút Tiếp theo (Next) -->
+          <button
+            v-if="previewImages.length > 1"
+            class="lightbox-nav-btn lightbox-next-btn"
+            @click.stop="nextImage"
+            title="Ảnh tiếp theo (Phím →)"
+            aria-label="Ảnh tiếp theo"
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .admin-reviews {
-  padding: 28px;
+  padding: 24px 20px;
   min-height: calc(100vh - 70px);
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .review-images {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: 8px;
 }
 .admin-review-img {
   width: 50px;
   height: 50px;
-  border-radius: 4px;
+  border-radius: 6px;
   object-fit: cover;
   border: 1px solid #e2e8f0;
 }
@@ -740,6 +933,7 @@ onMounted(() => {
   font-size: 0.9rem;
   outline: none;
   transition: border 0.2s;
+  box-sizing: border-box;
 }
 .search-input:focus { border-color: var(--primary); }
 
@@ -796,26 +990,45 @@ onMounted(() => {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Table responsive wrapper */
 .table-wrap {
   background: var(--card-bg);
   border-radius: 12px;
   border: 1px solid #e9ecef;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+.table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+.table-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.table-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 .review-table {
   width: 100%;
+  min-width: 960px;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 .review-table thead tr {
   background: var(--surface-container);
 }
 .review-table th {
-  padding: 13px 16px;
+  padding: 13px 14px;
   text-align: left;
   font-weight: 600;
   color: #374151;
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 1px solid #e9ecef;
@@ -826,9 +1039,9 @@ onMounted(() => {
   transition: background 0.15s;
 }
 .review-row:hover { background: #fafbff; }
-.review-row.row--pending { background: #fffbeb; }
+.review-row.row--pending { background: #fff0f6; }
 .review-table td {
-  padding: 13px 16px;
+  padding: 12px 14px;
   vertical-align: middle;
   color: #374151;
 }
@@ -838,11 +1051,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 160px;
-  max-width: 210px;
+  min-width: 140px;
+  max-width: 200px;
 }
 .product-thumb {
-  width: 46px; height: 46px;
+  width: 44px; height: 44px;
   border-radius: 8px;
   object-fit: cover;
   border: 1px solid #e5e7eb;
@@ -864,7 +1077,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 9px;
-  min-width: 140px;
+  min-width: 130px;
 }
 .user-avatar {
   width: 36px; height: 36px;
@@ -872,31 +1085,59 @@ onMounted(() => {
   object-fit: cover;
   flex-shrink: 0;
 }
-.user-name { font-weight: 500; font-size: 0.88rem; }
-.user-email { font-size: 0.78rem; color: var(--text-light); }
+.user-name { font-weight: 500; font-size: 0.86rem; }
+.user-email { font-size: 0.76rem; color: var(--text-light); }
 
 /* Stars */
 .stars-row { display: flex; gap: 1px; }
-.star { font-size: 1rem; color: #d1d5db; }
+.star { font-size: 0.95rem; color: #d1d5db; }
 .star--filled { color: #f59e0b; }
-.rating-num { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; display: block; }
+.rating-num { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; display: block; }
+
+/* Table images */
+.table-images-wrap {
+  display: inline-flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+.table-review-img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  cursor: zoom-in;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.table-review-img:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary);
+}
+.more-images-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  margin-left: 2px;
+}
 
 /* Content */
 .review-content {
   margin: 0;
-  max-width: 240px;
+  max-width: 200px;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: #475569;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .date-cell {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -906,7 +1147,7 @@ onMounted(() => {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -914,16 +1155,27 @@ onMounted(() => {
 .badge--pending  { background: #fef3c7; color: #92400e; }
 
 /* Action buttons */
-.action-btns { display: flex; flex-direction: column; gap: 6px; }
+.action-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+  min-width: 65px;
+  max-width: 80px;
+}
 .btn-action {
-  padding: 5px 12px;
-  border-radius: 7px;
+  padding: 4px 10px;
+  border-radius: 6px;
   border: none;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.2s, transform 0.1s;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 .btn-action:active { transform: scale(0.96); }
 .btn-success { background: #d1fae5; color: #065f46; }
@@ -1018,7 +1270,7 @@ onMounted(() => {
   color: var(--primary);
 }
 
-/* Modal styles for tickets */
+/* Modal styles for tickets & reviews */
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.5);
@@ -1060,7 +1312,55 @@ onMounted(() => {
 .description-box { color: #334155; line-height: 1.6; white-space: pre-wrap; }
 
 .image-box { margin-top: 16px; }
-.evidence-img { max-width: 100%; max-height: 200px; border-radius: 8px; cursor: zoom-in; border: 1px solid #e2e8f0; }
+.image-box-title {
+  font-size: 0.88rem;
+  color: #334155;
+  margin-bottom: 8px;
+}
+.modal-img-container {
+  position: relative;
+  display: inline-block;
+  cursor: zoom-in;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.modal-img-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  border-color: var(--primary);
+}
+.modal-img-container .admin-review-img {
+  width: 90px;
+  height: 90px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+.zoom-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.modal-img-container:hover .zoom-overlay {
+  opacity: 1;
+}
+
+.evidence-container {
+  max-width: 220px;
+}
+.evidence-container .evidence-img {
+  max-width: 100%;
+  max-height: 180px;
+  display: block;
+}
 
 .reply-section h4 { margin: 0 0 12px; font-size: 1.05rem; }
 .reply-input {
@@ -1087,6 +1387,186 @@ onMounted(() => {
 .filter-select {
   padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px;
   font-size: 0.95rem; outline: none; background: white;
+}
+
+/* ──────────────────────────────────────────────────────────
+   IMAGE LIGHTBOX MODAL
+────────────────────────────────────────────────────────── */
+.image-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(10, 15, 30, 0.9);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  user-select: none;
+}
+.lightbox-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 100002;
+  backdrop-filter: blur(4px);
+}
+.lightbox-close-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  transform: scale(1.1);
+}
+
+.lightbox-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100001;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.lightbox-nav-btn:hover {
+  background: var(--primary, #e63b6f);
+  border-color: var(--primary, #e63b6f);
+  transform: translateY(-50%) scale(1.12);
+  box-shadow: 0 6px 20px rgba(230, 59, 111, 0.4);
+}
+.lightbox-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+.lightbox-prev-btn {
+  left: 32px;
+}
+.lightbox-next-btn {
+  right: 32px;
+}
+
+.lightbox-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 86vw;
+  max-height: 90vh;
+  position: relative;
+}
+.lightbox-img-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 78vh;
+}
+.lightbox-img {
+  max-width: 82vw;
+  max-height: 76vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  animation: zoomIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lightbox-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  z-index: 100001;
+}
+.lightbox-counter {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.lightbox-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.lightbox-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.lightbox-dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+.lightbox-dot.active {
+  width: 26px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 768px) {
+  .lightbox-nav-btn {
+    width: 42px;
+    height: 42px;
+  }
+  .lightbox-prev-btn {
+    left: 12px;
+  }
+  .lightbox-next-btn {
+    right: 12px;
+  }
+  .lightbox-img {
+    max-width: 92vw;
+    max-height: 70vh;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+  opacity: 0;
 }
 
 /* Transitions */

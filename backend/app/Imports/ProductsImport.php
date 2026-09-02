@@ -109,6 +109,12 @@ class ProductsImport implements ToCollection, WithChunkReading, WithStartRow
             $mainImgUrl = trim((string) ($firstRow[8] ?? ''));
             $galleryUrls = trim((string) ($firstRow[9] ?? ''));
 
+            // --- THÔNG SỐ KỸ THUẬT (cột Q-T, index 16-19) ---
+            $sku = trim((string) ($firstRow[16] ?? ''));
+            $material = trim((string) ($firstRow[17] ?? ''));
+            $origin = trim((string) ($firstRow[18] ?? ''));
+            $style = trim((string) ($firstRow[19] ?? ''));
+
             // --- VALIDATE SẢN PHẨM ---
             if (empty($name)) {
                 $this->errors[] = "{$rowLabel}: Thiếu tên sản phẩm.";
@@ -252,6 +258,10 @@ class ProductsImport implements ToCollection, WithChunkReading, WithStartRow
                     'is_featured' => (bool) (int) $isFeatured,
                     'min_price' => count($allPrices) > 0 ? min($allPrices) : 0,
                     'max_price' => count($allPrices) > 0 ? max($allPrices) : 0,
+                    'sku' => $sku ?: null,
+                    'material' => $material ?: null,
+                    'origin' => $origin ?: null,
+                    'style' => $style ?: null,
                 ]);
 
                 // --- LƯU ẢNH CHÍNH VÀO product_images ---

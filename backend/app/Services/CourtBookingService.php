@@ -303,12 +303,18 @@ class CourtBookingService
                     'actor_id' => auth()->guard('api')->id() ?? auth()->guard('admin')->id(),
                 ]);
 
-                // 6. Delete lock if exists
-                if (! empty($data['lock_token'])) {
-                    CourtBookingLock::where('lock_token', $data['lock_token'])
-                        ->where('user_id', $userId)
-                        ->delete();
-                }
+                // 6. Delete lock if exists and any overlapping locks by this user
+                CourtBookingLock::where('court_id', $courtId)
+                    ->where('booking_date', $date)
+                    ->where('start_time', '<', $endTime)
+                    ->where('end_time', '>', $startTime)
+                    ->where(function ($q) use ($data, $userId) {
+                        $q->where('user_id', $userId);
+                        if (! empty($data['lock_token'])) {
+                            $q->orWhere('lock_token', $data['lock_token']);
+                        }
+                    })
+                    ->delete();
 
                 // logActivity là audit log → giữ trong transaction để atomic với booking.
                 app(CourtBookingWorkflowService::class)->logActivity('booking.created', $booking, null, $booking->toArray(), 'user', $userId, request());

@@ -14,60 +14,130 @@ class FlashSaleService
 
     /**
      * Danh sách item Flash Sale phục vụ trang public (cache 5s cho đếm ngược).
-     * Ưu tiên item đang active; nếu không có thì fallback cả upcoming.
+     * Chỉ lấy các chiến dịch status = 'active', phân tách rõ ràng ongoing và upcoming.
      */
-    public function getPublicList(): array
+    public function getPublicList(?string $filter = null): array
     {
-        $data = Cache::remember('flash_sale_public_list', 5, function () {
-            $campaigns = FlashSale::whereIn('status', ['active', 'draft'])
-                ->where('end_time', '>', now())
-                ->with(['items.product'])
+        $now = now();
+        $cacheKey = 'flash_sale_public_list_'.($filter ?: 'all');
+
+        return Cache::remember($cacheKey, 5, function () use ($now, $filter) {
+            $campaigns = FlashSale::where('status', 'active')
+                ->where('end_time', '>', $now)
+                ->with(['items.product.category', 'items.product.mainImage', 'items.product.images'])
                 ->orderBy('start_time', 'asc')
                 ->get();
 
             $formatted = [];
             foreach ($campaigns as $fs) {
+                $isOngoing = $fs->start_time->lte($now) && $fs->end_time->gte($now);
+                $isUpcoming = $fs->start_time->gt($now);
+
                 foreach ($fs->items as $item) {
-                    $originalPrice = $item->product ? ($item->product->min_price ?? 0) : 0;
+                    $product = $item->product;
+                    if (! $product || $product->status !== 'active') {
+                        continue;
+                    }
+
+                    $originalPrice = (float) ($product->min_price ?? 0);
                     $discountPct = $originalPrice > 0 ? round((($originalPrice - $item->campaign_price) / $originalPrice) * 100) : 0;
 
                     $stockKey = "flash_sale_{$fs->id}_product_{$item->product_id}_stock";
                     $redisStock = Redis::get($stockKey);
-                    $remaining = $redisStock !== null ? (int) $redisStock : ($item->campaign_stock - $item->sold);
+                    $remaining = $redisStock !== null ? (int) $redisStock : max(0, $item->campaign_stock - $item->sold);
+
+                    $thumbnailUrl = $product->thumbnail_url ?: ($product->mainImage?->image_url ?: ($product->images?->first()?->image_url ?: null));
 
                     $formatted[] = [
                         'id' => $fs->id,
+                        'flash_sale_id' => $fs->id,
                         'item_id' => $item->id,
                         'product_id' => $item->product_id,
                         'title' => $fs->name,
-                        'product_name' => $item->product->name ?? 'Sản phẩm Flash Sale',
-                        'product_thumbnail' => $item->product->thumbnail_url ?? null,
+                        'name' => $product->name ?? 'Sản phẩm Flash Sale',
+                        'product_name' => $product->name ?? 'Sản phẩm Flash Sale',
+                        'slug' => $product->slug ?? null,
+                        'product_thumbnail' => $thumbnailUrl,
+                        'thumbnail_url' => $thumbnailUrl,
+                        'image_url' => $thumbnailUrl,
+                        'image' => $thumbnailUrl,
                         'sale_price' => (float) $item->campaign_price,
-                        'original_price' => (float) $originalPrice,
-                        'discount_percent' => $discountPct,
-                        'total_stock' => $item->campaign_stock,
+                        'flash_price' => (float) $item->campaign_price,
+                        'min_price' => (float) $item->campaign_price,
+                        'original_price' => $originalPrice,
+                        'discount_percent' => max(0, $discountPct),
+                        'total_stock' => (int) $item->campaign_stock,
+                        'total_quantity' => (int) $item->campaign_stock,
+                        'sold' => max(0, $item->campaign_stock - $remaining),
                         'sold_count' => max(0, $item->campaign_stock - $remaining),
+                        'remaining' => max(0, $remaining),
+                        'is_sold_out' => $remaining <= 0,
                         'max_per_user' => self::MAX_PER_USER,
                         'starts_at' => $fs->start_time->toISOString(),
                         'ends_at' => $fs->end_time->toISOString(),
+                        'start_time' => $fs->start_time->toISOString(),
+                        'end_time' => $fs->end_time->toISOString(),
                         'status' => $fs->status,
-                        'server_time' => now()->toISOString(),
+                        'is_ongoing' => $isOngoing,
+                        'is_upcoming' => $isUpcoming,
+                        'category_name' => $product->category->name ?? '',
+                        'server_time' => $now->toISOString(),
                     ];
                 }
             }
 
-            return $formatted;
-        });
+            if ($filter === 'active' || $filter === 'ongoing') {
+                $formatted = array_filter($formatted, fn ($i) => $i['is_ongoing']);
+            } elseif ($filter === 'upcoming') {
+                $formatted = array_filter($formatted, fn ($i) => $i['is_upcoming']);
+            }
 
-        $activeData = array_filter($data, function ($i) {
-            return $i['status'] === 'active' && strtotime($i['starts_at']) <= time() && strtotime($i['ends_at']) >= time();
+            return array_values($formatted);
         });
+    }
 
-        if (empty($activeData)) {
-            $activeData = $data; // Fallback lấy cả upcoming
+    /**
+     * Lấy thông tin Flash Sale đang active của 1 sản phẩm cụ thể
+     */
+    public function getActiveForProduct(int $productId): ?array
+    {
+        $now = now();
+        $item = FlashSaleItem::where('product_id', $productId)
+            ->whereHas('flashSale', function ($q) use ($now) {
+                $q->where('status', 'active')
+                    ->where('start_time', '<=', $now)
+                    ->where('end_time', '>=', $now);
+            })
+            ->with('flashSale')
+            ->first();
+
+        if (! $item || ! $item->flashSale) {
+            return null;
         }
 
-        return array_values($activeData);
+        $fs = $item->flashSale;
+        $stockKey = "flash_sale_{$fs->id}_product_{$item->product_id}_stock";
+        $redisStock = Redis::get($stockKey);
+        $remaining = $redisStock !== null ? (int) $redisStock : max(0, $item->campaign_stock - $item->sold);
+
+        return [
+            'flash_sale_id' => $fs->id,
+            'item_id' => $item->id,
+            'title' => $fs->name,
+            'campaign_price' => (float) $item->campaign_price,
+            'flash_price' => (float) $item->campaign_price,
+            'total_stock' => (int) $item->campaign_stock,
+            'sold' => max(0, $item->campaign_stock - $remaining),
+            'sold_count' => max(0, $item->campaign_stock - $remaining),
+            'remaining' => max(0, $remaining),
+            'is_sold_out' => $remaining <= 0,
+            'max_per_user' => self::MAX_PER_USER,
+            'starts_at' => $fs->start_time->toISOString(),
+            'ends_at' => $fs->end_time->toISOString(),
+            'start_time' => $fs->start_time->toISOString(),
+            'end_time' => $fs->end_time->toISOString(),
+            'server_time' => $now->toISOString(),
+        ];
     }
 
     /**
@@ -175,6 +245,8 @@ class FlashSaleService
             ]));
         }
 
+        $variantId = ! empty($orderInfo['variant_id']) ? (int) $orderInfo['variant_id'] : null;
+
         if (app()->environment('local') || config('queue.default') === 'sync') {
             OrderProcessingJob::dispatchSync(
                 $flashSaleId,
@@ -186,7 +258,8 @@ class FlashSaleService
                 $orderInfo['recipient_phone'],
                 $shippingAddress,
                 $orderInfo['payment_method'] ?? 'cod',
-                $orderCode
+                $orderCode,
+                $variantId
             );
         } else {
             OrderProcessingJob::dispatch(
@@ -199,7 +272,8 @@ class FlashSaleService
                 $orderInfo['recipient_phone'],
                 $shippingAddress,
                 $orderInfo['payment_method'] ?? 'cod',
-                $orderCode
+                $orderCode,
+                $variantId
             );
         }
 

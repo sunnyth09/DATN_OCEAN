@@ -186,10 +186,32 @@ onMounted(async () => {
 <template>
   <div class="loyalty-page">
 
-    <!-- ── LOADING ─────────────────────────────────────────── -->
-    <div v-if="loading" class="lp-loading">
-      <div class="lp-spinner"></div>
-      <p>Đang tải dữ liệu điểm thưởng...</p>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="loading" class="loyalty-skeleton">
+      <div class="skeleton-hero-card">
+        <div style="display: flex; gap: 20px; align-items: center;">
+          <div class="skeleton-box" style="width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;"></div>
+          <div>
+            <div class="skeleton-box" style="width: 130px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 180px; height: 32px; border-radius: 6px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 140px; height: 14px; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="skeleton-rewards-grid" style="margin-top: 24px;">
+        <div v-for="i in 3" :key="i" class="skeleton-reward-card">
+          <div class="skeleton-box" style="width: 60px; height: 60px; border-radius: 12px; margin-right: 16px; flex-shrink: 0;"></div>
+          <div style="flex: 1;">
+            <div class="skeleton-box" style="width: 60%; height: 18px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 90%; height: 13px; border-radius: 4px; margin-bottom: 12px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="skeleton-box" style="width: 60px; height: 16px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 80px; height: 28px; border-radius: 6px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <template v-else>
@@ -431,7 +453,7 @@ onMounted(async () => {
 <style scoped>
 /* ── Base ─────────────────────────────────────────────────────── */
 .loyalty-page {
-  font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-inter, 'Inter', sans-serif);
   color: var(--text-main);
   display: flex;
   flex-direction: column;
@@ -964,4 +986,57 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
+/* ===== Modern Skeleton Loading Styles ===== */
+.loyalty-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-hero-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 20px;
+  padding: 28px 32px;
+}
+
+.skeleton-rewards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-reward-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 </style>

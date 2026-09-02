@@ -1,15 +1,20 @@
 <script setup>
 import { ref, watch, onBeforeUnmount } from 'vue';
 import api from '@/axios';
+import { getStorageUrl } from '@/utils/url';
 
 const props = defineProps({
   productId: { type: Number, required: true },
   productImageUrl: { type: String, required: true },
+  productImagePath: { type: String, default: null },
   productName: { type: String, default: '' },
+  productSlug: { type: String, default: '' },
+  productPrice: { type: Number, default: 0 },
+  hasSelectedVariant: { type: Boolean, default: false },
   show: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'buy-now', 'go-to-product']);
 
 const fileInputRef = ref(null);
 const uploadedFile = ref(null);
@@ -18,6 +23,8 @@ const isLoading = ref(false);
 const resultImage = ref(null);
 const isMock = ref(false);
 const errorMessage = ref('');
+const suggestedProducts = ref([]);
+const loadingSuggestions = ref(false);
 
 const handleFileUpload = (event) => {
   const file = event.target.files[0];
@@ -50,6 +57,32 @@ const triggerFileInput = () => {
   if (fileInputRef.value) fileInputRef.value.click();
 };
 
+const getImageUrl = (path) => {
+  if (!path || path === '0') return '';
+  return getStorageUrl(path);
+};
+
+const formatPrice = (price) => {
+  const amount = Number(price || 0);
+  return amount.toLocaleString('vi-VN') + 'đ';
+};
+
+const fetchSuggestedProducts = async () => {
+  if (!props.productSlug) return;
+  loadingSuggestions.value = true;
+  try {
+    const res = await api.get(`/products/${props.productSlug}/matching`);
+    if (res.data.status === 'success' && res.data.data) {
+      suggestedProducts.value = res.data.data.slice(0, 4);
+    }
+  } catch (err) {
+    console.error('Suggested products error:', err);
+    suggestedProducts.value = [];
+  } finally {
+    loadingSuggestions.value = false;
+  }
+};
+
 const submitTryOn = async () => {
   if (!uploadedFile.value) {
     errorMessage.value = "Vui lòng tải lên ảnh của bạn.";
@@ -62,6 +95,9 @@ const submitTryOn = async () => {
   const formData = new FormData();
   formData.append('product_id', props.productId);
   formData.append('user_image', uploadedFile.value);
+  if (props.productImagePath) {
+    formData.append('product_image_path', props.productImagePath);
+  }
 
   try {
     const response = await api.post('/try-on', formData, {
@@ -71,6 +107,8 @@ const submitTryOn = async () => {
     if (response.data.status === 'success') {
       resultImage.value = response.data.data.result_image_url;
       isMock.value = response.data.data.is_mock;
+      // Fetch sản phẩm gợi ý sau khi tạo ảnh thành công
+      fetchSuggestedProducts();
     }
   } catch (error) {
     console.error("Try-On Error:", error);
@@ -92,12 +130,21 @@ const submitTryOn = async () => {
   }
 };
 
+const handleBuyNow = () => {
+  emit('buy-now');
+};
+
+const handleGoToProduct = (slug) => {
+  emit('go-to-product', slug);
+};
+
 const reset = () => {
   uploadedFile.value = null;
   previewImage.value = null;
   resultImage.value = null;
   errorMessage.value = '';
   isMock.value = false;
+  suggestedProducts.value = [];
   if (fileInputRef.value) fileInputRef.value.value = '';
 };
 
@@ -130,13 +177,12 @@ onBeforeUnmount(() => {
   <teleport to="body">
     <transition name="modal-fade">
       <div v-if="show" class="tryon-overlay" @click.self="closeModal">
-        <div class="tryon-modal">
+        <div class="tryon-modal" :class="{ 'has-result': resultImage && !isLoading }">
           
           <div class="tryon-header">
             <h3 class="tryon-title">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
               AI Virtual Try-On
-              <span class="badge active">Powered by AI</span>
             </h3>
             <button class="tryon-close" @click="closeModal" title="Đóng">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -178,10 +224,55 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- Result State -->
-            <div class="tryon-result" v-if="resultImage && !isLoading">
-              <div class="img-box result-box">
-                <img :src="resultImage" alt="Kết quả Try-On" />
-                <div v-if="isMock" class="mock-badge">DEMO MODE</div>
+            <div class="tryon-result-section" v-if="resultImage && !isLoading">
+              <div class="tryon-result-main">
+                <div class="img-box result-box">
+                  <img :src="resultImage" alt="Kết quả Try-On" />
+                  <div v-if="isMock" class="mock-badge">DEMO MODE</div>
+                </div>
+              </div>
+
+              <!-- Current Product Info + Buy Now -->
+              <div class="tryon-product-cta">
+                <div class="tryon-product-info">
+                  <img :src="productImageUrl" :alt="productName" class="tryon-product-thumb" />
+                  <div class="tryon-product-detail">
+                    <h4 class="tryon-product-name">{{ productName }}</h4>
+                    <span class="tryon-product-price" v-if="productPrice">{{ formatPrice(productPrice) }}</span>
+                  </div>
+                </div>
+                <button class="tryon-buy-btn" @click="handleBuyNow">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
+                  {{ hasSelectedVariant ? 'Mua ngay' : 'Chọn size & Mua' }}
+                </button>
+              </div>
+
+              <!-- Suggested Products -->
+              <div class="tryon-suggestions" v-if="suggestedProducts.length > 0">
+                <h4 class="tryon-suggestions-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                  Gợi ý sản phẩm phù hợp
+                </h4>
+                <div class="tryon-suggestions-grid">
+                  <div
+                    v-for="sp in suggestedProducts"
+                    :key="sp.product_id"
+                    class="tryon-suggest-card"
+                    @click="handleGoToProduct(sp.slug)"
+                  >
+                    <div class="suggest-img">
+                      <img :src="getImageUrl(sp.thumbnail_url)" :alt="sp.name" loading="lazy" />
+                    </div>
+                    <div class="suggest-info">
+                      <span class="suggest-name">{{ sp.name }}</span>
+                      <span class="suggest-price">{{ formatPrice(sp.min_price) }}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -217,10 +308,13 @@ onBeforeUnmount(() => {
   position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 16px;
 }
 .tryon-modal {
-  background: var(--card-bg); border-radius: 20px; width: 100%; max-width: 750px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column;
+  background: var(--card-bg); border-radius: 20px; width: 100%; max-width: 750px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; max-height: 90vh;
+}
+.tryon-modal.has-result {
+  max-width: 820px;
 }
 .tryon-header {
-  display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #F8F9FA; border-bottom: 1px solid #E9ECEF;
+  display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #F8F9FA; border-bottom: 1px solid #E9ECEF; flex-shrink: 0;
 }
 .tryon-title {
   display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin: 0;
@@ -231,7 +325,7 @@ onBeforeUnmount(() => {
 .tryon-close { background: none; border: none; cursor: pointer; color: #636E72; border-radius: 8px; padding: 4px; display: flex; transition: all 0.2s; }
 .tryon-close:hover { background: #E9ECEF; color: var(--primary); }
 
-.tryon-body { position: relative; width: 100%; min-height: 400px; padding: 24px; background: var(--card-bg); }
+.tryon-body { position: relative; width: 100%; min-height: 400px; padding: 24px; background: var(--card-bg); overflow-y: auto; }
 
 .tryon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 @media (max-width: 600px) {
@@ -258,12 +352,187 @@ onBeforeUnmount(() => {
 .spinner { width: 48px; height: 48px; border: 4px solid #F3F4F6; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.result-box { aspect-ratio: 3/4; max-height: 500px; margin: 0 auto; width: auto; max-width: 100%; }
+/* ═══ RESULT SECTION ═══ */
+.tryon-result-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tryon-result-main {
+  display: flex;
+  justify-content: center;
+}
+
+.result-box { aspect-ratio: 3/4; max-height: 420px; margin: 0 auto; width: auto; max-width: 100%; }
 .mock-badge { position: absolute; top: 12px; right: 12px; background: rgba(230, 59, 111, 0.9); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+
+/* ═══ PRODUCT CTA (Sản phẩm đang thử + Mua ngay) ═══ */
+.tryon-product-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #FFF5F7 0%, #FFF0F3 100%);
+  border: 1px solid #FECDD3;
+  border-radius: 14px;
+}
+
+.tryon-product-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tryon-product-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #E9ECEF;
+  flex-shrink: 0;
+}
+
+.tryon-product-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tryon-product-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tryon-product-price {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #E63B6F;
+}
+
+.tryon-buy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #E63B6F;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(230, 59, 111, 0.3);
+  flex-shrink: 0;
+}
+
+.tryon-buy-btn:hover {
+  background: #C4305D;
+  box-shadow: 0 4px 16px rgba(230, 59, 111, 0.4);
+  transform: translateY(-1px);
+}
+
+/* ═══ SUGGESTED PRODUCTS ═══ */
+.tryon-suggestions {
+  border-top: 1px solid #E9ECEF;
+  padding-top: 16px;
+}
+
+.tryon-suggestions-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 14px;
+}
+
+.tryon-suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .tryon-suggestions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.tryon-suggest-card {
+  background: var(--card-bg);
+  border: 1px solid #E9ECEF;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tryon-suggest-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.12);
+  transform: translateY(-2px);
+}
+
+.suggest-img {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #F8F9FA;
+}
+
+.suggest-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.tryon-suggest-card:hover .suggest-img img {
+  transform: scale(1.05);
+}
+
+.suggest-info {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.suggest-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+}
+
+.suggest-price {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #E63B6F;
+}
 
 .tryon-error { background: #FFF0F3; color: var(--primary); padding: 12px; border-radius: 8px; text-align: center; font-size: 0.9rem; font-weight: 500; margin-top: 20px; }
 
-.tryon-controls { display: flex; justify-content: center; gap: 16px; padding: 16px 24px; background: #F8F9FA; border-top: 1px solid #E9ECEF; }
+.tryon-controls { display: flex; justify-content: center; gap: 16px; padding: 16px 24px; background: #F8F9FA; border-top: 1px solid #E9ECEF; flex-shrink: 0; }
 .tryon-controls button { padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.2s; border: none; font-family: inherit; }
 .tryon-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
 

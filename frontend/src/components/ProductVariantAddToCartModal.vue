@@ -34,6 +34,9 @@
                                     <span class="vmodal-badge">Chọn phân loại hàng</span>
                                     <h3 id="vmodal-title" class="vmodal-product-title">{{ productName }}</h3>
                                     <div class="vmodal-price-range">
+                                        <span class="vmodal-price-original" v-if="displayOriginalPrice">
+                                            {{ displayOriginalPrice }}
+                                        </span>
                                         <span class="vmodal-price-active">
                                             {{ selectedVariant ? formatCurrency(selectedVariant.price) : priceRangeLabel
                                             }}
@@ -51,8 +54,6 @@
                                             class="vmodal-opt-btn color-opt"
                                             :class="{ active: selectedColor === color }" type="button"
                                             @click="onColorSelect(color)" :title="color">
-                                            <span class="color-swatch-circle"
-                                                :style="{ backgroundColor: getHexCode(color) }"></span>
                                             {{ color }}
                                         </button>
                                     </div>
@@ -107,7 +108,9 @@
                                     <span>
                                         Đã chọn:
                                         <strong>{{ [selectedVariant.color, selectedVariant.size].filter(Boolean).join(' / ') || selectedVariant.variant_name }}</strong>
-                                        — {{ formatCurrency(selectedVariant.price) }}
+                                        —
+                                        <span class="vmodal-sel-orig" v-if="displayOriginalPrice">{{ displayOriginalPrice }}</span>
+                                        <span class="vmodal-sel-sale">{{ formatCurrency(selectedVariant.price) }}</span>
                                         <span v-if="selectedVariant.stock <= 5" class="vmodal-low-stock">(còn {{ selectedVariant.stock }})</span>
                                     </span>
                                 </div>
@@ -159,6 +162,7 @@ const props = defineProps({
     selectedSize: { type: [String, Number], default: null },
     quantity: { type: Number, default: 1 },
     confirming: { type: Boolean, default: false },
+    originalPrice: { type: [Number, String], default: null },
 });
 
 const emit = defineEmits(['close', 'select-color', 'update:selected-size', 'update:quantity', 'increase', 'decrease', 'confirm']);
@@ -193,6 +197,61 @@ const priceRangeLabel = computed(() => {
     const max = Math.max(...prices);
     if (min === max) return formatCurrency(min);
     return `${formatCurrency(min)} - ${formatCurrency(max)}`;
+});
+
+// Tính toán giá gốc (gạch ngang) nếu có giảm giá
+const displayOriginalPrice = computed(() => {
+    const findValidOrig = (candidates, salePrice) => {
+        const minSale = Number(salePrice || 0);
+        for (const val of candidates) {
+            const num = Number(val);
+            if (Number.isFinite(num) && num > minSale) {
+                return num;
+            }
+        }
+        return 0;
+    };
+
+    if (props.selectedVariant) {
+        const salePrice = Number(props.selectedVariant.price || 0);
+        const candidates = [
+            props.selectedVariant.compare_at_price,
+            props.selectedVariant.original_price,
+            props.selectedVariant.originalPrice,
+            props.selectedVariant.old_price,
+            props.selectedVariant.max_price,
+            props.originalPrice,
+        ];
+        const origPrice = findValidOrig(candidates, salePrice);
+        if (origPrice > 0) {
+            return formatCurrency(origPrice);
+        }
+        return '';
+    }
+
+    const minSalePrice = props.variants?.length
+        ? Math.min(...props.variants.map(v => Number(v.price || 0)).filter(p => p > 0))
+        : 0;
+
+    const variantOrigs = props.variants
+        ?.map(v => findValidOrig([v.compare_at_price, v.original_price, v.originalPrice, props.originalPrice], v.price))
+        .filter(p => p > 0) || [];
+
+    if (variantOrigs.length > 0) {
+        const minOrig = Math.min(...variantOrigs);
+        const maxOrig = Math.max(...variantOrigs);
+        if (minOrig > minSalePrice) {
+            if (minOrig === maxOrig) return formatCurrency(minOrig);
+            return `${formatCurrency(minOrig)} - ${formatCurrency(maxOrig)}`;
+        }
+    }
+
+    const baseOrig = findValidOrig([props.originalPrice], minSalePrice);
+    if (baseOrig > 0) {
+        return formatCurrency(baseOrig);
+    }
+
+    return '';
 });
 
 // Khi đổi màu sắc -> cập nhật ảnh xem trước sang variant màu đầu tiên tìm thấy
@@ -247,24 +306,6 @@ function formatCurrency(value) {
     if (!Number.isFinite(num)) return value || 'Liên hệ';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
 }
-
-function getHexCode(colorName) {
-    if (!colorName) return '#ccc';
-    const colorMap = {
-        'đỏ': '#ef4444', red: '#ef4444',
-        'xanh dương': '#2563eb', 'xanh': '#2563eb', blue: '#2563eb',
-        'xanh lá': '#10b981', green: '#10b981',
-        'vàng': '#fbbf24', yellow: '#fbbf24',
-        'đen': '#18181b', black: '#18181b',
-        'trắng': '#ffffff', white: '#ffffff',
-        'hồng': '#f43f5e', pink: '#f43f5e',
-        'tím': '#8b5cf6', purple: '#8b5cf6',
-        'nâu': '#78350f', brown: '#78350f',
-        'cam': '#f97316', orange: '#f97316',
-        'xám': '#71717a', grey: '#71717a', gray: '#71717a',
-    };
-    return colorMap[colorName.toString().toLowerCase().trim()] || '#e4e4e7';
-}
 </script>
 
 <style scoped>
@@ -297,8 +338,10 @@ function getHexCode(colorName) {
     position: absolute;
     top: 16px;
     right: 16px;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+    min-height: unset;
+    aspect-ratio: 1 / 1;
     border: 0;
     border-radius: 50%;
     background: rgba(241, 245, 249, 0.9);
@@ -432,11 +475,33 @@ function getHexCode(colorName) {
 
 .vmodal-price-range {
     margin-top: 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.vmodal-price-original {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-decoration: line-through;
 }
 
 .vmodal-price-active {
     font-size: 1.5rem;
     font-weight: 900;
+    color: #E63B6F;
+}
+
+.vmodal-sel-orig {
+    text-decoration: line-through;
+    color: #94a3b8;
+    margin-right: 4px;
+}
+
+.vmodal-sel-sale {
+    font-weight: 700;
     color: #E63B6F;
 }
 
@@ -507,13 +572,7 @@ function getHexCode(colorName) {
     opacity: 0.75;
 }
 
-.color-swatch-circle {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    box-shadow: inset 0 0 0 1.5px #ffffff;
-}
+
 
 /* Quantity selector */
 .vmodal-qty-section {
@@ -537,11 +596,12 @@ function getHexCode(colorName) {
 }
 
 .vmodal-qty button {
-    width: 42px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
+    min-height: unset;
     border: 0;
     background: #ffffff;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     cursor: pointer;
     color: #475569;
     font-weight: 600;
@@ -624,16 +684,16 @@ function getHexCode(colorName) {
 
 .vmodal-btn-confirm {
     width: 100%;
-    height: 50px;
+    height: 44px;
     border: 0;
-    border-radius: 12px;
+    border-radius: 8px;
     background: #E63B6F;
     color: #ffffff;
-    font-weight: 800;
-    font-size: 1rem;
+    font-weight: 700;
+    font-size: 0.95rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 10px 25px -5px rgba(230, 59, 111, 0.4);
+    box-shadow: 0 8px 20px -4px rgba(230, 59, 111, 0.35);
 }
 
 .vmodal-btn-confirm:hover:not(:disabled) {

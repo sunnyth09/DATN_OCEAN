@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AdminOrderRepository
@@ -31,6 +32,8 @@ class AdminOrderRepository
             $searchTerm = $filters['search'];
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_code', 'like', "%{$searchTerm}%")
+                    ->orWhere('tracking_number', 'like', "%{$searchTerm}%")
+                    ->orWhere('ghn_order_code', 'like', "%{$searchTerm}%")
                     ->orWhere('recipient_name', 'like', "%{$searchTerm}%")
                     ->orWhere('recipient_phone', 'like', "%{$searchTerm}%");
             });
@@ -84,7 +87,7 @@ class AdminOrderRepository
     /**
      * Hoàn lại tồn kho bằng SQL CASE (batch update)
      */
-    public function restoreStock(array $items): void
+    public function restoreStock(iterable $items): void
     {
         $cases = [];
         $bindings = [];
@@ -126,7 +129,12 @@ class AdminOrderRepository
             foreach ($productQuantities as $productId => $qty) {
                 DB::table('products')->where('product_id', $productId)->decrement('sold_count', $qty);
             }
-            \Illuminate\Support\Facades\Cache::tags(['products:best-selling'])->flush();
+
+            try {
+                Cache::tags(['products:best-selling'])->flush();
+            } catch (\Throwable $e) {
+                Cache::forget('products:best-selling');
+            }
         }
     }
 }

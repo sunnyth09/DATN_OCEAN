@@ -34,6 +34,10 @@ class Product extends Model
         'view_count',
         'sold_count',
         'weight',
+        'sku',
+        'material',
+        'origin',
+        'style',
         'published_at',
         'deleted_at',
     ];
@@ -78,6 +82,11 @@ class Product extends Model
         return $this->hasMany(Favorite::class, 'product_id', 'product_id');
     }
 
+    public function flashSaleItems()
+    {
+        return $this->hasMany(FlashSaleItem::class, 'product_id', 'product_id');
+    }
+
     public function mainImage()
     {
         return $this->hasOne(ProductImage::class, 'product_id')->where('is_main', 1);
@@ -118,6 +127,7 @@ class Product extends Model
             'thumbnail_url' => $this->thumbnail_url ?? '',
             'rating_avg' => (float) ($this->rating_avg ?? 0),
             'sold_count' => (int) ($this->sold_count ?? 0),
+            'sku' => $this->sku ?? '',
         ];
     }
 

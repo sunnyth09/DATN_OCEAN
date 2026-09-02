@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../providers/product_detail_provider.dart';
 import '../screens/main_wrapper.dart';
 import '../screens/home_screen.dart';
 import '../screens/category_screen.dart';
@@ -26,13 +28,16 @@ import '../screens/favorite_screen.dart';
 import '../screens/flash_sale_screen.dart';
 import '../screens/notification_screen.dart';
 import '../screens/pos_scanner_screen.dart';
+import '../screens/product_scanner_screen.dart';
 import '../screens/return_requests_screen.dart';
 import '../screens/review_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/create_return_request_screen.dart';
 import '../screens/loyalty_screen.dart';
+import '../screens/lucky_wheel_screen.dart';
 import '../screens/chat_screen.dart';
+import '../screens/order_tracking_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> shellNavigatorHomeKey = GlobalKey<NavigatorState>(debugLabel: 'homeTab');
@@ -125,14 +130,21 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       GoRoute(
         path: '/orders',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const OrderScreen(),
+        builder: (context, state) {
+          final tabParam = state.uri.queryParameters['tab'];
+          final initialIndex = int.tryParse(tabParam ?? '') ?? (state.extra as int? ?? 0);
+          return OrderScreen(initialIndex: initialIndex);
+        },
       ),
       GoRoute(
         path: '/product-detail',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final product = state.extra as Map<String, dynamic>;
-          return ProductDetailScreen(product: product);
+          return ChangeNotifierProvider(
+            create: (_) => ProductDetailProvider(),
+            child: ProductDetailScreen(product: product),
+          );
         },
       ),
       GoRoute(
@@ -151,7 +163,11 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/checkout',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          return const CheckoutScreen();
+          final extra = state.extra as Map<String, dynamic>?;
+          return CheckoutScreen(
+            initialCoupon: extra?['appliedCoupon'] as Map<String, dynamic>?,
+            initialDiscount: extra?['discountAmount'] as int?,
+          );
         },
       ),
       GoRoute(
@@ -162,6 +178,8 @@ GoRouter createRouter({required bool isFirstLaunch}) {
           return PaymentWebviewScreen(
             url: extra['url'] as String,
             paymentMethod: extra['paymentMethod'] as String,
+            orderCode: extra['orderCode'] as String?,
+            grandTotal: extra['grandTotal'] as num?,
           );
         },
       ),
@@ -169,7 +187,12 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/order-success',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          return const OrderSuccessScreen();
+          final extra = state.extra as Map<String, dynamic>?;
+          return OrderSuccessScreen(
+            orderCode: extra?['orderCode'] as String?,
+            grandTotal: extra?['grandTotal'] as num?,
+            orderId: extra?['orderId']?.toString(),
+          );
         },
       ),
       GoRoute(
@@ -229,9 +252,19 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         builder: (context, state) => const NotificationScreen(),
       ),
       GoRoute(
+        path: '/lucky-wheel',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const LuckyWheelScreen(),
+      ),
+      GoRoute(
         path: '/pos-scanner',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const PosScannerScreen(),
+      ),
+      GoRoute(
+        path: '/product-scanner',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const ProductScannerScreen(),
       ),
       GoRoute(
         path: '/return-requests',
@@ -253,6 +286,7 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       ),
       GoRoute(
         path: '/create-return/:orderId',
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final orderId = state.pathParameters['orderId']!;
           return CreateReturnRequestScreen(orderId: orderId);
@@ -260,11 +294,39 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       ),
       GoRoute(
         path: '/loyalty',
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const LoyaltyScreen(),
       ),
       GoRoute(
         path: '/chat',
-        builder: (context, state) => const ChatScreen(),
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => ChatScreen(
+          inquiryProduct: state.extra as Map<String, dynamic>?,
+        ),
+      ),
+      GoRoute(
+        path: '/tracking',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final trackingNumber = state.uri.queryParameters['code'] ?? (state.extra is String ? state.extra as String : null);
+          final initialOrder = state.extra is Map ? state.extra as Map<String, dynamic> : null;
+          return OrderTrackingScreen(
+            trackingNumber: trackingNumber,
+            initialOrderData: initialOrder,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/tracking/:trackingNumber',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final code = state.pathParameters['trackingNumber'];
+          final initialOrder = state.extra is Map ? state.extra as Map<String, dynamic> : null;
+          return OrderTrackingScreen(
+            trackingNumber: code,
+            initialOrderData: initialOrder,
+          );
+        },
       ),
     ],
   );

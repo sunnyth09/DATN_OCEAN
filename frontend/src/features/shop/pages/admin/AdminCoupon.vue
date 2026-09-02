@@ -20,6 +20,18 @@ const isUsagesModalOpen = ref(false);
 const usagesData = ref(null);
 const isLoadingUsages = ref(false);
 
+const toLocalDatetimeInput = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 const defaultForm = () => ({
     id: null,
     code: '',
@@ -29,11 +41,11 @@ const defaultForm = () => ({
     min_order_value: '',
     usage_limit: '',
     user_usage_limit: 1,
-    is_public: 1,
-    is_first_order: 0,
+    is_public: true,
+    is_first_order: false,
     start_date: '',
     end_date: '',
-    is_active: 1,
+    is_active: true,
     category_ids: [],
     send_email: false,
 });
@@ -111,13 +123,13 @@ const openEditModal = (coupon) => {
         max_discount_value: coupon.max_discount_value || '',
         min_order_value: coupon.min_order_value || '',
         usage_limit: coupon.usage_limit || '',
-        user_usage_limit: coupon.user_usage_limit !== undefined ? coupon.user_usage_limit : 1,
-        is_public: coupon.is_public !== undefined ? coupon.is_public : 1,
-        is_first_order: coupon.is_first_order || 0,
-        start_date: coupon.start_date ? new Date(coupon.start_date).toISOString().slice(0, 16) : '',
-        end_date: coupon.end_date ? new Date(coupon.end_date).toISOString().slice(0, 16) : '',
-        is_active: coupon.is_active,
-        category_ids: coupon.category_ids || [],
+        user_usage_limit: coupon.user_usage_limit !== undefined && coupon.user_usage_limit !== null ? coupon.user_usage_limit : 1,
+        is_public: Boolean(coupon.is_public),
+        is_first_order: Boolean(coupon.is_first_order),
+        start_date: toLocalDatetimeInput(coupon.start_date),
+        end_date: toLocalDatetimeInput(coupon.end_date),
+        is_active: Boolean(coupon.is_active),
+        category_ids: Array.isArray(coupon.categories) ? coupon.categories.map(c => c.category_id) : (Array.isArray(coupon.category_ids) ? [...coupon.category_ids] : []),
         send_email: false,
     };
     isModalOpen.value = true;
@@ -146,7 +158,13 @@ const handleSubmit = async () => {
 
     isSubmitting.value = true;
 
-    let payload = { ...form.value };
+    let payload = {
+        ...form.value,
+        is_active: Boolean(form.value.is_active),
+        is_public: Boolean(form.value.is_public),
+        is_first_order: Boolean(form.value.is_first_order),
+        send_email: Boolean(form.value.send_email),
+    };
     
     // Ép kiểu các trường nullable nếu là chuỗi rỗng
     if (payload.max_discount_value === '') payload.max_discount_value = null;
@@ -374,7 +392,7 @@ const selectedCategoryNames = computed(() => {
                                 <div class="condition-info">
                                     <div v-if="coupon.min_order_value">Từ: <b>{{ formatCurrency(coupon.min_order_value) }}</b></div>
                                     <div v-else>Mọi đơn hàng</div>
-                                    <span v-if="coupon.is_first_order" class="badge-first-order" title="Chỉ áp dụng đơn đầu tiên">Chỉ mở bát</span>
+                                    <span v-if="coupon.is_first_order" class="badge-first-order" title="Chỉ áp dụng đơn đầu tiên">Đơn đầu tiên</span>
                                     <span v-if="coupon.user_usage_limit" class="badge-user-limit" title="Số lượt dùng mỗi User">User: {{ coupon.user_usage_limit }} lần</span>
                                 </div>
                             </td>
@@ -534,7 +552,7 @@ const selectedCategoryNames = computed(() => {
                         <!-- ✅ Kích hoạt ngay -->
                         <div class="option-section">
                             <label class="option-checkbox main-option">
-                                <input type="checkbox" v-model="form.is_active" :true-value="1" :false-value="0" />
+                                <input type="checkbox" v-model="form.is_active" />
                                 <span class="checkmark"></span>
                                 <span class="option-label">Kích hoạt ngay</span>
                             </label>
@@ -545,7 +563,7 @@ const selectedCategoryNames = computed(() => {
                             <div class="advanced-title">TÙY CHỌN NÂNG CAO</div>
 
                             <label class="option-checkbox">
-                                <input type="checkbox" v-model="form.is_public" :true-value="1" :false-value="0" />
+                                <input type="checkbox" v-model="form.is_public" />
                                 <span class="checkmark"></span>
                                 <svg class="option-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e65100" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
                                 <span class="option-label">Công khai trên Săn Voucher</span>
@@ -554,7 +572,7 @@ const selectedCategoryNames = computed(() => {
                             <!-- Gửi email (indented, highlighted) -->
                             <div v-if="!isEditing" class="email-option-wrap">
                                 <label class="option-checkbox">
-                                    <input type="checkbox" v-model="form.send_email" :true-value="true" :false-value="false" />
+                                    <input type="checkbox" v-model="form.send_email" />
                                     <span class="checkmark"></span>
                                     <svg class="option-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1565c0" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                                     <span class="option-label" style="color:#1565c0; font-weight:600;">Gửi email thông báo cho tất cả người dùng ngay lập tức</span>
@@ -562,7 +580,7 @@ const selectedCategoryNames = computed(() => {
                             </div>
 
                             <label class="option-checkbox">
-                                <input type="checkbox" v-model="form.is_first_order" :true-value="1" :false-value="0" />
+                                <input type="checkbox" v-model="form.is_first_order" />
                                 <span class="checkmark"></span>
                                 <svg class="option-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d84315" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                                 <span class="option-label">Chỉ cho đơn đầu tiên</span>

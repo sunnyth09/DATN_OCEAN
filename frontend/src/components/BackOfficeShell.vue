@@ -31,8 +31,8 @@
             @click="toggleSidebar"
           >
             <svg
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -56,8 +56,8 @@
         <div class="backoffice-header__actions">
           <router-link to="/admin/notifications" class="shell-icon-btn position-relative" title="Thông báo">
             <svg
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -82,8 +82,8 @@
           >
             <svg
               v-if="isDarkMode"
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -103,8 +103,8 @@
             </svg>
             <svg
               v-else
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -136,8 +136,8 @@
         </div>
       </header>
 
-      <main class="backoffice-content">
-        <div class="backoffice-content__inner">
+      <main class="backoffice-content" :class="{ 'backoffice-content--fluid': isFluidLayout }">
+        <div class="backoffice-content__inner" :class="{ 'backoffice-content__inner--fluid': isFluidLayout }">
           <slot />
         </div>
       </main>
@@ -166,6 +166,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  fluid: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const route = useRoute();
@@ -174,6 +178,15 @@ const {
   isBackofficeDarkMode: isDarkMode,
   isBackofficeSidebarOpen: isSidebarOpen,
 } = storeToRefs(uiStore);
+
+const isFluidLayout = computed(() => {
+  for (let i = route.matched.length - 1; i >= 0; i -= 1) {
+    if (typeof route.matched[i]?.meta?.fluid === 'boolean') {
+      return route.matched[i].meta.fluid;
+    }
+  }
+  return props.fluid;
+});
 
 const resolvedTitle = computed(() => {
   for (let i = route.matched.length - 1; i >= 0; i -= 1) {
@@ -234,76 +247,17 @@ const fetchSidebarBadges = async () => {
     const response = await api.get('/admin/sidebar-badges');
     if (response.data.status === 'success') {
       const data = response.data.data;
-      uiStore.setAdminUnreadChatCount(data.unread_chats || 0);
-      uiStore.setAdminPendingReviewCount(data.pending_reviews || 0);
-      uiStore.setAdminPendingTicketCount(data.open_tickets || 0);
-      uiStore.setAdminPendingContactCount(data.pending_contacts || 0);
+      uiStore.setAdminUnreadChatCount?.(data.unread_chats || 0);
+      uiStore.setAdminPendingReviewCount?.(data.pending_reviews || 0);
+      uiStore.setAdminPendingTicketCount?.(data.open_tickets || 0);
+      uiStore.setAdminPendingContactCount?.(data.pending_contacts || 0);
     }
   } catch (error) {
     console.error('Failed to fetch sidebar badges', error);
   }
 };
 
-let globalAudioCtx = null;
-const initAudioContext = () => {
-  if (!globalAudioCtx) {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) {
-      globalAudioCtx = new AudioCtx();
-    }
-  }
-  if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
-    globalAudioCtx.resume();
-  }
-};
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('click', initAudioContext, { once: false });
-  window.addEventListener('keydown', initAudioContext, { once: false });
-}
-
-const playNotificationSound = () => {
-  try {
-    initAudioContext();
-    if (!globalAudioCtx) return;
-
-    const ctx = globalAudioCtx;
-    const now = ctx.currentTime;
-
-    // Tiếng Yahoo Messenger Chime huyền thoại (D5 -> A5 -> D6)
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const osc3 = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc1.type = 'sine';
-    osc2.type = 'sine';
-    osc3.type = 'sine';
-
-    osc1.frequency.setValueAtTime(587.33, now);        // D5
-    osc2.frequency.setValueAtTime(880.00, now + 0.08); // A5
-    osc3.frequency.setValueAtTime(1174.66, now + 0.16); // D6
-
-    gain.gain.setValueAtTime(0.7, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    osc3.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc1.start(now);
-    osc1.stop(now + 0.12);
-
-    osc2.start(now + 0.08);
-    osc2.stop(now + 0.20);
-
-    osc3.start(now + 0.16);
-    osc3.stop(now + 0.55);
-  } catch (e) {
-    console.warn('Không thể phát âm thanh thông báo:', e);
-  }
-};
+import { playNotificationSound } from '@/utils/sound';
 
 onMounted(() => {
   syncSidebarForViewport();
@@ -424,6 +378,7 @@ onMounted(() => {
       });
 
     // Listen to chat messages globally to update sidebar badges
+    window.Echo.leave('admin.chats');
     window.Echo.channel('admin.chats')
       .listen('.message.sent', (e) => {
         fetchSidebarBadges();
@@ -439,6 +394,7 @@ onUnmounted(() => {
   window.removeEventListener('update-sidebar-badges', fetchSidebarBadges);
   if (window.Echo) {
     window.Echo.leave('admin-notifications');
+    window.Echo.leave('admin.chats');
   }
 });
 </script>
@@ -474,41 +430,45 @@ onUnmounted(() => {
 }
 
 .backoffice-header {
-  min-height: var(--shell-header-height);
-  padding: 0 24px;
+  height: var(--shell-header-height, 56px);
+  min-height: var(--shell-header-height, 56px);
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  background: rgba(255, 255, 255, 0.92);
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(14px);
+  box-sizing: border-box;
 }
 
 .backoffice-header__leading {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
 .backoffice-header__meta {
   min-width: 0;
+  display: flex;
+  align-items: center;
 }
 
 .backoffice-header__eyebrow {
-  margin: 0 0 4px;
+  margin: 0;
   color: var(--text-light);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .backoffice-header__title {
   margin: 0;
   color: var(--text-main);
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 800;
   line-height: 1.2;
 }
@@ -516,7 +476,7 @@ onUnmounted(() => {
 .backoffice-header__actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -525,8 +485,9 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 40px;
+  gap: 6px;
+  height: 34px;
+  min-height: unset;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--card-bg);
@@ -535,14 +496,15 @@ onUnmounted(() => {
 }
 
 .shell-icon-btn {
-  width: 40px;
+  width: 34px;
+  aspect-ratio: 1 / 1;
   cursor: pointer;
 }
 
 .back-home-btn {
-  padding: 0 14px;
+  padding: 0 12px;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
 }
 
@@ -559,6 +521,10 @@ onUnmounted(() => {
   padding: 24px;
 }
 
+.backoffice-content--fluid {
+  padding: 24px 28px;
+}
+
 .shell-icon-btn--menu {
   display: none;
 }
@@ -566,6 +532,14 @@ onUnmounted(() => {
 .backoffice-content__inner {
   max-width: var(--layout-max-width);
   margin: 0 auto;
+  width: 100%;
+}
+
+.backoffice-content__inner--fluid {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
 }
 
 .backoffice-scrim {
@@ -619,22 +593,27 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .backoffice-header {
-    padding: 14px 16px;
-    align-items: flex-start;
-    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--shell-header-height, 56px);
+    padding: 8px 14px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .backoffice-header__title {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
   }
 
   .backoffice-header__actions {
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
+    gap: 6px;
   }
 
   .backoffice-content {
-    padding: 16px;
+    padding: 14px;
   }
 
   .back-home-btn span {

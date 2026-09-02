@@ -20,12 +20,10 @@ use App\Http\Controllers\SepayController;
 use App\Http\Controllers\VNPayController;
 use App\Models\Cart;
 use App\Models\Order;
-use App\Services\FcmService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 // use Illuminate\Http\Request;
-
 
 // VNPay Payment Gateway (Public — VNPay redirect về đây)
 // IPN là server-to-server từ VNPay — không throttle, return URL tăng lên 60 cho user retry
@@ -52,6 +50,21 @@ Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
             Artisan::call('app:send-birthday-wishes');
 
             return response()->json(['status' => 'success', 'output' => Artisan::output()]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    });
+
+    Route::get('/run-send-all-test-emails', function (Request $request) {
+        try {
+            $email = $request->query('email', 'levanvu06102004kimanh@gmail.com');
+            Artisan::call('mail:test-batch', ['email' => $email]);
+
+            return response()->json([
+                'status' => 'success',
+                'target_email' => $email,
+                'output' => Artisan::output(),
+            ]);
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
@@ -189,6 +202,7 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
     Route::apiResource('court-maintenances', CourtMaintenanceAdminController::class);
 
     // Bookings Management
+    Route::post('/court-bookings/scan-qr', [CourtBookingAdminController::class, 'scanQr']);
     Route::get('/court-bookings/conflicts', [CourtBookingAdminController::class, 'checkConflicts']);
     Route::apiResource('court-bookings', CourtBookingAdminController::class);
     Route::post('/court-bookings/{id}/split-payment', [CourtBookingAdminController::class, 'splitPayment']);

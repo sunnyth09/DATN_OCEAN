@@ -168,6 +168,119 @@ class CourtBookingAdminService
     }
 
     /**
+     * Quét QR code toàn cục và thực hiện check-in nhận sân tức thì.
+     *
+     * Hỗ trợ format:
+     * - OSBK:{booking_code}:{qr_token}
+     * - {"booking_code":"BK-...","qr_token":"..."}
+     * - Mã booking BK-...
+     * - Chuỗi raw qr_token
+     *
+     * @return array{ok: bool, code: int, message?: string, data?: CourtBooking}
+     */
+    public function scanAndCheckIn(string $qrData, ?int $staffId, Request $request, bool $allowOverride = true): array
+    {
+        $qrData = trim($qrData);
+        $bookingCode = null;
+        $qrToken = null;
+
+        // 1. Phân tích cú pháp QR
+        if (str_starts_with($qrData, 'OSBK:')) {
+            $parts = explode(':', $qrData);
+            $bookingCode = $parts[1] ?? null;
+            $qrToken = $parts[2] ?? null;
+        } elseif (str_starts_with($qrData, '{') && str_ends_with($qrData, '}')) {
+            $decoded = json_decode($qrData, true);
+            $bookingCode = $decoded['booking_code'] ?? null;
+            $qrToken = $decoded['qr_token'] ?? null;
+        } elseif (str_starts_with($qrData, 'BK-')) {
+            $bookingCode = $qrData;
+        } else {
+            $qrToken = $qrData;
+        }
+
+        // 2. Tìm booking
+        $booking = null;
+        if ($bookingCode) {
+            $booking = CourtBooking::with(['user', 'court', 'services.service', 'payments'])->where('booking_code', $bookingCode)->first();
+        }
+
+        if (! $booking && $qrToken) {
+            // Thử tìm booking có cùng ngày hôm nay / ngày mai để so khớp token
+            $candidates = CourtBooking::with(['user', 'court', 'services.service', 'payments'])
+                ->whereDate('booking_date', '>=', today()->subDay())
+                ->whereDate('booking_date', '<=', today()->addDay())
+                ->get();
+            foreach ($candidates as $candidate) {
+                if (hash_equals($this->workflowService->qrToken($candidate), $qrToken)) {
+                    $booking = $candidate;
+                    break;
+                }
+            }
+        }
+
+        if (! $booking) {
+            return ['ok' => false, 'code' => 404, 'message' => 'Không tìm thấy lịch đặt sân tương ứng với mã QR này.'];
+        }
+
+        // 3. Xác thực Token nếu có
+        if ($qrToken) {
+            try {
+                $this->workflowService->assertValidQrToken($booking, $qrToken);
+            } catch (\InvalidArgumentException $e) {
+                return ['ok' => false, 'code' => 400, 'message' => 'Mã QR không hợp lệ hoặc đã bị chỉnh sửa.'];
+            }
+        }
+
+        // 4. Kiểm tra trạng thái có thể check-in
+        if (in_array($booking->status, ['checked_in', 'playing'], true)) {
+            return [
+                'ok' => true,
+                'code' => 200,
+                'message' => 'Khách hàng này đã check-in trước đó rồi.',
+                'data' => $booking->load(['user', 'court', 'services.service', 'payments']),
+            ];
+        }
+
+        if ($booking->status === 'completed') {
+            return ['ok' => false, 'code' => 400, 'message' => 'Lịch đặt sân này đã hoàn thành.'];
+        }
+
+        if ($booking->status === 'cancelled') {
+            return ['ok' => false, 'code' => 400, 'message' => 'Lịch đặt sân này đã bị hủy, không thể check-in.'];
+        }
+
+        // 5. Kiểm tra thời gian check-in
+        try {
+            $this->workflowService->assertCheckInWindow($booking, $allowOverride);
+        } catch (\InvalidArgumentException $e) {
+            return ['ok' => false, 'code' => 400, 'message' => $e->getMessage()];
+        }
+
+        // 6. Thực hiện chuyển trạng thái
+        try {
+            $booking = $this->workflowService->transition(
+                $booking,
+                'checked_in',
+                'admin',
+                $staffId,
+                'QR Camera Check-in nhanh tại quầy',
+                ['checked_in_at' => now()],
+                $request
+            );
+
+            return [
+                'ok' => true,
+                'code' => 200,
+                'message' => 'Check-in nhận sân thành công!',
+                'data' => $booking->load(['user', 'court', 'services.service', 'payments']),
+            ];
+        } catch (\Exception $e) {
+            return ['ok' => false, 'code' => 400, 'message' => 'Check-in thất bại: '.$e->getMessage()];
+        }
+    }
+
+    /**
      * Check-out trả sân + tự động thu nốt tiền còn thiếu.
      *
      * @return array{ok: bool, code: int, message?: string, amount_due?: int, data?: CourtBooking}

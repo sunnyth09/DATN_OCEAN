@@ -52,6 +52,7 @@ class OrderProcessingJob implements ShouldQueue
         public readonly string $shippingAddress,
         public readonly string $paymentMethod,
         public readonly string $orderCode,
+        public readonly ?int $variantId = null,
     ) {}
 
     /**
@@ -77,10 +78,21 @@ class OrderProcessingJob implements ShouldQueue
                 // Khóa + chọn variant còn đủ tồn kho THẬT (product_variants.stock) — tồn kho
                 // campaign trên Redis độc lập với tồn kho thật nên phải kiểm tra lại ở đây,
                 // tránh trừ mù khiến stock âm và oversell ở cửa hàng thường.
-                $variant = ProductVariant::where('product_id', $this->productId)
-                    ->where('stock', '>=', $this->quantity)
-                    ->lockForUpdate()
-                    ->first();
+                $variant = null;
+                if ($this->variantId) {
+                    $variant = ProductVariant::where('variant_id', $this->variantId)
+                        ->where('product_id', $this->productId)
+                        ->where('stock', '>=', $this->quantity)
+                        ->lockForUpdate()
+                        ->first();
+                }
+
+                if (! $variant) {
+                    $variant = ProductVariant::where('product_id', $this->productId)
+                        ->where('stock', '>=', $this->quantity)
+                        ->lockForUpdate()
+                        ->first();
+                }
 
                 if (! $variant) {
                     throw new \RuntimeException("Không đủ tồn kho thực cho sản phẩm #{$this->productId} (cần {$this->quantity}).");

@@ -180,6 +180,17 @@ class AdminWalletController extends Controller
             $query->where('status', $status);
         }
 
+        if ($request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('deposit_code', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($q2) use ($search) {
+                        $q2->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
+        }
+
         $deposits = $query->paginate($perPage);
 
         // Transform để flatten user info

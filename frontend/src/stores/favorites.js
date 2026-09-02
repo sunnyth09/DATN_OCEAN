@@ -14,7 +14,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
     const isLoggedIn = () => authStore.isAuthenticated;
 
     const fetchFavoriteIds = async (force = false) => {
-        if (!isLoggedIn()) {
+        if (!isLoggedIn() || authStore.isAdminUser) {
             favoriteIds.value = [];
             isInitialized.value = false;
             return [];

@@ -168,6 +168,10 @@ class CartController extends Controller
      */
     public function getCount()
     {
+        if (auth('admin')->check()) {
+            return response()->json(['count' => 0]);
+        }
+
         $userId = $this->cartService->getUserId();
 
         return response()->json(['count' => $this->cartService->getCartCount($userId)]);
@@ -237,7 +241,7 @@ class CartController extends Controller
     {
         $request->validate([
             'items' => 'required|array',
-            'items.*.variant_id' => 'required|integer|exists:product_variants,variant_id',
+            'items.*.variant_id' => 'required|integer',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
@@ -268,7 +272,8 @@ class CartController extends Controller
                     'color' => $variant->color,
                     'size' => $variant->size,
                     'price' => $variant->effective_price,
-                    'compare_at_price' => $variant->compare_at_price,
+                    'original_price' => $variant->original_price,
+                    'compare_at_price' => $variant->original_price ?: $variant->compare_at_price,
                     'stock' => $variant->stock,
                     'image_url' => $variant->image_url,
                     'status' => $variant->status,
@@ -279,6 +284,10 @@ class CartController extends Controller
                     'slug' => $product->slug,
                     'thumbnail_url' => $product->thumbnail_url,
                     'main_image' => $mainImage ? $mainImage->image_url : null,
+                    'original_price' => $product->original_price,
+                    'compare_at_price' => $product->compare_at_price,
+                    'max_price' => $product->max_price,
+                    'min_price' => $product->min_price,
                 ] : null,
                 'line_total' => $variant ? $variant->effective_price * $item['quantity'] : 0,
             ];

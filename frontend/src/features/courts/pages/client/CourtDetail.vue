@@ -538,13 +538,39 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <!-- Full Page Loading -->
-    <div v-if="store.loading && !store.currentCourt" class="d-flex justify-content-center align-items-center py-5"
-        style="min-height: 400px;">
-        <div class="text-center">
-            <div class="spinner-border mb-3" style="color: var(--court-primary); width: 2.5rem; height: 2.5rem;"
-                role="status"></div>
-            <p class="text-muted">Đang tải thông tin sân...</p>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="store.loading && !store.currentCourt" class="container py-4 court-detail-skeleton">
+        <div class="d-flex align-items-center mb-4 gap-3">
+            <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 50%;"></div>
+            <div>
+                <div class="skeleton-box" style="width: 220px; height: 28px; border-radius: 6px; margin-bottom: 8px;"></div>
+                <div class="skeleton-box" style="width: 140px; height: 16px; border-radius: 4px;"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card border-0 rounded-4 overflow-hidden mb-4 p-0">
+                    <div class="skeleton-box" style="width: 100%; height: 280px;"></div>
+                    <div class="p-4" style="background: #f8f9fb;">
+                        <div class="skeleton-box" style="width: 150px; height: 22px; border-radius: 4px; margin-bottom: 16px;"></div>
+                        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                            <div class="skeleton-box" style="width: 100px; height: 32px; border-radius: 20px;"></div>
+                            <div class="skeleton-box" style="width: 120px; height: 32px; border-radius: 20px;"></div>
+                        </div>
+                        <div class="skeleton-box" style="width: 100%; height: 50px; border-radius: 6px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-4">
+                <div class="card border-0 rounded-4 p-4" style="background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                    <div class="skeleton-box" style="width: 140px; height: 22px; border-radius: 4px; margin-bottom: 20px;"></div>
+                    <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 10px; margin-bottom: 16px;"></div>
+                    <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 10px; margin-bottom: 16px;"></div>
+                    <div class="skeleton-box" style="width: 100%; height: 80px; border-radius: 10px; margin-bottom: 20px;"></div>
+                    <div class="skeleton-box" style="width: 100%; height: 48px; border-radius: 12px;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -973,5 +999,38 @@ onUnmounted(() => {
 .slot--unavailable .slot-bar {
     background: #e9ecef;
     cursor: not-allowed;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.court-detail-skeleton {
+    width: 100%;
+    pointer-events: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

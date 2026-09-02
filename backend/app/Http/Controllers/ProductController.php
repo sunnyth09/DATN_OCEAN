@@ -13,21 +13,27 @@ class ProductController extends Controller
     ) {}
 
     /**
-     * Lấy danh sách sản phẩm dành cho Admin.
-     * Hỗ trợ phân trang, tìm kiếm, và lọc theo trạng thái (status).
-     * Cũng thực hiện lưu lại lịch sử tìm kiếm nếu có.
+     * Danh sách sản phẩm (phân trang, tìm kiếm, lọc)
+     * Tự động điều hướng:
+     *  - Admin/Staff/Seller: xem toàn bộ sản phẩm với filter status tùy chọn
+     *  - Public/Khách hàng: chỉ xem sản phẩm active, whereNull(deleted_at)
      *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
-        $result = $this->productService->listAdminProducts($request);
+        $user = auth('admin')->user() ?? auth('api')->user();
+        $isAdmin = $user && in_array($user->role, ['admin', 'staff', 'seller']);
+
+        $result = $isAdmin
+            ? $this->productService->listAdminProducts($request)
+            : $this->productService->listClientProducts($request);
 
         // Log search history if search term exists
         if ($request->filled('search')) {
             $userId = auth('api')->id();
-            $sessionId = $request->header('X-Session-ID'); // Hoặc lấy từ đâu tuỳ frontend gửi lên. Thường frontend nên gửi X-Session-ID. Hoặc có thể dùng cookie. Mặc định là request->session_id nếu truyền params.
+            $sessionId = $request->header('X-Session-ID');
             if (! $sessionId) {
                 $sessionId = $request->query('session_id');
             }
@@ -39,6 +45,45 @@ class ProductController extends Controller
                 } else {
                     $query->where('session_id', $sessionId);
                 }
+
+                $record = $query->first();
+                if ($record) {
+                    $record->update([
+                        'updated_at' => now(),
+                        'results_count' => $result['total'] ?? 0,
+                    ]);
+                } else {
+                    SearchHistory::create([
+                        'user_id' => $userId,
+                        'session_id' => $userId ? null : $sessionId,
+                        'keyword' => $request->search,
+                        'results_count' => $result['total'] ?? 0,
+                    ]);
+                }
+            }
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * Client (public): danh sách sản phẩm active (phân trang, tìm kiếm, lọc).
+     * Đây là endpoint công khai dùng cho trang sản phẩm và tìm kiếm của người dùng.
+     */
+    public function clientList(Request $request)
+    {
+        $result = $this->productService->listClientProducts($request);
+
+        // Ghi lịch sử tìm kiếm nếu có từ khoá
+        if ($request->filled('search')) {
+            $userId = auth('api')->id();
+            $sessionId = $request->header('X-Session-ID') ?? $request->query('session_id');
+
+            if ($userId || $sessionId) {
+                $query = SearchHistory::where('keyword', $request->search);
+                $userId
+                    ? $query->where('user_id', $userId)
+                    : $query->where('session_id', $sessionId);
 
                 $record = $query->first();
                 if ($record) {
@@ -99,6 +144,18 @@ class ProductController extends Controller
     public function related($slug)
     {
         $result = $this->productService->getRelatedProducts($slug);
+        $status = $result['_status'] ?? 200;
+        unset($result['_status']);
+
+        return response()->json($result, $status);
+    }
+
+    /**
+     * Sản phẩm phối đồ theo slug
+     */
+    public function matching($slug)
+    {
+        $result = $this->productService->getMatchingProducts($slug);
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
 
@@ -203,6 +260,11 @@ class ProductController extends Controller
             'product_type' => 'required|in:simple,variant',
             'status' => 'required|in:draft,active,inactive,out_of_stock',
             'is_featured' => 'boolean',
+            'sku' => 'nullable|string|max:100',
+            'weight' => 'nullable|integer|min:0',
+            'material' => 'nullable|string|max:150',
+            'origin' => 'nullable|string|max:150',
+            'style' => 'nullable|string|max:150',
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4096',
             'gallery' => 'nullable|array|max:10',
             'gallery.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4096',
@@ -240,6 +302,11 @@ class ProductController extends Controller
             'product_type' => 'required|in:simple,variant',
             'status' => 'required|in:draft,active,inactive,out_of_stock',
             'is_featured' => 'boolean',
+            'sku' => 'nullable|string|max:100',
+            'weight' => 'nullable|integer|min:0',
+            'material' => 'nullable|string|max:150',
+            'origin' => 'nullable|string|max:150',
+            'style' => 'nullable|string|max:150',
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4096',
             'price' => 'nullable|numeric|min:100000',
             'compare_at_price' => 'nullable|numeric|min:100000',
@@ -331,5 +398,34 @@ class ProductController extends Controller
     public function downloadTemplate()
     {
         return $this->productService->downloadTemplate();
+    }
+
+    /**
+     * Xuất danh sách sản phẩm ra file Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        return $this->productService->exportProducts($request);
+    }
+
+    /**
+     * Upload ảnh cho editor mô tả sản phẩm (Quill)
+     */
+    public function uploadEditorImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+        ], [
+            'image.required' => 'Vui lòng chọn ảnh.',
+            'image.image' => 'File phải là ảnh.',
+            'image.mimes' => 'Chỉ hỗ trợ định dạng: JPEG, PNG, JPG, GIF, WEBP.',
+            'image.max' => 'Ảnh không được vượt quá 4MB.',
+        ]);
+
+        $path = $request->file('image')->store('product_descriptions', 'public');
+
+        return response()->json([
+            'url' => '/storage/'.$path,
+        ]);
     }
 }

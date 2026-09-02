@@ -59,12 +59,6 @@ watch(unreadNotificationCount, (count) => {
   }
 }, { immediate: false });
 
-onMounted(() => {
-  // Dọn dẹp token/user cũ ở localStorage (di sản từ phiên bản cũ dùng localStorage)
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('user');
-});
-
 onUnmounted(() => {
   stopBlink();
 });

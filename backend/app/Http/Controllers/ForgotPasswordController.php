@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\PasswordResetOtpMail;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
-use Symfony\Component\Mime\Email;
+use Illuminate\Support\Facades\Mail;
 
 class ForgotPasswordController extends Controller
 {
@@ -220,93 +219,18 @@ class ForgotPasswordController extends Controller
     }
 
     /**
-     * Gửi email OTP qua SMTP (sử dụng PHPMailer-style với mail())
+     * Gửi email OTP qua Queue (không block request của người dùng)
      */
     private function sendOtpEmail(string $email, string $otp, string $name): bool
     {
         try {
-            $emailUser = config('mail.mailers.smtp.username', config('services.email.user'));
-            $emailPass = config('mail.mailers.smtp.password', config('services.email.pass'));
+            Mail::to($email)->queue(new PasswordResetOtpMail($otp, $email));
 
-            // Sử dụng Symfony Mailer qua SMTP (port 587 = STARTTLS)
-            $transport = new EsmtpTransport(
-                'smtp.gmail.com',
-                587,
-                false // false = STARTTLS (auto-upgrade), true = SSL trực tiếp (port 465)
-            );
-            $transport->setUsername($emailUser);
-            $transport->setPassword($emailPass);
-
-            $mailer = new Mailer($transport);
-
-            $otpDigits = str_split($otp);
-            $otpBoxes = '';
-            foreach ($otpDigits as $digit) {
-                $otpBoxes .= '<td style="padding: 0 4px;"><div style="width: 48px; height: 56px; background: #f0f4ff; border: 2px solid #4f6ef7; border-radius: 10px; font-size: 26px; font-weight: 700; color: #1a1a2e; line-height: 56px; text-align: center; font-family: \'Courier New\', monospace;">'.$digit.'</div></td>';
-            }
-
-            $htmlBody = '
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="UTF-8"></head>
-            <body style="margin: 0; padding: 0; background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Arial, sans-serif;">
-                <table width="100%" cellpadding="0" cellspacing="0" style="background: #f0f2f5; padding: 40px 20px;">
-                    <tr><td align="center">
-                        <table width="480" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,0.08);">
-                            <!-- Header -->
-                            <tr><td style="background: linear-gradient(135deg, #4f6ef7 0%, #6366f1 100%); padding: 28px 32px; text-align: center;">
-                                <h1 style="color: #ffffff; font-size: 20px; margin: 0; font-weight: 600; letter-spacing: 0.5px;">Đặt lại mật khẩu</h1>
-                                <p style="color: rgba(255,255,255,0.8); font-size: 13px; margin: 6px 0 0;">Ocean Store</p>
-                            </td></tr>
-
-                            <!-- Body -->
-                            <tr><td style="padding: 32px 32px 24px;">
-                                <p style="color: #1a1a2e; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong>'.htmlspecialchars($name).'</strong>,</p>
-                                <p style="color: #6b7280; font-size: 14px; margin: 0 0 28px; line-height: 1.6;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng sử dụng mã xác thực bên dưới:</p>
-
-                                <!-- OTP Boxes -->
-                                <table cellpadding="0" cellspacing="0" style="margin: 0 auto 28px;">
-                                    <tr>'.$otpBoxes.'</tr>
-                                </table>
-
-                                <!-- Timer Warning -->
-                                <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 10px; padding: 14px 16px; margin-bottom: 24px;">
-                                    <p style="color: #92400e; font-size: 13px; margin: 0; text-align: center; line-height: 1.5;">
-                                        Mã có hiệu lực trong <strong>15 phút</strong>. Không chia sẻ mã này với bất kỳ ai.
-                                    </p>
-                                </div>
-
-                                <!-- Security Note -->
-                                <p style="color: #9ca3af; font-size: 12px; margin: 0; line-height: 1.5; text-align: center;">
-                                    Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.<br>
-                                    Tài khoản của bạn vẫn an toàn.
-                                </p>
-                            </td></tr>
-
-                            <!-- Footer -->
-                            <tr><td style="background: #f9fafb; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
-                                <p style="color: #9ca3af; font-size: 11px; margin: 0; text-align: center; line-height: 1.5;">
-                                    © '.date('Y').' Ocean Fashion. All rights reserved.<br>
-                                    Email này được gửi tự động, vui lòng không trả lời.
-                                </p>
-                            </td></tr>
-                        </table>
-                    </td></tr>
-                </table>
-            </body>
-            </html>';
-
-            $emailMessage = (new Email)
-                ->from($emailUser)
-                ->to($email)
-                ->subject('Mã OTP đặt lại mật khẩu - Ocean Store')
-                ->html($htmlBody);
-
-            $mailer->send($emailMessage);
+            Log::info("Password reset OTP email queued for: {$email}");
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Failed to send OTP email: '.$e->getMessage());
+            Log::error('Failed to queue OTP email: '.$e->getMessage());
 
             return false;
         }

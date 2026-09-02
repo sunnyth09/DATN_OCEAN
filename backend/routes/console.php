@@ -44,6 +44,18 @@ Artisan::command('inspire', function () {
 // =====================================================================
 
 /**
+ * ── 1. Gửi lời chúc sinh nhật + Mã giảm giá ──
+ *
+ * Chạy mỗi ngày lúc 00:00, quét các user có sinh nhật hôm nay
+ * → Tạo coupon riêng, gửi notification email + inbox và tặng điểm thưởng Loyalty.
+ */
+Schedule::command('app:send-birthday-wishes')
+    ->dailyAt('00:00')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
  * ── 2. Nhắc nhở giỏ hàng bỏ quên ──
  *
  * Chạy mỗi giờ, quét giỏ hàng bỏ quên (xem ABANDONED_MINUTES trong command).
@@ -161,3 +173,4 @@ Schedule::command('app:reset-customer-tiers')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
+

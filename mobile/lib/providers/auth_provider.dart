@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../models/user_model.dart';
 import '../services/api_client.dart';
@@ -38,6 +38,50 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true) {
       _isAuthenticated = true;
       _user = await _readCachedUser();
+      notifyListeners();
+      try {
+        await loadProfile();
+      } catch (_) {}
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return result;
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogle({BuildContext? context}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await AuthService.loginWithGoogle(context: context);
+
+    if (result['success'] == true) {
+      _isAuthenticated = true;
+      _user = await _readCachedUser();
+      notifyListeners();
+      try {
+        await loadProfile();
+      } catch (_) {}
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return result;
+  }
+
+  Future<Map<String, dynamic>> loginWithSavedToken(String token, {Map<String, dynamic>? cachedUser}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await AuthService.loginWithSavedToken(token, cachedUser: cachedUser);
+
+    if (result['success'] == true) {
+      _isAuthenticated = true;
+      _user = await _readCachedUser();
+      notifyListeners();
+      try {
+        await loadProfile();
+      } catch (_) {}
     }
 
     _isLoading = false;

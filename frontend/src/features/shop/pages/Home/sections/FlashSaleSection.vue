@@ -1,7 +1,25 @@
 <script setup>
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
+import AppIcon from '@/components/AppIcon.vue';
 defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
+
+const formatSoldCount = (count) => {
+    const num = Number(count);
+    if (!Number.isFinite(num) || num <= 0) return '0';
+
+    if (num >= 1000000) {
+        const tr = (num / 1000000).toFixed(1).replace(/\.0$/, '');
+        return num % 1000000 === 0 ? `${tr} triệu` : `${tr} triệu+`;
+    }
+
+    if (num >= 1000) {
+        const k = (num / 1000).toFixed(1).replace(/\.0$/, '');
+        return num % 1000 === 0 ? `${k}k` : `${k}k+`;
+    }
+
+    return String(num);
+};
 </script>
 <template>
     <section class="flash-sale-section" v-if="flashSaleProducts.length > 0 || isLoadingFlashSale">
@@ -60,17 +78,16 @@ defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
                         <div class="flash-sale-card-wrapper h-100">
                             <ProductCard :product="product">
                                 <template #bottom-content>
-                                    <div class="flash-progress-wrap mt-3">
-                                        <div class="flash-progress-bar-container">
+                                    <div class="flash-progress-wrap">
+                                        <div class="flash-progress-bar-container mt-2">
                                             <div class="flash-progress-fill"
-                                                :style="{ width: product.flash_percent + '%' }"></div>
-                                            <div class="flash-progress-text">
-                                                <svg v-if="product.flash_percent > 75" class="fire-icon" width="12"
-                                                    height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                                                    <path
-                                                        d="M17.5 13c0 2.8-2.5 5.5-5.5 5.5S6.5 15.8 6.5 13c0-3.5 3-6.5 4.5-9.5 1 2 2 3.5 2 4.5 0 .8-.5 1.5-1.5 2C13 8.5 17.5 9.5 17.5 13z" />
-                                                </svg>
-                                                Đã bán {{ product.flash_sold }}
+                                                :style="{ width: `${Math.min(100, Math.max(0, Number(product.flash_percent || 0)))}%` }">
+                                            </div>
+                                            <div class="flash-progress-text"
+                                                :class="{ 'text-white': Number(product.flash_percent || 0) >= 35 }">
+                                                <AppIcon :name="product.flash_percent > 75 ? 'flame' : 'zap'" size="14"
+                                                    stroke-width="2.2" />
+                                                <span>Đã bán {{ formatSoldCount(product.flash_sold) }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -123,20 +140,20 @@ defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
 }
 
 .flash-sale-title {
-    font-size: 1.8rem;
-    font-weight: 900;
-    color: #111827;
-    letter-spacing: -.5px;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
 }
 
 .flash-sale-sub {
-    color: #4b5563;
-    font-size: .85rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 
 .countdown-label {
-    color: #4b5563;
-    font-size: .85rem;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
     font-weight: 600;
 }
 
@@ -202,24 +219,46 @@ defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
 }
 
 /* Flash Sale Progress Bar */
-.flash-sold-text {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #4b5563;
+.flash-progress-wrap {
+    padding-top: 2px;
 }
 
-.flash-progress-bar {
-    width: 100%;
-    height: 6px;
-    background: #ffe4e6;
-    border-radius: 99px;
+.flash-progress-bar-container {
+    position: relative;
+    height: 30px;
     overflow: hidden;
+    border-radius: 999px;
+    background: #fff1f2;
+    border: 1px solid #ffe4e6;
+    box-shadow: inset 0 1px 3px rgba(190, 18, 60, 0.1);
 }
 
 .flash-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #fb7185, #e11d48);
+    background: linear-gradient(90deg, #fb7185 0%, #e11d48 55%, #be123c 100%);
     border-radius: 99px;
     transition: width 0.5s ease-out;
+}
+
+.flash-progress-text {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #be123c;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+    z-index: 2;
+    pointer-events: none;
+    transition: color 0.3s ease;
+}
+
+.flash-progress-text.text-white {
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(159, 18, 57, 0.95), 0 0 2px rgba(0, 0, 0, 0.6) !important;
 }
 </style>

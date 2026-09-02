@@ -1,22 +1,31 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import '../services/api_client.dart';
-import 'address_screen.dart';
-import '../config/app_config.dart';
-import '../utils/format_utils.dart';
 import 'package:provider/provider.dart';
+
+import '../config/app_theme.dart';
+import '../services/api_client.dart';
 import '../providers/cart_provider.dart';
-import 'order_success_screen.dart';
+import '../utils/format_utils.dart';
+import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
+import '../widgets/voucher_selection_modal.dart';
+import 'address_screen.dart';
 import 'checkout/widgets/checkout_address_box.dart';
 import 'checkout/widgets/checkout_payment_box.dart';
 import 'checkout/widgets/checkout_coupon_box.dart';
 import 'checkout/widgets/checkout_order_summary.dart';
 import 'checkout/widgets/checkout_bottom_bar.dart';
-import 'payment_webview_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  final Map<String, dynamic>? initialCoupon;
+  final int? initialDiscount;
+
+  const CheckoutScreen({
+    super.key,
+    this.initialCoupon,
+    this.initialDiscount,
+  });
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -27,23 +36,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, dynamic>? defaultAddress;
   List<dynamic> cartItems = [];
   num subtotal = 0;
-  int shippingFee = 0; // Phí ship mặc định (fallback)
+  int shippingFee = 0;
   bool _isCalculatingShip = false;
   bool isLoading = true;
   String? errorMessage;
 
-  // Coupon
   Map<String, dynamic>? appliedCoupon;
   int discountAmount = 0;
   final _couponCtrl = TextEditingController();
   bool _isApplyingCoupon = false;
-
-  // Chống double-submit: chặn tạo đơn khi request trước chưa xong.
   bool _isPlacingOrder = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.initialCoupon != null) {
+      appliedCoupon = widget.initialCoupon;
+      discountAmount = widget.initialDiscount ?? 0;
+      _couponCtrl.text = widget.initialCoupon!['code']?.toString() ?? '';
+    }
     fetchCheckoutData();
   }
 
@@ -61,7 +72,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
 
     try {
-      // Chạy song song để nhanh hơn
       final results = await Future.wait([
         ApiClient().dio.get('/profile/addresses'),
         ApiClient().dio.get('/cart'),
@@ -70,7 +80,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final addressRes = results[0];
       final cartRes = results[1];
 
-      // Parse địa chỉ
       final addrList = addressRes.data['data'] as List? ?? [];
       if (addrList.isNotEmpty) {
         defaultAddress = addrList.firstWhere(
@@ -79,17 +88,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
       }
 
-      // Parse giỏ hàng — lấy TẤT CẢ items (không filter selected vì backend có thể không trả field này)
       final cData = cartRes.data['data'];
       if (cData != null) {
         final allItems = (cData['items'] as List?) ?? [];
-        // Ưu tiên filter selected, nếu không có thì lấy hết
         final selectedItems = allItems
             .where((item) => item['selected'] == 1 || item['selected'] == true)
             .toList();
         cartItems = selectedItems.isNotEmpty ? selectedItems : allItems;
 
-        // Tính subtotal từ items nếu API không trả total_price đúng
         final apiTotal = cData['total_price'];
         if (apiTotal != null && num.tryParse(apiTotal.toString()) != null) {
           subtotal = num.parse(apiTotal.toString());
@@ -102,8 +108,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       }
 
-      // Tính phí GHN sau khi có địa chỉ
+      // P0-05: Validate empty cart — không cho tiến hành checkout khi giỏ trống
+      if (cartItems.isEmpty) {
+        if (mounted) {
+          setState(() {
+            errorMessage = 'Giỏ hàng của bạn đang trống. Vui lòng thêm sản phẩm để tiếp tục.';
+            isLoading = false;
+          });
+        }
+        return;
+      }
+
       await _calculateShippingFee();
+      _recalcCouponDiscount();
 
       if (mounted) setState(() => isLoading = false);
     } on DioException catch (e) {
@@ -115,7 +132,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           errorMessage = 'Lỗi kết nối máy chủ. Vui lòng thử lại.';
@@ -125,7 +142,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  /// Tính phí vận chuyển thực tế từ Backend API
+  void _recalcCouponDiscount() {
+    if (appliedCoupon == null) return;
+    int disc = 0;
+    final type = appliedCoupon!['type']?.toString();
+    final val = num.tryParse(appliedCoupon!['value']?.toString() ?? '0') ?? 0;
+    if (type == 'percent') {
+      disc = (subtotal * val / 100).round();
+      final maxDisc = num.tryParse(appliedCoupon!['max_discount_value']?.toString() ?? '0') ?? 0;
+      if (maxDisc > 0 && disc > maxDisc) disc = maxDisc.toInt();
+    } else if (type == 'fixed') {
+      disc = val.toInt();
+    } else if (type == 'free_ship') {
+      disc = shippingFee;
+    }
+    discountAmount = disc > subtotal ? subtotal.toInt() : disc;
+  }
+
   Future<void> _calculateShippingFee() async {
     if (defaultAddress == null) return;
     final wardCode = defaultAddress!['ward_code']?.toString() ?? '';
@@ -135,12 +168,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _isCalculatingShip = true);
 
     try {
-      // API tính phí backend: POST /ghn/calculate-fee
       final response = await ApiClient().dio.post(
         '/ghn/calculate-fee',
         data: {
           'ward_code': wardCode,
-          'weight': 500, // Fixed weight or dynamic
+          'weight': 500,
         },
       );
 
@@ -150,25 +182,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           setState(() {
             shippingFee = int.tryParse(fee.toString()) ?? 35000;
             _isCalculatingShip = false;
+            _recalcCouponDiscount();
           });
         }
       } else {
         throw Exception('Lỗi tính phí từ backend');
       }
-    } on DioException catch (e) {
-      debugPrint('Backend Fee DioException: ${e.response?.data}');
+    } catch (_) {
       if (mounted) {
         setState(() {
-           shippingFee = 35000;
-           _isCalculatingShip = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('GHN Exception: $e');
-      if (mounted) {
-        setState(() {
-           shippingFee = 35000;
-           _isCalculatingShip = false;
+          shippingFee = 35000;
+          _isCalculatingShip = false;
+          _recalcCouponDiscount();
         });
       }
     }
@@ -189,11 +214,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       if (coupon == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Mã giảm giá không hợp lệ hoặc đã hết hạn!'),
-              backgroundColor: Colors.red,
-            ),
+          AppToast.showError(
+            context,
+            message: 'Mã giảm giá không hợp lệ hoặc đã hết hạn!',
           );
         }
       } else {
@@ -201,13 +224,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             num.tryParse(coupon['min_order_value']?.toString() ?? '0') ?? 0;
         if (subtotal < minOrder) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Đơn hàng tối thiểu ${FormatUtils.formatPrice(minOrder)} để dùng mã này!',
-                ),
-                backgroundColor: Colors.orange,
-              ),
+            AppToast.showWarning(
+              context,
+              message: 'Đơn hàng tối thiểu ${FormatUtils.formatPrice(minOrder)} để dùng mã này!',
             );
           }
         } else {
@@ -229,28 +248,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             discountAmount = discount;
           });
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Áp dụng mã thành công! Giảm ${FormatUtils.formatPrice(discount)}',
-                ),
-                backgroundColor: Colors.green,
-              ),
+            AppToast.showSuccess(
+              context,
+              message: 'Áp dụng mã thành công! Giảm ${FormatUtils.formatPrice(discount)}',
             );
           }
         }
       }
-    } on DioException catch (_) {
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lỗi kiểm tra mã!'),
-            backgroundColor: Colors.red,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Lỗi kiểm tra mã!',
         );
       }
     } finally {
       if (mounted) setState(() => _isApplyingCoupon = false);
+    }
+  }
+
+  Future<void> _openVoucherModal() async {
+    final result = await VoucherSelectionModal.show(
+      context,
+      subtotal: subtotal.toDouble(),
+      currentCoupon: appliedCoupon,
+    );
+    if (!mounted || result == null) return;
+    if (result.isEmpty) {
+      _removeCoupon();
+    } else {
+      int discount = 0;
+      if (result['type'] == 'percent') {
+        discount = (subtotal * num.parse(result['value'].toString()) / 100).round();
+        final maxDisc = num.tryParse(result['max_discount_value']?.toString() ?? '0') ?? 0;
+        if (maxDisc > 0 && discount > maxDisc) discount = maxDisc.toInt();
+      } else if (result['type'] == 'fixed') {
+        discount = num.parse(result['value'].toString()).toInt();
+      } else if (result['type'] == 'free_ship') {
+        discount = shippingFee;
+      }
+      setState(() {
+        appliedCoupon = result;
+        discountAmount = discount;
+        _couponCtrl.text = result['code']?.toString() ?? '';
+      });
     }
   }
 
@@ -264,24 +305,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> placeOrder() async {
     if (defaultAddress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng thêm địa chỉ nhận hàng!'),
-          backgroundColor: Colors.orange,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Vui lòng thêm địa chỉ nhận hàng!',
       );
       return;
     }
     if (cartItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Giỏ hàng trống!'),
-          backgroundColor: Colors.orange,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Giỏ hàng trống!',
       );
       return;
     }
-    // Chặn chạm lặp: nếu đang gửi thì bỏ qua.
     if (_isPlacingOrder) return;
     setState(() => _isPlacingOrder = true);
 
@@ -297,7 +333,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       if (mounted) {
-        context.read<CartProvider>().fetchCart(silent: true);
+        context.read<CartProvider>().fetchCart(silent: true, force: true);
       }
 
       final resData = response.data;
@@ -305,70 +341,61 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final momoUrl = resData['momo_url'];
       final paymentUrl = vnpayUrl ?? momoUrl;
 
-      // Mã đơn + tổng tiền do backend trả về, dùng cho màn xác nhận.
       final orderData = resData['data'];
       final orderCode = orderData is Map ? orderData['order_code']?.toString() : null;
+      final orderId = orderData is Map ? (orderData['order_id'] ?? orderData['id'] ?? orderData['order_code'])?.toString() : null;
       final grandTotal = orderData is Map
           ? num.tryParse(orderData['grand_total']?.toString() ?? '')
           : null;
 
-      if (paymentUrl != null && mounted) {
-        // Mở WebView thanh toán
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentWebviewScreen(
-              url: paymentUrl,
-              paymentMethod: pm,
-              orderCode: orderCode,
-              grandTotal: grandTotal,
-            ),
-          ),
+      if (!mounted) return;
+
+      if (paymentUrl != null) {
+        // P1-08: Dùng context.push() (GoRouter) thay Navigator.push() để nhất quán navigation
+        context.push(
+          '/payment-webview',
+          extra: {
+            'url': paymentUrl,
+            'paymentMethod': pm,
+            'orderCode': orderCode,
+            'grandTotal': grandTotal,
+          },
         );
-      } else if (mounted) {
-        // Thanh toán COD hoặc ví -> đi tới trang thành công
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Đặt hàng thành công!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pushAndRemoveUntil(
+      } else {
+        AppToast.showSuccess(
           context,
-          MaterialPageRoute(
-            builder: (_) => OrderSuccessScreen(
-              orderCode: orderCode,
-              grandTotal: grandTotal,
-            ),
-          ),
-          (route) => false,
+          message: 'Đặt hàng thành công!',
+        );
+        // P1-09: Dùng context.go() (GoRouter) thay Navigator.pushAndRemoveUntil() 
+        // để GoRouter quản lý stack, tránh user bị kẹt không back được
+        context.go(
+          '/order-success',
+          extra: {
+            'orderCode': orderCode,
+            'grandTotal': grandTotal,
+            'orderId': orderId,
+          },
         );
       }
     } on DioException catch (e) {
       final msg = e.response?.data?['message'] ?? 'Lỗi đặt hàng';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.red),
-        );
+        AppToast.showError(context, message: msg);
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lỗi kết nối máy chủ!'),
-            backgroundColor: Colors.red,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Lỗi kết nối máy chủ!',
         );
       }
     } finally {
-      // Bật lại nút khi quay về màn checkout (VD trở lại từ webview thanh toán).
       if (mounted) setState(() => _isPlacingOrder = false);
     }
   }
 
-  /// Mở màn chọn địa chỉ, cập nhật rồi tính lại phí ship theo địa chỉ mới.
   Future<void> _onChangeAddress() async {
-    final selected = await Navigator.push(
+    final selected = await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
         builder: (_) => const AddressScreen(isSelecting: true),
@@ -377,90 +404,87 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (selected != null && mounted) {
       setState(() {
         defaultAddress = selected;
-        shippingFee = 35000; // reset về default rồi tính lại
+        shippingFee = 35000;
       });
       _calculateShippingFee();
     }
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: const Text(
-        'Thanh toán',
-        style: TextStyle(
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF0F172A),
-          fontSize: 18,
-        ),
-      ),
-      backgroundColor: Colors.white,
-      elevation: 0,
-      centerTitle: true,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Color(0xFFE63B6F)),
-        onPressed: () => context.pop(),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        appBar: _buildAppBar(),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Thanh toán', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/cart');
+              }
+            },
+          ),
+        ),
         body: const Center(
-          child: CircularProgressIndicator(color: Color(0xFFE63B6F)),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }
 
     if (errorMessage != null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
-        appBar: _buildAppBar(),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text(
-                  errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFF64748B)),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: fetchCheckoutData,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE63B6F),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Thử lại',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Thanh toán', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/cart');
+              }
+            },
           ),
+        ),
+        body: AppEmptyState(
+          icon: Icons.error_outline_rounded,
+          title: 'Lỗi tải trang thanh toán',
+          message: errorMessage!,
+          buttonText: 'Thử lại',
+          onAction: fetchCheckoutData,
         ),
       );
     }
 
-    final grandTotal = (subtotal.toInt() + shippingFee - discountAmount).clamp(
-      0,
-      double.maxFinite.toInt(),
-    );
+    // P0-01: Dùng constant an toàn thay cho double.maxFinite.toInt() (có thể overflow 32-bit)
+    const int maxOrderValue = 999_999_999;
+    final grandTotal = (subtotal.toInt() + shippingFee - discountAmount).clamp(0, maxOrderValue);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: _buildAppBar(),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text(
+          'Thanh Toán Đơn Hàng',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/cart');
+            }
+          },
+        ),
+      ),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -485,6 +509,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   controller: _couponCtrl,
                   onApply: _applyCoupon,
                   onRemove: _removeCoupon,
+                  onOpenVoucherList: _openVoucherModal,
                 ),
                 const SizedBox(height: 8),
                 CheckoutOrderSummary(

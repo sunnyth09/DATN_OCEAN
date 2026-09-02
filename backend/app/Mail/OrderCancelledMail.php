@@ -31,7 +31,7 @@ class OrderCancelledMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '[Đơn hàng] Đơn hàng #'.$this->order->order_code.' đã bị hủy',
+            subject: '[Ocean Sport] Thông báo hủy đơn hàng #'.$this->order->order_code,
         );
     }
 

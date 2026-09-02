@@ -84,7 +84,9 @@ return [
                 ],
                 'allowed_origins' => ['*'],
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
-                'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
+                // MUST be greater than ping_interval so the connection is not dropped
+                // before the first server ping arrives. (30s was causing periodic disconnects)
+                'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 120),
                 'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),
                 'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
                 'accept_client_events_from' => env('REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM', 'members'),

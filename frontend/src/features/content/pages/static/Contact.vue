@@ -3,7 +3,7 @@
     <div class="container" style="padding-top: 24px;">
       <div class="page-hero-card">
         <h1>Liên Hệ Hỗ Trợ</h1>
-        <p class="hero-sub">Chúng tôi luôn sẵn sàng lắng nghe bạn</p>
+        <p class="hero-sub">Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn mọi lúc mọi nơi</p>
       </div>
     </div>
     <section class="page-content container">
@@ -35,8 +35,8 @@
               <circle cx="12" cy="10" r="3" />
             </svg></div>
           <h3>Showroom</h3>
-          <p class="contact-value">101 Y Ngông</p>
-          <p class="contact-note">Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+          <p class="contact-value">99 Nguyễn Văn Linh</p>
+          <p class="contact-note">Phường Tân An, TP. Buôn Ma Thuột, Đắk Lắk</p>
         </div>
         <div class="contact-card">
           <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -53,14 +53,16 @@
       <div class="contact-layout">
         <div class="info-panel">
           <div class="mini-map">
-            <iframe src="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed" loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade" title="Mini map Ocean Sport"></iframe>
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3893.1!2d108.0978176!3d12.7244343!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3171f7b6e379b675%3A0x72662967145555c0!2zVHLGsOG7nW5nIENhbyDEkeG6s25nIEZQVCBQb2x5dGVjaG5pYyBUw6J5IE5ndXnDqm4!5e0!3m2!1svi!2svn!4v1700000000000"
+              loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+              title="Trường Cao đẳng FPT Polytechnic Tây Nguyên" allowfullscreen=""></iframe>
           </div>
           <div class="location-meta">
             <h3>Showroom OCEAN SPORT</h3>
-            <p>101 Y Ngông, Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
-            <a href="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk" target="_blank"
-              rel="noopener noreferrer">
+            <p>99 Nguyễn Văn Linh, Phường Tân An, TP. Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+            <a href="https://www.google.com/maps/place/Tr%C6%B0%E1%BB%9Dng+Cao+%C4%91%E1%BA%B3ng+FPT+Polytechnic+T%C3%A2y+Nguy%C3%AAn/@12.7244343,108.0978176,17z/data=!4m6!3m5!1s0x3171f7b6e379b675:0x72662967145555c0!8m2!3d12.7244343!4d108.0978176!16s%2Fg%2F11v614p6nr"
+              target="_blank" rel="noopener noreferrer">
               Xem bản đồ lớn
             </a>
           </div>
@@ -68,8 +70,6 @@
         <div class="form-panel">
           <h2>Gửi yêu cầu hỗ trợ</h2>
           <form @submit.prevent="submitContact" class="contact-form" novalidate>
-            <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
-            <div v-if="errorMsg" class="alert-error">{{ errorMsg }}</div>
             <div class="form-row-2">
               <div class="form-group">
                 <label>Họ và tên</label>
@@ -137,11 +137,12 @@
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import api from '@/axios';
+import { useToast } from '@/composables/useToast';
+
+const { showToast } = useToast();
 
 const form = reactive({ name: '', email: '', subject: '', message: '' });
 const isSubmitting = ref(false);
-const successMsg = ref('');
-const errorMsg = ref('');
 const fieldErrors = reactive({});
 
 const turnstileToken = ref('');
@@ -187,8 +188,6 @@ const clearFieldError = (field) => {
 };
 
 const submitContact = async () => {
-  successMsg.value = '';
-  errorMsg.value = '';
   Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
 
   // Client-side validation
@@ -205,7 +204,7 @@ const submitContact = async () => {
   isSubmitting.value = true;
   try {
     const res = await api.post('/submitcontact', { ...form, turnstile_token: turnstileToken.value });
-    successMsg.value = res.data.message;
+    showToast(res.data?.message || 'Yêu cầu hỗ trợ đã được gửi thành công!', 'success');
     // Reset form
     form.name = '';
     form.email = '';
@@ -218,13 +217,13 @@ const submitContact = async () => {
       turnstileToken.value = '';
     }
   } catch (err) {
-    if (err.response?.status === 422 && err.response.data.errors) {
+    if (err.response?.status === 422 && err.response.data?.errors) {
       Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
       for (const [key, msgs] of Object.entries(err.response.data.errors)) {
         fieldErrors[key] = msgs[0];
       }
     } else {
-      errorMsg.value = err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.';
+      showToast(err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.', 'danger');
     }
 
     if (window.turnstile && turnstileWidgetId !== null) {
@@ -239,9 +238,8 @@ const submitContact = async () => {
 
 <style scoped>
 .static-page {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
-
 
 .page-hero-card {
   padding: 32px;
@@ -281,7 +279,7 @@ const submitContact = async () => {
 }
 
 .hero-sub {
-  opacity: 0.85;
+  opacity: 0.95;
   font-size: 0.95rem;
   max-width: 500px;
   margin: 5px auto 0;
@@ -511,24 +509,75 @@ const submitContact = async () => {
   }
 
   .page-hero .container {
-    padding: 40px 18px;
+    padding: 36px 16px;
     border-radius: 18px;
   }
 
   .page-content {
-    padding: 36px 24px 56px;
+    padding: 24px 16px 56px;
   }
 
   .contact-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .contact-card {
+    padding: 14px 10px;
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .contact-value {
+    word-break: break-word;
+    font-size: 0.8rem;
+  }
+
+  .contact-note {
+    word-break: break-word;
+    font-size: 0.72rem;
+    line-height: 1.3;
   }
 
   .contact-layout {
     grid-template-columns: 1fr;
+    gap: 32px;
   }
 
   .form-row-2 {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .contact-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 14px;
+    padding: 14px 16px;
+  }
+
+  .contact-icon {
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .contact-card h3 {
+    margin: 0 0 2px;
+  }
+
+  .contact-value {
+    margin-bottom: 2px;
   }
 }
 </style>

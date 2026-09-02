@@ -11,6 +11,7 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
+import MediaPreviewModal from '@/components/MediaPreviewModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
 import { sanitizeHtml } from '@/utils/sanitize';
@@ -25,6 +26,126 @@ const slug = computed(() => route.params.id);
 const product = ref(null);
 const isLoading = ref(true);
 const isNotFound = ref(false);
+
+// ── Flash Sale Integration ──
+const hasFlashSale = computed(() => !!product.value?.flash_sale);
+const flashSaleData = computed(() => product.value?.flash_sale || null);
+
+const isFlashSaleEnded = computed(() => {
+  if (!flashSaleData.value?.end_time) return false;
+  return new Date(flashSaleData.value.end_time).getTime() <= Date.now();
+});
+
+// Flash Sale hết quota khi remaining = 0 (hoặc sold >= total_stock)
+const isFlashSaleSoldOut = computed(() => {
+  if (!flashSaleData.value) return false;
+  const remaining = flashSaleData.value.remaining ?? null;
+  if (remaining !== null) return remaining <= 0;
+  const total = flashSaleData.value.total_stock || flashSaleData.value.campaign_stock || 0;
+  const sold  = flashSaleData.value.sold_count  || flashSaleData.value.sold || 0;
+  return total > 0 && sold >= total;
+});
+
+// Chỉ hiện Flash Sale card khi: có FS, chưa kết thúc và CÒN quota
+const hasActiveFlashSale = computed(
+  () => hasFlashSale.value && !isFlashSaleEnded.value && !isFlashSaleSoldOut.value
+);
+
+const flashSaleOriginalPrice = computed(() => {
+  if (!flashSaleData.value) return 0;
+  const flashPrice = Number(flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0);
+
+  const fsOrig = Number(flashSaleData.value.original_price || flashSaleData.value.compare_at_price || 0);
+  if (fsOrig > flashPrice) return fsOrig;
+
+  if (selectedVariant.value) {
+    const vOrig = Number(
+      selectedVariant.value.original_price ||
+      selectedVariant.value.originalPrice ||
+      selectedVariant.value.compare_at_price ||
+      selectedVariant.value.price ||
+      0
+    );
+    if (vOrig > flashPrice) return vOrig;
+  }
+
+  const infoOrig = Number(displayPriceInfo.value.original || 0);
+  if (infoOrig > flashPrice) return infoOrig;
+
+  if (product.value) {
+    const prodOrig = Number(
+      product.value.original_price ||
+      product.value.originalPrice ||
+      product.value.compare_at_price ||
+      product.value.max_price ||
+      product.value.min_price ||
+      0
+    );
+    if (prodOrig > flashPrice) return prodOrig;
+  }
+
+  return 0;
+});
+
+const flashDiscountPercent = computed(() => {
+  if (!flashSaleData.value) return 0;
+  const flashPrice = Number(flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0);
+  const orig = flashSaleOriginalPrice.value;
+  if (orig > flashPrice && orig > 0) {
+    return Math.round(((orig - flashPrice) / orig) * 100);
+  }
+  return 0;
+});
+
+const flashFillPercent = computed(() => {
+  if (!flashSaleData.value) return 0;
+  const total = flashSaleData.value.total_stock || 1;
+  const sold = flashSaleData.value.sold_count || flashSaleData.value.sold || 0;
+  return Math.min(100, Math.round((sold / total) * 100));
+});
+
+const flashRemainingTime = ref({ hours: '00', minutes: '00', seconds: '00' });
+let flashTimerInterval = null;
+
+const startFlashCountdown = () => {
+  if (flashTimerInterval) clearInterval(flashTimerInterval);
+  if (!flashSaleData.value?.end_time) return;
+
+  const update = () => {
+    const end = new Date(flashSaleData.value.end_time).getTime();
+    const now = Date.now();
+    const diff = Math.max(0, end - now);
+
+    if (diff <= 0) {
+      flashRemainingTime.value = { hours: '00', minutes: '00', seconds: '00' };
+      clearInterval(flashTimerInterval);
+      return;
+    }
+
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    const pad = (n) => String(n).padStart(2, '0');
+
+    flashRemainingTime.value = {
+      hours: pad(h),
+      minutes: pad(m),
+      seconds: pad(s),
+    };
+  };
+
+  update();
+  flashTimerInterval = setInterval(update, 1000);
+};
+
+watch(flashSaleData, (val) => {
+  if (val) startFlashCountdown();
+}, { immediate: true });
+
+onBeforeUnmount(() => {
+  if (flashTimerInterval) clearInterval(flashTimerInterval);
+});
+
 const safeDescription = computed(() => sanitizeHtml(product.value?.description));
 const safeShortDescription = computed(() => sanitizeHtml(product.value?.short_description));
 const productImageRef = ref(null);
@@ -39,6 +160,10 @@ const addingToCart = ref(false);
 const buyingNow = ref(false);
 const cartVersion = ref(0);
 const showSizeGuide = ref(false);
+const sizeGuideData = computed(() => {
+  return product.value?.category?.size_guide || null;
+});
+
 const showQrModal = ref(false);
 const qrDataUrl = ref('');
 const qrGenerating = ref(false);
@@ -407,29 +532,34 @@ watch(selectedColor, (newColor) => {
     return;
   }
 
+  const colorVariants = product.value?.variants?.filter(v => v.color === newColor) || [];
+  if (colorVariants.length === 0) {
+    selectedSize.value = null;
+    selectedVariant.value = null;
+    return;
+  }
+
+  // 1. Nếu đang có size được chọn, kiểm tra xem size đó ở màu mới có còn hàng và khả dụng không
   if (selectedSize.value) {
     const match = findVariantForSelection(newColor, selectedSize.value);
     if (isVariantPurchasable(match)) {
       selectedVariant.value = match;
       return;
     }
-    selectedSize.value = null;
-    selectedVariant.value = null;
   }
 
-  const colorVariants = product.value?.variants?.filter(v => v.color === newColor) || [];
-  if (colorVariants.length === 1) {
-    selectedSize.value = colorVariants[0].size;
-    selectedVariant.value = colorVariants[0];
-  } else if (colorVariants.length > 1 && availableSizes.value.length === 0) {
-    // If there are multiple variants with the same color but NO sizes available,
-    // we should still select one so the user can purchase.
-    const active = colorVariants.find(v => isVariantPurchasable(v));
-    selectedVariant.value = active || colorVariants[0];
-  } else if (colorVariants.length > 1) {
-    // There are sizes to choose from, clear the selected variant until size is chosen
-    selectedVariant.value = null;
+  // 2. Nếu size cũ không còn hàng ở màu mới -> Tự động chọn size đầu tiên CÒN HÀNG của màu mới
+  const purchasableVariant = colorVariants.find(v => isVariantPurchasable(v));
+  if (purchasableVariant) {
+    selectedSize.value = purchasableVariant.size || null;
+    selectedVariant.value = purchasableVariant;
+    return;
   }
+
+  // 3. Nếu tất cả các size của màu mới đều hết hàng -> Fallback chọn size đầu tiên của màu đó
+  const fallbackVariant = colorVariants[0];
+  selectedSize.value = fallbackVariant?.size || null;
+  selectedVariant.value = fallbackVariant || null;
 });
 
 // Khi chọn size → tìm variant đúng theo màu hiện tại, không làm mất lựa chọn màu.
@@ -446,6 +576,13 @@ const mainImageUrl = computed(() => {
   if (imgs.length === 0) return getImageUrl(null);
   const idx = activeImageIndex.value < imgs.length ? activeImageIndex.value : 0;
   return getImageUrl(imgs[idx]?.image_url);
+});
+
+const mainImageRawPath = computed(() => {
+  const imgs = allImages.value;
+  if (imgs.length === 0) return null;
+  const idx = activeImageIndex.value < imgs.length ? activeImageIndex.value : 0;
+  return imgs[idx]?.image_url;
 });
 
 const nextImage = () => {
@@ -479,36 +616,64 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 };
 
+const getVariantDisplayPrice = (v) => {
+  if (!v) return { current: 0, original: null, discount: 0 };
+  const price = Number(v.price || 0);
+  const salePrice = Number(v.sale_price || 0);
+  const comparePrice = Number(v.compare_at_price || 0);
+
+  if (salePrice > 0 && salePrice < price) {
+    const disc = Math.round(((price - salePrice) / price) * 100);
+    return { current: salePrice, original: price, discount: disc };
+  }
+
+  if (comparePrice > price) {
+    const disc = Math.round(((comparePrice - price) / comparePrice) * 100);
+    return { current: price, original: comparePrice, discount: disc };
+  }
+
+  return { current: price, original: null, discount: 0 };
+};
+
 const displayPriceInfo = computed(() => {
   if (!product.value) return { current: 0, original: null, discount: 0 };
 
-  if (selectedVariant.value) {
-    let orig = null;
-    if (selectedVariant.value.is_on_sale) orig = selectedVariant.value.price;
-    else if (selectedVariant.value.compare_at_price > selectedVariant.value.price) orig = selectedVariant.value.compare_at_price;
+  if (hasActiveFlashSale.value) {
+    if (selectedVariant.value) {
+      let orig = null;
+      if (selectedVariant.value.is_on_sale) orig = selectedVariant.value.price;
+      else if (selectedVariant.value.compare_at_price > selectedVariant.value.price) orig = selectedVariant.value.compare_at_price;
 
+      return {
+        current: selectedVariant.value.effective_price,
+        original: orig,
+        discount: selectedVariant.value.discount_percent || 0
+      };
+    }
+    const variants = product.value.variants || [];
+    if (variants.length === 0) return { current: product.value.min_price || 0, original: null, discount: 0 };
+    const lowest = variants.reduce((min, v) => ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), variants[0]);
+    let orig = null;
+    if (lowest.is_on_sale) orig = lowest.price;
+    else if (lowest.compare_at_price > lowest.price) orig = lowest.compare_at_price;
     return {
-      current: selectedVariant.value.effective_price,
+      current: lowest.effective_price || lowest.price,
       original: orig,
-      discount: selectedVariant.value.discount_percent || 0
+      discount: lowest.discount_percent || 0
     };
   }
 
-  // Nếu chưa chọn variant, tìm variant có effective_price thấp nhất
+  if (selectedVariant.value) {
+    return getVariantDisplayPrice(selectedVariant.value);
+  }
+
   const variants = product.value.variants || [];
   if (variants.length === 0) return { current: product.value.min_price || 0, original: null, discount: 0 };
 
-  const lowest = variants.reduce((min, v) => ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), variants[0]);
+  const pricedVariants = variants.map(v => ({ variant: v, priceInfo: getVariantDisplayPrice(v) }));
+  const lowest = pricedVariants.reduce((min, item) => (item.priceInfo.current < min.priceInfo.current ? item : min), pricedVariants[0]);
 
-  let orig = null;
-  if (lowest.is_on_sale) orig = lowest.price;
-  else if (lowest.compare_at_price > lowest.price) orig = lowest.compare_at_price;
-
-  return {
-    current: lowest.effective_price || lowest.price,
-    original: orig,
-    discount: lowest.discount_percent || 0
-  };
+  return lowest.priceInfo;
 });
 
 const selectedVariantCartQty = computed(() => {
@@ -717,6 +882,44 @@ const buyNow = async () => {
 };
 
 /**
+ * handleTryOnBuyNow: Phương án C — dùng variant đang chọn trên trang product detail.
+ * Nếu đã chọn variant còn hàng → thêm vào cart → redirect checkout.
+ * Nếu chưa chọn → đóng modal, scroll đến phần chọn variant.
+ */
+const handleTryOnBuyNow = () => {
+  showTryOn.value = false;
+
+  if (selectedVariant.value && selectedVariant.value.stock > 0) {
+    // Có variant đang chọn + còn hàng → mua ngay luôn
+    buyingNow.value = true;
+    sessionStorage.setItem('buy_now_item', JSON.stringify({
+      variant_id: selectedVariant.value.variant_id,
+      quantity: 1,
+    }));
+    router.push({ path: '/checkout', query: { buy_now: '1' } });
+  } else {
+    // Chưa chọn variant hoặc hết hàng → scroll đến phần chọn variant
+    showToast('Vui lòng chọn phiên bản sản phẩm trước khi mua!', 'info');
+    nextTick(() => {
+      const variantSection = document.querySelector('.pd-variants');
+      if (variantSection) {
+        variantSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
+};
+
+/**
+ * handleTryOnGoToProduct: Navigate đến sản phẩm gợi ý, đóng modal.
+ */
+const handleTryOnGoToProduct = (slug) => {
+  showTryOn.value = false;
+  if (slug) {
+    router.push(`/product/${slug}`);
+  }
+};
+
+/**
  * sortedVariants: danh sách variants active, sắp xếp theo giá tăng dần.
  * API đã sort sẵn, nhưng computed này đảm bảo thứ tự đúng ở client.
  */
@@ -751,10 +954,21 @@ const handleUpgrade = (premiumVariant) => {
   showToast(`Đã nâng cấp lên phiên bản ${premiumVariant.color || ''} ${premiumVariant.size || ''}`.trim(), 'success');
 };
 
+const previewModalShow = ref(false);
+const previewMediaList = ref([]);
+const previewInitialIndex = ref(0);
+
+const openImagePreview = (images, index = 0) => {
+  const parsed = Array.isArray(images) ? images : parseReviewImages(images);
+  if (!parsed || parsed.length === 0) return;
+  previewMediaList.value = parsed.map(img => getImageUrl(img));
+  previewInitialIndex.value = Math.max(0, Math.min(index, previewMediaList.value.length - 1));
+  previewModalShow.value = true;
+};
+
 const openImage = (img) => {
   if (!img) return;
-  const url = getImageUrl(img);
-  window.open(url, '_blank');
+  openImagePreview([img], 0);
 };
 
 const parseReviewImages = (images) => {
@@ -911,25 +1125,84 @@ onBeforeUnmount(() => {
           <span class="pd-rating-text">({{ product.rating_count ?? 0 }} đánh giá)</span>
         </div>
 
-        <!-- Price -->
-        <div class="pd-price-row">
+        <!-- ═══ FLASH SALE BANNER CARD (NẾU ĐANG DIỄN RA VÀ CÒN QUOTA) ═══ -->
+        <div v-if="hasActiveFlashSale" class="pd-flash-sale-card">
+          <div class="pd-fs-header">
+            <div class="pd-fs-title-box">
+              <span class="pd-fs-fire" style="display: inline-flex; align-items: center;"><AppIcon name="zap" size="18" /></span>
+              <span class="pd-fs-title">FLASH SALE</span>
+            </div>
+            <div class="pd-fs-countdown" v-if="!isFlashSaleEnded">
+              <span class="pd-fs-cd-label">KẾT THÚC TRONG</span>
+              <div class="pd-fs-timer">
+                <span class="pd-fs-digit">{{ flashRemainingTime.hours }}</span>
+                <span class="pd-fs-colon">:</span>
+                <span class="pd-fs-digit">{{ flashRemainingTime.minutes }}</span>
+                <span class="pd-fs-colon">:</span>
+                <span class="pd-fs-digit">{{ flashRemainingTime.seconds }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pd-fs-body">
+            <div class="pd-fs-price-main">
+              <span class="pd-fs-price">{{ formatPrice(flashSaleData.flash_price || flashSaleData.campaign_price) }}</span>
+              <span class="pd-fs-origin-price" v-if="flashSaleOriginalPrice > (flashSaleData.flash_price || flashSaleData.campaign_price)">
+                {{ formatPrice(flashSaleOriginalPrice) }}
+              </span>
+              <span class="pd-fs-discount-tag" v-if="flashDiscountPercent > 0">
+                -{{ flashDiscountPercent }}%
+              </span>
+            </div>
+
+            <!-- Compact stock progress -->
+            <div class="pd-fs-stock-compact">
+              <div class="pd-fs-stock-info">
+                <span>Đã bán: <strong>{{ flashSaleData.sold_count || flashSaleData.sold || 0 }}</strong>/{{ flashSaleData.total_stock }}</span>
+                <span class="pd-fs-remain">Còn: <strong>{{ flashSaleData.remaining }}</strong></span>
+              </div>
+              <div class="pd-fs-track">
+                <div class="pd-fs-fill" :style="{ width: flashFillPercent + '%' }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ FLASH SALE ĐÃ HẾT QUOTA (SOLD OUT BANNER) ═══ -->
+        <div v-else-if="hasFlashSale && isFlashSaleSoldOut" class="pd-flash-sale-card pd-flash-sale-soldout">
+          <div class="pd-fs-header">
+            <div class="pd-fs-title-box">
+              <span class="pd-fs-fire" style="display: inline-flex; align-items: center;"><AppIcon name="zap" size="18" /></span>
+              <span class="pd-fs-title">FLASH SALE</span>
+            </div>
+            <span class="pd-fs-soldout-badge">ĐÃ HẾT SUẤT</span>
+          </div>
+          <div class="pd-fs-body">
+            <div class="pd-fs-price-main">
+              <span class="pd-fs-price pd-fs-price--strikethrough">{{ formatPrice(flashSaleData.flash_price || flashSaleData.campaign_price) }}</span>
+              <span class="pd-fs-soldout-note">Đã bán hết {{ flashSaleData.total_stock }} suất Flash Sale</span>
+            </div>
+            <div class="pd-fs-stock-compact">
+              <div class="pd-fs-stock-info">
+                <span>Đã bán: <strong>{{ flashSaleData.sold_count || flashSaleData.sold || 0 }}</strong>/{{ flashSaleData.total_stock }}</span>
+                <span class="pd-fs-remain pd-fs-remain--zero">Còn: <strong>0</strong></span>
+              </div>
+              <div class="pd-fs-track">
+                <div class="pd-fs-fill pd-fs-fill--full" style="width: 100%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Standard Price (Ẩn hoặc làm phụ khi có Flash Sale active) -->
+        <div class="pd-price-row" v-if="!hasActiveFlashSale">
           <span class="pd-price">{{ formatPrice(displayPriceInfo.current) }}</span>
-          <span class="pd-price-old" v-if="displayPriceInfo.original">{{ formatPrice(displayPriceInfo.original)
-            }}</span>
+          <span class="pd-price-old" v-if="displayPriceInfo.original">{{ formatPrice(displayPriceInfo.original) }}</span>
         </div>
-
-        <!-- Stock -->
-        <div class="pd-stock">
-          <span class="pd-stock-label me-2">Số lượng còn:</span>
-          <span class="pd-stock-value" v-if="selectedVariant">{{ selectedVariant.stock }}</span>
-          <span class="pd-stock-value" v-else>{{ productTotalStock }}</span>
-        </div>
-
-
 
         <!-- Variant chips -->
         <div class="pd-variants" v-if="uniqueColors.length > 0">
-          <h4 class="pd-var-label">Phân bản / Màu sắc</h4>
+          <h4 class="pd-var-label">Màu sắc</h4>
           <div class="pd-var-options">
             <button v-for="color in uniqueColors" :key="color" class="pd-var-btn"
               :class="{ active: selectedColor === color }"
@@ -938,13 +1211,24 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="pd-variants" v-if="availableSizes.length > 0">
-          <h4 class="pd-var-label">Kích cỡ</h4>
+          <div class="pd-var-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h4 class="pd-var-label" style="margin-bottom: 0;">Kích cỡ</h4>
+            <button v-if="sizeGuideData" type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline;">
+              Hướng dẫn chọn size
+            </button>
+          </div>
           <div class="pd-var-options">
             <button v-for="s in availableSizes" :key="s.size" class="pd-var-btn"
               :class="{ active: selectedSize === s.size, disabled: !s.available }" :disabled="!s.available"
               @click="s.available && (selectedSize = s.size)">{{ s.size || 'Mặc định'
               }}</button>
           </div>
+        </div>
+
+        <div v-if="availableSizes.length === 0 && sizeGuideData" style="margin-bottom: 16px; text-align: right;">
+          <button type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline; color: #E63B6F;">
+            Hướng dẫn chọn size
+          </button>
         </div>
 
         <!-- Số lượng -->
@@ -973,6 +1257,11 @@ onBeforeUnmount(() => {
               </svg>
             </button>
           </div>
+          <span class="pd-stock-info">
+            Số lượng còn:
+            <span class="pd-stock-value" v-if="selectedVariant">{{ selectedVariant.stock }}</span>
+            <span class="pd-stock-value" v-else>{{ productTotalStock }}</span>
+          </span>
         </div>
 
         <!-- Lỗi validation inline -->
@@ -981,18 +1270,18 @@ onBeforeUnmount(() => {
           {{ ctaDisabledReason }}
         </p>
 
-        <!-- CTA -->
+        <!-- CTA Buttons -->
         <div class="pd-cta">
           <button class="pd-btn-cart" @click="addToCart"
             :disabled="addingToCart || buyingNow || !canPurchaseSelectedVariant"
             :title="ctaDisabledReason || 'Thêm vào giỏ hàng'">
-            <AppIcon name="cart" size="18" />
-            {{ addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ Hàng' }}
+            <AppIcon name="cart" size="18" stroke-width="2" />
+            <span>{{ addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ' }}</span>
           </button>
           <button class="pd-btn-buy" @click="buyNow"
             :disabled="addingToCart || buyingNow || !canPurchaseSelectedVariant"
             :title="ctaDisabledReason || 'Đặt hàng nhanh'">
-            {{ buyingNow ? 'Đang chuyển...' : 'Đặt Hàng Nhanh' }}
+            <span>{{ buyingNow ? 'Đang chuyển...' : 'Đặt Hàng Nhanh' }}</span>
           </button>
         </div>
 
@@ -1043,11 +1332,10 @@ onBeforeUnmount(() => {
       <div class="pd-tab-bar">
         <button class="pd-tab" :class="{ active: activeTab === 'description' }" @click="activeTab = 'description'">Mô tả
           chi tiết</button>
-        <button class="pd-tab" :class="{ active: activeTab === 'specs' }" @click="activeTab = 'specs'">Thông số kỹ
-          thuật</button>
         <button class="pd-tab" :class="{ active: activeTab === 'reviews' }" @click="activeTab = 'reviews'">Đánh giá
           khách hàng ({{ product.rating_count || 0 }})</button>
       </div>
+
 
       <div class="pd-tab-content">
         <!-- Tab: Mô tả -->
@@ -1095,40 +1383,12 @@ onBeforeUnmount(() => {
                 <td>Xuất xứ</td>
                 <td>{{ product.origin }}</td>
               </tr>
+              <tr v-if="product.style">
+                <td>Kiểu dáng</td>
+                <td>{{ product.style }}</td>
+              </tr>
             </table>
           </div>
-        </div>
-
-        <!-- Tab: Thông số -->
-        <div v-if="activeTab === 'specs'" class="pd-specs-full">
-          <table class="pd-specs-table full">
-            <tr v-if="product.category">
-              <td>Danh mục</td>
-              <td>{{ product.category.name }}</td>
-            </tr>
-            <tr v-if="product.brand">
-              <td>Thương hiệu</td>
-              <td>{{ product.brand?.name || product.brand }}</td>
-            </tr>
-            <tr v-if="product.sku">
-              <td>Mã SKU</td>
-              <td>{{ product.sku }}</td>
-            </tr>
-            <tr v-if="product.weight">
-              <td>Trọng lượng</td>
-              <td>{{ product.weight }}</td>
-            </tr>
-            <tr v-if="product.material">
-              <td>Chất liệu</td>
-              <td>{{ product.material }}</td>
-            </tr>
-            <tr v-if="product.origin">
-              <td>Xuất xứ</td>
-              <td>{{ product.origin }}</td>
-            </tr>
-          </table>
-          <div class="pd-desc-text expanded" v-if="product.short_description" v-html="safeShortDescription"
-            style="margin-top:24px"></div>
         </div>
 
         <!-- Tab: Đánh giá -->
@@ -1153,7 +1413,7 @@ onBeforeUnmount(() => {
             </div>
             <div class="pd-review-text" v-html="sanitizeHtml(review.content)"></div>
             <div class="pd-review-images" v-if="parseReviewImages(review.images).length > 0">
-              <img v-for="(img, idx) in parseReviewImages(review.images)" :key="idx" :src="getImageUrl(img)" alt="Review image" @click="openImage(img)" style="cursor: pointer;" title="Nhấn để xem ảnh lớn" />
+              <img v-for="(img, idx) in parseReviewImages(review.images)" :key="idx" :src="getImageUrl(img)" alt="Review image" @click="openImagePreview(review.images, idx)" style="cursor: pointer;" title="Nhấn để xem ảnh phóng to" />
             </div>
           </div>
         </div>
@@ -1185,7 +1445,9 @@ onBeforeUnmount(() => {
 
   <!-- Virtual Try-On Modal -->
   <VirtualTryOnModal v-if="product?.product_id" :show="showTryOn" :product-id="product?.product_id" :product-name="product?.name"
-    :product-image-url="mainImageUrl" @close="showTryOn = false" />
+    :product-image-url="mainImageUrl" :product-image-path="mainImageRawPath" :product-slug="product?.slug" :product-price="displayPriceInfo.current"
+    :has-selected-variant="!!selectedVariant && selectedVariant.stock > 0"
+    @close="showTryOn = false" @buy-now="handleTryOnBuyNow" @go-to-product="handleTryOnGoToProduct" />
 
   <!-- Modal Bảng Size -->
   <teleport to="body">
@@ -1193,7 +1455,7 @@ onBeforeUnmount(() => {
       <div v-if="showSizeGuide" class="modal-overlay" @click.self="showSizeGuide = false">
         <div class="modal-content size-modal">
           <div class="modal-header">
-            <h2 class="modal-title">Bảng size tham khảo (Vóc dáng người Việt)</h2>
+            <h2 class="modal-title">Bảng size tham khảo</h2>
             <button class="modal-close" @click="showSizeGuide = false">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                 stroke-linecap="round">
@@ -1203,71 +1465,36 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div class="modal-body">
-            <p class="size-desc">Bảng tính mặc định được thiết kế dựa trên số đo chuẩn của người Việt Nam. Nếu bạn có số
-              đo nằm giữa 2 size, lời khuyên là nên chọn size lớn hơn để có sự thoải mái nhất.</p>
+            <p class="size-desc">{{ sizeGuideData?.description }}</p>
 
             <div class="table-responsive">
               <table class="size-table">
-                <thead>
-                  <tr>
-                    <th>Size</th>
-                    <th>Cân nặng (kg)</th>
-                    <th>Chiều cao (cm)</th>
-                    <th>Gợi ý form dáng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>S</strong></td>
-                    <td>45 - 52 kg</td>
-                    <td>Dưới 1m60</td>
-                    <td>Ôm gọn, tôn dáng</td>
-                  </tr>
-                  <tr>
-                    <td><strong>M</strong></td>
-                    <td>53 - 59 kg</td>
-                    <td>1m60 - 1m65</td>
-                    <td>Vừa vặn, thoải mái</td>
-                  </tr>
-                  <tr>
-                    <td><strong>L</strong></td>
-                    <td>60 - 68 kg</td>
-                    <td>1m66 - 1m72</td>
-                    <td>Thoải mái vận động</td>
-                  </tr>
-                  <tr>
-                    <td><strong>XL</strong></td>
-                    <td>69 - 76 kg</td>
-                    <td>1m73 - 1m78</td>
-                    <td>Rộng rãi, che khuyết điểm</td>
-                  </tr>
-                  <tr>
-                    <td><strong>XXL</strong></td>
-                    <td>Trên 76 kg</td>
-                    <td>Trên 1m78</td>
-                    <td>Oversize trần viền rộng rãi</td>
-                  </tr>
-                </tbody>
+                <template v-if="sizeGuideData">
+                  <thead>
+                    <tr>
+                      <th v-for="(col, index) in sizeGuideData.table_headers" :key="index">{{ col }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, rowIndex) in sizeGuideData.table_rows" :key="rowIndex">
+                      <td v-for="(cell, cellIndex) in row" :key="cellIndex">
+                        <strong v-if="cellIndex === 0">{{ cell }}</strong>
+                        <template v-else>{{ cell }}</template>
+                      </td>
+                    </tr>
+                  </tbody>
+                </template>
               </table>
             </div>
-            <div class="size-tips">
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F"
-                  stroke-width="2">
+            
+            <div class="size-tips" v-if="sizeGuideData && sizeGuideData.tips && sizeGuideData.tips.length > 0">
+              <div class="tip-item" v-for="(tip, tIndex) in sizeGuideData.tips" :key="tIndex">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                <span>Sản phẩm có độ co giãn nhẹ khoảng 2-3cm ở vòng bụng.</span>
-              </div>
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F"
-                  stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Màu sắc thực tế có thể chênh lệch 3-5% do độ phân giải và ánh sáng màn hình.</span>
+                <span>{{ tip }}</span>
               </div>
             </div>
           </div>
@@ -1275,6 +1502,14 @@ onBeforeUnmount(() => {
       </div>
     </transition>
   </teleport>
+
+  <!-- Review Image Preview Lightbox Modal -->
+  <MediaPreviewModal
+    :show="previewModalShow"
+    :media-list="previewMediaList"
+    :initial-index="previewInitialIndex"
+    @close="previewModalShow = false"
+  />
 
   <!-- QR Modal -->
   <teleport to="body">
@@ -1353,7 +1588,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .pd-wrapper {
   padding: 0 0 40px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   color: var(--text-main);
 }
 
@@ -1571,6 +1806,207 @@ onBeforeUnmount(() => {
   color: #636E72;
 }
 
+/* ═══ FLASH SALE CARD STYLING (COMPACT & SLEEK) ═══ */
+.pd-flash-sale-card {
+  background: linear-gradient(135deg, #FFF5F7 0%, #FFEBF0 100%);
+  border: 1.5px solid #FECDD3;
+  border-radius: 12px;
+  padding: 10px 16px 12px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.05);
+}
+
+.pd-fs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(225, 29, 72, 0.18);
+}
+
+.pd-fs-title-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pd-fs-fire {
+  font-size: 1rem;
+  color: #E11D48;
+}
+
+.pd-fs-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #E11D48;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pd-fs-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pd-fs-cd-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.pd-fs-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pd-fs-digit {
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  min-width: 22px;
+  text-align: center;
+  font-family: inherit;
+}
+
+.pd-fs-colon {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #1e293b;
+  margin: 0 1px;
+}
+
+.pd-fs-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pd-fs-price-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pd-fs-price {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #E11D48;
+  line-height: 1.1;
+}
+
+.pd-fs-origin-price {
+  font-size: 0.95rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.pd-fs-discount-tag {
+  background: #E11D48;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.2;
+}
+
+.pd-fs-stock-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+}
+
+.pd-fs-stock-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #64748b;
+  gap: 8px;
+}
+
+.pd-fs-stock-info strong {
+  color: #E11D48;
+  font-weight: 700;
+}
+
+.pd-fs-remain {
+  color: #0284c7;
+}
+
+.pd-fs-track {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pd-fs-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #F43F5E 0%, #E11D48 100%);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* ── Flash Sale Sold-Out State ── */
+.pd-flash-sale-soldout {
+  background: linear-gradient(135deg, #F8F9FA 0%, #F1F3F5 100%);
+  border-color: #CED4DA;
+  opacity: 0.92;
+}
+
+.pd-flash-sale-soldout .pd-fs-fire,
+.pd-flash-sale-soldout .pd-fs-title {
+  color: #868E96;
+}
+
+.pd-flash-sale-soldout .pd-fs-header {
+  border-bottom-color: rgba(134, 142, 150, 0.2);
+}
+
+.pd-fs-soldout-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  background: #868E96;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.pd-fs-price--strikethrough {
+  text-decoration: line-through;
+  color: #ADB5BD !important;
+  font-size: 1.25rem !important;
+}
+
+.pd-fs-soldout-note {
+  font-size: 0.8rem;
+  color: #868E96;
+  font-style: italic;
+}
+
+.pd-fs-remain--zero strong {
+  color: #868E96 !important;
+}
+
+.pd-fs-fill--full {
+  background: linear-gradient(90deg, #ADB5BD 0%, #868E96 100%) !important;
+}
+
 .pd-price-row {
   display: flex;
   align-items: baseline;
@@ -1680,13 +2116,15 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   border: 1.5px solid #e63b6e7d;
-  border-radius: 20px;
+  border-radius: 8px;
   overflow: hidden;
+  height: 38px;
 }
 
 .pd-qty button {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 38px;
+  min-height: unset;
   background: var(--card-bg);
   border: none;
   font-size: 1.1rem;
@@ -1703,7 +2141,9 @@ onBeforeUnmount(() => {
 }
 
 .pd-qty input {
-  width: 48px;
+  width: 44px;
+  height: 38px;
+  min-height: unset;
   text-align: center;
   border: none;
   border-left: 1px solid #E9ECEF;
@@ -1715,76 +2155,117 @@ onBeforeUnmount(() => {
   font-family: inherit;
 }
 
+.pd-stock-info {
+  font-size: 0.88rem;
+  color: #636E72;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pd-stock-value {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
 /* CTA Buttons */
 .pd-cta {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  align-items: stretch;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .pd-btn-cart {
   flex: 1;
-  display: flex;
+  min-height: 44px;
+  height: 44px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 12px;
-  background: var(--primary);
-  color: #fff;
-  border: 2px solid var(--primary);
-  border-radius: 28px;
-  font-size: 0.95rem;
+  padding: 10px 18px;
+  background: #FFF0F3;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+  border-radius: 8px;
+  font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
+  white-space: nowrap;
 }
 
-.pd-btn-cart:hover {
-  background: #C4305D;
+.pd-btn-cart:hover:not(:disabled) {
+  background: rgba(230, 59, 111, 0.15);
   border-color: #C4305D;
+  color: #C4305D;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.15);
 }
 
 .pd-btn-cart:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  transform: none;
 }
 
 .pd-btn-buy {
-  flex: 1;
-  padding: 12px 12px;
-  background: var(--card-bg);
-  color: var(--primary);
-  border: 2px solid var(--primary);
-  border-radius: 28px;
+  flex: 1.55; /* Nút Đặt Hàng Nhanh rộng hơn nổi bật */
+  min-height: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  background: linear-gradient(135deg, var(--primary) 0%, #D6285A 100%);
+  color: #fff;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.3);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
-.pd-btn-buy:hover {
-  background: var(--primary);
-  color: #fff;
+.pd-btn-buy:hover:not(:disabled) {
+  background: linear-gradient(135deg, #D6285A 0%, #B81846 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(230, 59, 111, 0.45);
+}
+
+.pd-btn-buy:disabled {
+  opacity: 0.55;
+  background: #cbd5e1;
+  color: #64748b;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* AR Try-On Button */
 .pd-btn-tryon {
   width: 100%;
-  display: flex;
+  min-height: 44px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: #FFF0F3;
+  padding: 10px 20px;
+  background: #FFF5F7;
   color: var(--primary);
-  border: 2px dashed #FFB8CC;
-  border-radius: 8px;
-  font-size: 0.95rem;
+  border: 1.5px dashed #FFB8CC;
+  border-radius: 28px;
+  font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   margin-bottom: 20px;
   font-family: inherit;
 }
@@ -1792,6 +2273,7 @@ onBeforeUnmount(() => {
 .pd-btn-tryon:hover {
   background: #FFE4E9;
   border-color: var(--primary);
+  transform: translateY(-1px);
 }
 
 /* Perks */
@@ -2132,8 +2614,16 @@ onBeforeUnmount(() => {
   max-height: 5000px;
 }
 
-.pd-desc-text p {
+.pd-desc-text :deep(p) {
   margin-bottom: 12px;
+}
+
+.pd-desc-text :deep(img) {
+  max-width: 40%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px auto;
+  display: block;
 }
 
 .pd-desc-fade {
@@ -2350,6 +2840,9 @@ onBeforeUnmount(() => {
   max-width: 650px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -2389,6 +2882,7 @@ onBeforeUnmount(() => {
 
 .modal-body {
   padding: 24px;
+  overflow-y: auto;
 }
 
 .size-desc {
@@ -2602,7 +3096,10 @@ onBeforeUnmount(() => {
   .pd-cta button {
     flex: 1;
     font-size: 0.85rem;
-    padding: 12px 0;
+    padding: 10px 0;
+    min-height: 42px;
+    height: 42px;
+    border-radius: 8px;
   }
 
   /* Để nội dung không bị che bởi sticky bottom bar */

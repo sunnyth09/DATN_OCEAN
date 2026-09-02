@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Reward;
 use App\Models\UserReward;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -12,22 +13,41 @@ class LoyaltyController extends Controller
 {
     public function profile(Request $request)
     {
-        $user = $request->user();
+        $user = auth('api')->user() ?? auth('admin')->user() ?? $request->user();
+        if ($user instanceof \App\Models\Admin) {
+            $user = \App\Models\User::firstOrCreate(
+                ['email' => $user->email],
+                [
+                    'full_name' => $user->full_name,
+                    'password' => $user->password,
+                    'role' => 'admin',
+                    'status' => 'active',
+                ]
+            );
+        }
 
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $points = $user->reward_points ?? 0;
         $tier = 'Đồng';
-        if ($user->reward_points >= 5000) {
+        if ($points >= 5000) {
             $tier = 'Kim Cương';
-        } elseif ($user->reward_points >= 1000) {
+        } elseif ($points >= 1000) {
             $tier = 'Vàng';
-        } elseif ($user->reward_points >= 500) {
+        } elseif ($points >= 500) {
             $tier = 'Bạc';
         }
 
         return response()->json([
             'status' => 'success',
             'data' => [
-                'points' => $user->reward_points,
+                'points' => $points,
                 'tier' => $tier,
+                'last_check_in_at' => $user->last_check_in_at,
+                'check_in_streak' => $user->check_in_streak ?? 0,
+                'has_checked_in_today' => $user->last_check_in_at && Carbon::parse($user->last_check_in_at)->isToday(),
             ],
         ]);
     }

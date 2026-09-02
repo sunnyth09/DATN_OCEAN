@@ -13,8 +13,10 @@ const api = axios.create({
 
 const getAuthStore = () => useAuthStore(pinia);
 
-export const getToken = () =>
-    getAuthStore().token || sessionStorage.getItem('auth_token');
+export const getToken = () => {
+    const authStore = getAuthStore();
+    return authStore.token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token') || '';
+};
 
 export const getUser = () => {
     const authStore = getAuthStore();
@@ -23,7 +25,7 @@ export const getUser = () => {
     }
 
     try {
-        const raw = sessionStorage.getItem('user');
+        const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
@@ -39,67 +41,85 @@ const clearAuth = () => {
 };
 
 const AUTH_ENDPOINTS = ['/login', '/register', '/refresh', '/forgot-password/', '/auth/'];
-let refreshPromise = null;
 
 const isAuthEndpoint = (url = '') => AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
 
-const isTokenExpiring = (token, leewaySeconds = 30) => {
+/**
+ * Kiểm tra xem token có sắp hết hạn không.
+ * Mặc định leeway 300s (5 phút) để chủ động refresh ngầm trước khi token chết.
+ */
+const isTokenExpiring = (token, leewaySeconds = 300) => {
+    if (!token) return true;
     try {
         const encodedPayload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
         const payload = JSON.parse(atob(encodedPayload.padEnd(Math.ceil(encodedPayload.length / 4) * 4, '=')));
-        return !payload.exp || payload.exp <= Math.floor(Date.now() / 1000) + leewaySeconds;
+        if (!payload.exp) return false;
+        return payload.exp <= Math.floor(Date.now() / 1000) + leewaySeconds;
     } catch {
-        return true;
+        return false;
     }
 };
-
-import { broadcastLogout } from '@/sessionSync';
 
 const redirectToLogin = () => {
     if (window.location.pathname !== '/client/login') {
-        broadcastLogout();
         window.dispatchEvent(new CustomEvent('auth-logout'));
-        window.location.href = '/client/login';
+        const currentPath = window.location.pathname + window.location.search;
+        window.location.href = `/client/login?redirect=${encodeURIComponent(currentPath)}`;
     }
 };
 
-const refreshAccessToken = () => {
-    if (!refreshPromise) {
-        refreshPromise = api.post('/refresh', null, { skipAuthRefresh: true })
-            .then((response) => {
-                const newToken = response.data.access_token;
-                if (!newToken) throw new Error('No token in refresh response');
+// ==================== SINGLETON REFRESH PROMISE PATTERN ====================
+let refreshPromise = null;
 
-                saveToken(newToken);
-                api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-                return newToken;
-            })
-            .catch((error) => {
-                clearAuth();
-                redirectToLogin();
-                throw error;
-            })
-            .finally(() => {
-                refreshPromise = null;
-            });
+/**
+ * Hàm gọi API /refresh một cách an toàn và trả về token mới.
+ * Sử dụng Singleton Promise: tất cả các request đồng thời (ở cả Request và Response Interceptor)
+ * đều chia sẻ một Promise duy nhất, loại bỏ hoàn toàn Race Condition.
+ */
+const getFreshToken = async () => {
+    if (refreshPromise) {
+        return refreshPromise;
     }
+
+    refreshPromise = (async () => {
+        try {
+            const response = await api.post('/refresh', null, { skipAuthRefresh: true });
+            const newToken = response.data?.access_token;
+            if (!newToken) throw new Error('No access_token received from /refresh endpoint');
+
+            saveToken(newToken);
+            api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+            return newToken;
+        } finally {
+            refreshPromise = null;
+        }
+    })();
 
     return refreshPromise;
 };
 
+// ==================== REQUEST INTERCEPTOR ====================
 api.interceptors.request.use(
     async (config) => {
         let token = getToken();
-        // Skip preemptive refresh check on request to prevent clock drift issues,
-        // relying instead on the 401 response interceptor for silent token refresh.
-        // if (token && !config.skipAuthRefresh && !isAuthEndpoint(config.url) && isTokenExpiring(token)) {
-        //     token = await refreshAccessToken();
-        // }
+
+        // 1. Silent Proactive Refresh: nếu token sắp hết hạn trong 5 phút tới và không phải auth endpoint
+        if (token && !config.skipAuthRefresh && !isAuthEndpoint(config.url) && isTokenExpiring(token, 300)) {
+            try {
+                const newToken = await getFreshToken();
+                if (newToken) {
+                    token = newToken;
+                }
+            } catch {
+                // Nếu refresh ngầm tạm thời thất bại (mạng chập chờn), vẫn thử gửi với token hiện tại
+            }
+        }
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
 
+        // Đảm bảo có device_id ổn định
         let deviceId = localStorage.getItem('device_id');
         if (!deviceId) {
             deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -116,14 +136,13 @@ api.interceptors.request.use(
     (error) => Promise.reject(error),
 );
 
+// ==================== RESPONSE INTERCEPTOR ====================
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
 
-        // 422: chuẩn hóa lỗi validation từ Laravel FormRequest.
-        // Laravel trả { message, errors: { field: ['msg1', ...] } }.
-        // Gắn error.validationErrors = { field: 'msg đầu tiên' } để form bind thẳng vào input.
+        // 1. Validation 422: chuẩn hóa lỗi FormRequest từ Laravel
         if (error.response?.status === 422) {
             const raw = error.response.data?.errors ?? {};
             error.validationErrors = Object.fromEntries(
@@ -135,12 +154,12 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        // 2. Kiểm tra điều kiện có phải lỗi 401 cần xử lý Refresh không
         if (
             !error.response ||
             error.response.status !== 401 ||
-            originalRequest._retry ||
-            originalRequest.url?.includes('/refresh') ||
-            originalRequest.url?.includes('/login')
+            originalRequest?._retry ||
+            isAuthEndpoint(originalRequest?.url || '')
         ) {
             return Promise.reject(error);
         }
@@ -153,10 +172,19 @@ api.interceptors.response.use(
         originalRequest._retry = true;
 
         try {
-            const newToken = await refreshAccessToken();
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return api(originalRequest);
+            const newToken = await getFreshToken();
+            if (newToken) {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                return api(originalRequest);
+            }
+            return Promise.reject(error);
         } catch (refreshError) {
+            const status = refreshError.response?.status;
+            // Chỉ redirect khi server thực sự từ chối token (401/403)
+            if (status === 401 || status === 403) {
+                clearAuth();
+                redirectToLogin();
+            }
             return Promise.reject(refreshError);
         }
     },

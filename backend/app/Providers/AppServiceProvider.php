@@ -8,11 +8,12 @@ use App\Models\ReturnRequest;
 use App\Policies\OrderPolicy;
 use App\Policies\ProductCommentPolicy;
 use App\Policies\ReturnRequestPolicy;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -40,7 +41,12 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('strict_api', function (Request $request) {
             $identifier = $request->user()?->id ?: $request->header('X-Device-ID') ?: $request->ip();
+
             return Limit::perMinute(60)->by($identifier);
         });
+
+        if ($this->app->environment('production') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || request()->isSecure()) {
+            URL::forceScheme('https');
+        }
     }
 }

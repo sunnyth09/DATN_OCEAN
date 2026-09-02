@@ -4,7 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
+import '../config/app_theme.dart';
 import '../services/api_client.dart';
+import '../widgets/app_toast.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> orderItem;
@@ -25,7 +27,7 @@ class ReviewScreen extends StatefulWidget {
 
 class _ReviewScreenState extends State<ReviewScreen> {
   int _rating = 5;
-  final _commentCtrl = TextEditingController();
+  final TextEditingController _commentCtrl = TextEditingController();
   bool _isSubmitting = false;
   
   final List<File> _selectedImages = [];
@@ -33,7 +35,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _pickImages() async {
     if (_selectedImages.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chỉ được chọn tối đa 5 ảnh')));
+      AppToast.showWarning(context, message: 'Chỉ được chọn tối đa 5 ảnh');
       return;
     }
     
@@ -52,7 +54,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể chọn ảnh')));
+      if (mounted) {
+        AppToast.showError(context, message: 'Không thể chọn ảnh');
+      }
     }
   }
   
@@ -70,7 +74,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _submit() async {
     if (_commentCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập nội dung đánh giá!'), backgroundColor: Colors.orange));
+      AppToast.showWarning(context, message: 'Vui lòng nhập nội dung đánh giá!');
       return;
     }
     setState(() => _isSubmitting = true);
@@ -98,15 +102,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
         data: formData,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
-        context.pop(true);
-      }
+      if (!mounted) return;
+      AppToast.showSuccess(context, message: 'Đánh giá thành công! Cảm ơn bạn.');
+      context.pop(true);
     } on DioException catch (e) {
-      final message = e.response?.data is Map ? e.response?.data['message'] : null;
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
+      if (mounted) {
+        final message = e.response?.data is Map ? e.response?.data['message'] : null;
+        AppToast.showError(context, message: message ?? 'Không thể gửi đánh giá!');
+      }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: 'Lỗi kết nối!');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -123,7 +128,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
+        iconTheme: const IconThemeData(color: AppColors.primary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/orders');
+            }
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -165,19 +180,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 children: [
                   const Text('Chất lượng sản phẩm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A))),
                   const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (i) {
-                      final filled = i < _rating;
-                      return GestureDetector(
-                        onTap: () => setState(() => _rating = i + 1),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          child: Icon(filled ? Icons.star : Icons.star_border, size: 44, color: filled ? Colors.amber : const Color(0xFFCBD5E1)),
-                        ),
-                      );
-                    }),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (i) {
+                        final filled = i < _rating;
+                        return GestureDetector(
+                          onTap: () => setState(() => _rating = i + 1),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            child: Icon(
+                              filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                              size: 42,
+                              color: filled ? Colors.amber : const Color(0xFFCBD5E1),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -208,7 +230,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -273,25 +296,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
             SizedBox(
               width: double.infinity,
+              height: 46,
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE63B6F),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isSubmitting
                   ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                      SizedBox(width: 10),
-                      Text('Đang gửi...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      SizedBox(width: 8),
+                      Text('Đang gửi...', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                     ])
                   : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.send_rounded, size: 18),
-                      SizedBox(width: 8),
-                      Text('Gửi đánh giá', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Icon(Icons.send_rounded, size: 16),
+                      SizedBox(width: 6),
+                      Text('Gửi đánh giá', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                     ]),
               ),
             ),

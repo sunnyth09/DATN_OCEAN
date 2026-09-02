@@ -87,7 +87,39 @@ const isOutOfStock = computed(() => totalStock.value !== null && totalStock.valu
 const LOW_STOCK_THRESHOLD = 5;
 const isLowStock = computed(() => totalStock.value !== null && totalStock.value > 0 && totalStock.value <= LOW_STOCK_THRESHOLD);
 
+const isFlashSale = computed(() => {
+    return props.product.flash_sold !== undefined || !!props.product.flash_sale || !!props.product.is_flash_sale;
+});
+
+const normalSoldCount = computed(() => {
+    if (isFlashSale.value) return null;
+    const value = props.product.sold_count ?? props.product.total_sold ?? props.product.sold;
+    const sold = Number(value);
+    return Number.isFinite(sold) && sold >= 0 ? sold : null;
+});
+
+const formatSoldCount = (count) => {
+    const num = Number(count);
+    if (!Number.isFinite(num) || num <= 0) return '0';
+
+    if (num >= 1000000) {
+        const tr = (num / 1000000).toFixed(1).replace(/\.0$/, '');
+        return num % 1000000 === 0 ? `${tr} triệu` : `${tr} triệu+`;
+    }
+
+    if (num >= 1000) {
+        const k = (num / 1000).toFixed(1).replace(/\.0$/, '');
+        return num % 1000 === 0 ? `${k}k` : `${k}k+`;
+    }
+
+    return String(num);
+};
+
 const badgeLabel = computed(() => {
+    if (isFlashSale.value) {
+        return numericDiscount.value > 0 ? `-${numericDiscount.value}%` : "Flash Sale";
+    }
+
     if (numericDiscount.value > 0) {
         return `-${numericDiscount.value}%`;
     }
@@ -97,13 +129,14 @@ const badgeLabel = computed(() => {
     }
 
     if (props.product.badge === "Hot") {
-        return "Mới";
+        return "Hot";
     }
 
     return props.product.badge || "";
 });
 
 const badgeClass = computed(() => {
+    if (isFlashSale.value) return "badge-flash";
     if (numericDiscount.value > 0) return "badge-sale";
     return "badge-new";
 });
@@ -138,9 +171,12 @@ const defaultVariantId = computed(() =>
 );
 const currentPrice = computed(() => formatCurrency(props.product.min_price || 0));
 const originalPrice = computed(() => {
-    if (!props.product.original_price) return "";
-    if (props.product.original_price === props.product.min_price) return "";
-    return formatCurrency(props.product.original_price);
+    const orig = Number(props.product.original_price || props.product.compare_at_price || props.product.max_price || 0);
+    const curr = Number(props.product.min_price || props.product.price || 0);
+    if (orig > curr && curr > 0) {
+        return formatCurrency(orig);
+    }
+    return "";
 });
 
 const handleToggleFav = async (event) => {
@@ -213,7 +249,8 @@ const handleConfirmAddToCart = async () => {
                 image: variantImageUrl.value || productImageUrl.value
             });
             showVariantModal.value = false;
-            cartStore.fetchCount()
+            await cartStore.fetchCount();
+            window.dispatchEvent(new Event('cart-updated'));
             return;
         }
 
@@ -229,7 +266,8 @@ const handleConfirmAddToCart = async () => {
             image: variantImageUrl.value || productImageUrl.value
         });
         showVariantModal.value = false;
-        cartStore.fetchCount()
+        await cartStore.fetchCount();
+        window.dispatchEvent(new Event('cart-updated'));
     } catch (error) {
         const message = error.response?.data?.message || "Không thể thêm vào giỏ hàng.";
         showToast(message, "danger");
@@ -239,8 +277,10 @@ const handleConfirmAddToCart = async () => {
 };
 
 const handleAddToCart = async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
 
     if (isAddingToCart.value) return;
 
@@ -261,9 +301,14 @@ const handleAddToCart = async (event) => {
     const hasSelectable = variants.value.length > 0 && (variants.value.some(v => v.color) || variants.value.some(v => v.size));
 
     if (hasSelectable) {
-        // Reset selections and open modal
-        selectedColor.value = null;
-        selectedSize.value = null;
+        // Auto-select valid initial variant or default
+        const defaultVar = (defaultVariantId.value ? variants.value.find(v => v.variant_id === defaultVariantId.value) : null)
+            || variants.value.find(v => v.stock > 0)
+            || variants.value[0];
+        if (defaultVar) {
+            selectedColor.value = defaultVar.color || null;
+            selectedSize.value = defaultVar.size || null;
+        }
         quantity.value = 1;
         showVariantModal.value = true;
     } else {
@@ -308,7 +353,8 @@ const handleAddToCart = async (event) => {
                     qty: 1,
                     image: productImageUrl.value
                 });
-                cartStore.fetchCount()
+                await cartStore.fetchCount();
+                window.dispatchEvent(new Event('cart-updated'));
                 return;
             }
 
@@ -323,7 +369,8 @@ const handleAddToCart = async (event) => {
                 qty: 1,
                 image: productImageUrl.value
             });
-            cartStore.fetchCount()
+            await cartStore.fetchCount();
+            window.dispatchEvent(new Event('cart-updated'));
         } catch (error) {
             const message = error.response?.data?.message || "Không thể thêm vào giỏ hàng.";
             showToast(message, "danger");
@@ -339,11 +386,12 @@ const handleAddToCart = async (event) => {
         <router-link :to="productLink" class="card-link">
             <div class="media">
                 <span v-if="badgeLabel" class="product-badge" :class="badgeClass">
+                    <AppIcon v-if="isFlashSale" name="zap" size="13" style="margin-right: 2px;" />
                     {{ badgeLabel }}
                 </span>
 
                 <button class="icon-btn favorite-btn" :class="{ 'is-active': isFavorited(productId) }"
-                    @click="handleToggleFav" title="Yêu thích" aria-label="Yêu thích">
+                    @click.stop.prevent="handleToggleFav" title="Yêu thích" aria-label="Yêu thích">
                     <AppIcon name="heart" size="18" stroke-width="1.8" />
                 </button>
 
@@ -373,7 +421,7 @@ const handleAddToCart = async (event) => {
                     {{ product.name }}
                 </h3>
 
-                <div class="footer-row">
+                <div class="price-row">
                     <div class="price-block">
                         <span v-if="originalPrice" class="original-price">
                             {{ originalPrice }}
@@ -381,22 +429,27 @@ const handleAddToCart = async (event) => {
                         <span class="current-price">
                             {{ currentPrice }}
                         </span>
-                        <!-- Hiển thị số lượng (giữ layout đồng nhất) -->
-                        <span class="stock-info" :class="{ 'is-low-stock': isLowStock }">
-                            <template v-if="totalStock !== null && totalStock > 0">
-                                {{ isLowStock ? 'Chỉ còn ' + totalStock + ' sản phẩm' : 'Còn ' + totalStock + ' sản phẩm' }}
-                            </template>
-                        </span>
                     </div>
 
-                    <button class="icon-btn cart-btn" @click="handleAddToCart"
+                    <button class="icon-btn cart-btn" @click.stop.prevent="handleAddToCart"
                         :disabled="isAddingToCart || isOutOfStock" :class="{ 'is-disabled': isOutOfStock }"
                         :title="isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'"
                         :aria-label="isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'">
-                        <AppIcon v-if="!isAddingToCart" :name="isOutOfStock ? 'x' : 'cart'" size="18"
+                        <AppIcon v-if="!isAddingToCart" :name="isOutOfStock ? 'x' : 'cart'" size="16"
                             stroke-width="1.9" />
                         <span v-else class="small-spinner"></span>
                     </button>
+                </div>
+
+                <!-- Hiển thị số lượng / đã bán (nằm ở hàng riêng dưới cùng, không bị dính vào nút giỏ) -->
+                <div v-if="(totalStock !== null && totalStock > 0) || normalSoldCount !== null" class="product-meta-row">
+                    <span v-if="totalStock !== null && totalStock > 0" class="stock-info" :class="{ 'is-low-stock': isLowStock }">
+                        {{ isLowStock ? 'Chỉ còn ' + totalStock + ' sản phẩm' : 'Còn ' + totalStock + ' sản phẩm' }}
+                    </span>
+                    <span v-else></span>
+                    <span v-if="normalSoldCount !== null" class="sold-info">
+                        Đã bán {{ formatSoldCount(normalSoldCount) }}
+                    </span>
                 </div>
 
                 <slot name="bottom-content"></slot>
@@ -407,7 +460,9 @@ const handleAddToCart = async (event) => {
     <ProductVariantAddToCartModal :show="showVariantModal" :product-name="product.name" :image-url="variantImageUrl"
         :variants="variants" :unique-colors="uniqueColors" :has-colors="hasColors" :available-sizes="availableSizes"
         :selected-variant="selectedVariant" :selected-color="selectedColor" :selected-size="selectedSize"
-        :quantity="quantity" :confirming="confirming" @close="showVariantModal = false" @select-color="selectColor"
+        :quantity="quantity" :confirming="confirming"
+        :original-price="product.compare_at_price || product.original_price || product.originalPrice || product.max_price"
+        @close="showVariantModal = false" @select-color="selectColor"
         @update:selected-size="selectedSize = $event" @update:quantity="quantity = $event" @increase="increaseQuantity"
         @decrease="decreaseQuantity" @confirm="handleConfirmAddToCart" />
 </template>
@@ -521,9 +576,19 @@ const handleAddToCart = async (event) => {
     color: #fff;
 }
 
+/* Badge Flash Sale: glowing flame pink */
+.badge-flash {
+    background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(225, 29, 72, 0.4);
+}
+
 .icon-btn {
     width: 34px;
     height: 34px;
+    min-height: unset;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
     border: none;
     border-radius: 999px;
     display: inline-flex;
@@ -538,18 +603,20 @@ const handleAddToCart = async (event) => {
     top: 14px;
     right: 14px;
     z-index: 2;
-    background: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.94);
     color: #5f6672;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(8px);
 }
 
 .favorite-btn:hover {
     color: var(--primary);
-    transform: scale(1.06);
+    transform: translateY(-1px) scale(1.06);
 }
 
 .favorite-btn.is-active {
     color: var(--primary);
-    transform: scale(1.06);
+    transform: translateY(-1px) scale(1.06);
 }
 
 .favorite-btn.is-active :deep(svg) {
@@ -572,67 +639,96 @@ const handleAddToCart = async (event) => {
     display: flex;
     flex: 1;
     flex-direction: column;
-    gap: 8px;
-    padding: 14px 20px 20px;
+    padding: 10px 14px 14px;
 }
 
 .category {
-    margin: 0;
-    color: #6b7280;
-    font-size: 0.92rem;
-    font-weight: 600;
-    line-height: 1.3;
+    margin: 0 0 2px;
+    color: var(--text-secondary, #64748b);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
 }
 
 .name {
-    margin: 0;
-    color: #1f2937;
-    font-size: 1.02rem;
+    margin: 0 0 6px;
+    color: var(--text-main, #1e293b);
+    font-size: 0.88rem;
     font-weight: 500;
-    line-height: 1.45;
+    line-height: 1.35;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
-    height: 48px;
+    height: 38px;
+    transition: color 0.2s ease;
 }
 
-.footer-row {
+.card-link:hover .name {
+    color: var(--primary, #E63B6F);
+}
+
+.price-row {
     margin-top: auto;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 14px;
+    gap: 10px;
 }
 
 .price-block {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
 }
 
 .original-price {
-    color: #6b7280;
-    font-size: 0.98rem;
+    color: #94a3b8;
+    font-size: 0.78rem;
     text-decoration: line-through;
+    line-height: 1.2;
 }
 
 .current-price {
     color: #d4145a;
-    font-size: 1.14rem;
+    font-size: 1.02rem;
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1.2;
 }
 
 .cart-btn {
     flex: 0 0 auto;
-    background: #f1f1f1;
-    color: #20242c;
+    width: 32px;
+    height: 32px;
+    background: rgba(230, 59, 111, 0.08);
+    color: var(--primary, #E63B6F);
+    border: 1px solid rgba(230, 59, 111, 0.16);
+    border-radius: 8px;
+    margin-bottom: 2px;
+    transition: all 0.2s ease;
 }
 
 .cart-btn:hover {
-    background: #e5e7eb;
+    background: var(--primary, #E63B6F);
+    border-color: var(--primary, #E63B6F);
+    color: #fff;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.28);
+}
+
+html.dark .cart-btn {
+    background: rgba(230, 59, 111, 0.16);
+    border-color: rgba(230, 59, 111, 0.25);
+    color: #ff8fab;
+}
+
+html.dark .cart-btn:hover {
+    background: var(--primary, #E63B6F);
+    color: #fff;
 }
 
 @media (max-width: 768px) {
@@ -691,9 +787,9 @@ const handleAddToCart = async (event) => {
         gap: 2px;
     }
 
-    .stock-info {
+    .stock-info,
+    .sold-info {
         font-size: 0.68rem;
-        min-height: 14px;
     }
 
     .icon-btn {
@@ -745,21 +841,44 @@ const handleAddToCart = async (event) => {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
-/* Dòng thông tin số lượng bên dưới giá */
-.stock-info {
-    display: block;
-    font-size: 0.74rem;
+/* Dòng thông tin số lượng / đã bán */
+.product-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.stock-info,
+.sold-info {
+    display: inline-block;
+    min-width: 0;
+    font-size: 0.72rem;
     font-weight: 600;
-    color: #829ab1;
-    margin-top: 3px;
-    letter-spacing: 0.2px;
-    min-height: 16px;
-    /* Giữ cứng chiều cao để các card thẳng hàng */
+    line-height: 1.2;
+}
+
+.stock-info {
+    color: #64748b;
+}
+
+.sold-info {
+    margin-left: auto;
+    text-align: right;
+    color: #475569;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+html.dark .sold-info {
+    color: #94a3b8;
 }
 
 .stock-info.is-low-stock {
-    color: #f97316;
-    font-weight: 700;
+    color: #ea580c;
+    font-weight: 800;
     animation: pulse-text 1.8s ease-in-out infinite;
 }
 

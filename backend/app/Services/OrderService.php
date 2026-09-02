@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Events\OrderCreatedAdmin;
 use App\Exceptions\OrderException;
 use App\Models\Address;
+use App\Models\FlashSaleItem;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
 class OrderService
@@ -79,6 +81,14 @@ class OrderService
         return $order?->order_id;
     }
 
+    /**
+     * Tra cứu Order object (kèm payment_status) theo order_code — dùng cho polling ở OrderSuccess.
+     */
+    public function getOrderByCode(int $userId, string $orderCode): ?Order
+    {
+        return $this->orderRepository->findByCodeAndUser($userId, $orderCode);
+    }
+
     public function createOrder(int $userId, array $data, Request $request): array
     {
         try {
@@ -124,7 +134,8 @@ class OrderService
             $couponResult = $this->couponService->applyCoupon(
                 $userId,
                 $isFlashSaleOrder ? null : ($data['coupon_applied'] ?? null),
-                $subtotal
+                $subtotal,
+                $cartItems
             );
 
             if (! $couponResult['success']) {
@@ -295,8 +306,8 @@ class OrderService
                         'color' => $cartItem->variant->color,
                         'size' => $cartItem->variant->size,
                         'quantity' => $cartItem->quantity,
-                        'unit_price' => $cartItem->variant->effective_price,
-                        'line_total' => $cartItem->variant->effective_price * $cartItem->quantity,
+                        'unit_price' => $this->resolveEffectivePrice($cartItem->variant),
+                        'line_total' => $this->resolveEffectivePrice($cartItem->variant) * $cartItem->quantity,
                     ]);
 
                     $this->variantRepository->decrementStock(
@@ -307,6 +318,9 @@ class OrderService
                     if ($cartItem->variant->product_id) {
                         Product::where('product_id', $cartItem->variant->product_id)
                             ->increment('sold_count', $cartItem->quantity);
+
+                        // Đồng bộ số lượng đã bán vào Flash Sale nếu sản phẩm đang có chiến dịch active
+                        $this->syncFlashSaleSoldCount($cartItem->variant->product_id, $cartItem->quantity);
                     }
                 }
 
@@ -344,7 +358,7 @@ class OrderService
                     );
                 }
 
-                // Chỉ xóa item khỏi giỏ khi đặt từ giỏ (buy-now không có cart_item_id)
+                // Xóa item khỏi giỏ hàng nếu là đơn đặt từ giỏ hàng
                 $cartItemIds = $cartItems->pluck('cart_item_id')->filter()->values()->toArray();
                 if (! empty($cartItemIds)) {
                     $this->cartRepository->deleteItems($cartItemIds);
@@ -558,8 +572,8 @@ class OrderService
                         'color' => $cartItem->variant->color,
                         'size' => $cartItem->variant->size,
                         'quantity' => $cartItem->quantity,
-                        'unit_price' => $cartItem->variant->effective_price,
-                        'line_total' => $cartItem->variant->effective_price * $cartItem->quantity,
+                        'unit_price' => $this->resolveEffectivePrice($cartItem->variant),
+                        'line_total' => $this->resolveEffectivePrice($cartItem->variant) * $cartItem->quantity,
                     ]);
 
                     $this->variantRepository->decrementStock(
@@ -570,6 +584,9 @@ class OrderService
                     if ($cartItem->variant->product_id) {
                         Product::where('product_id', $cartItem->variant->product_id)
                             ->increment('sold_count', $cartItem->quantity);
+
+                        // Đồng bộ số lượng đã bán vào Flash Sale nếu sản phẩm đang có chiến dịch active
+                        $this->syncFlashSaleSoldCount($cartItem->variant->product_id, $cartItem->quantity);
                     }
                 }
 
@@ -862,7 +879,7 @@ class OrderService
 
     private function generateOrderCode(): string
     {
-        return 'ORD-'.strtoupper(substr(Str::uuid()->toString(), 0, 8)).'-'.rand(100, 999);
+        return 'ORD'.strtoupper(substr(Str::uuid()->toString(), 0, 8)).rand(100, 999);
     }
 
     private function dispatchOrderCreatedEvent($order): void
@@ -906,5 +923,79 @@ class OrderService
                 'message' => $message,
             ],
         ];
+    }
+
+    /**
+     * Trả về giá thực tế khi đặt hàng cho một variant.
+     *
+     * Logic:
+     *  - Nếu sản phẩm đang có Flash Sale active VÀ còn quota (remaining > 0)
+     *    → trả về effective_price (giá Flash Sale)
+     *  - Nếu Flash Sale đã hết quota (remaining <= 0)
+     *    → trả về giá gốc variant->price (không cho mua giá Flash Sale)
+     *  - Nếu không có Flash Sale → trả về effective_price bình thường
+     */
+    private function resolveEffectivePrice(ProductVariant $variant): float
+    {
+        return (float) $variant->effective_price;
+    }
+
+    /**
+     * Đồng bộ số lượng đã bán vào Flash Sale khi đặt hàng qua luồng thường.
+     *
+     * Khi người dùng mua sản phẩm qua checkout thông thường (không phải luồng
+     * Flash Sale riêng), hệ thống cần kiểm tra xem sản phẩm có đang nằm trong
+     * chiến dịch Flash Sale đang active hay không. Nếu có:
+     *   - Tăng cột `sold` trong bảng `flash_sale_items` để UI hiển thị đúng.
+     *   - Trừ Redis stock key tương ứng để thanh progress bar đồng bộ.
+     *
+     * Phương thức được thiết kế fire-and-forget (không throw), lỗi chỉ được
+     * ghi vào log để không ảnh hưởng đến luồng tạo đơn chính.
+     */
+    private function syncFlashSaleSoldCount(int $productId, int $quantity): void
+    {
+        try {
+            $now = now();
+
+            // Tìm Flash Sale item đang active cho sản phẩm này
+            $flashSaleItem = FlashSaleItem::where('product_id', $productId)
+                ->whereHas('flashSale', function ($q) use ($now) {
+                    $q->where('status', 'active')
+                        ->where('start_time', '<=', $now)
+                        ->where('end_time', '>=', $now);
+                })
+                ->with('flashSale')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $flashSaleItem) {
+                return; // Sản phẩm không thuộc Flash Sale nào đang active
+            }
+
+            $flashSale = $flashSaleItem->flashSale;
+
+            // Tăng sold trong flash_sale_items (không vượt quá campaign_stock)
+            $maxAdditional = max(0, $flashSaleItem->campaign_stock - $flashSaleItem->sold);
+            $actualIncrement = min($quantity, $maxAdditional);
+
+            if ($actualIncrement > 0) {
+                $flashSaleItem->increment('sold', $actualIncrement);
+
+                // Đồng bộ Redis stock key nếu đang tồn tại
+                $stockKey = "flash_sale_{$flashSale->id}_product_{$productId}_stock";
+                if (Redis::exists($stockKey)) {
+                    $remaining = Redis::decrby($stockKey, $actualIncrement);
+                    // Đảm bảo Redis không âm (phòng trường hợp race condition)
+                    if ($remaining < 0) {
+                        Redis::set($stockKey, 0);
+                    }
+                }
+
+                Log::info("[OrderService] Đã đồng bộ Flash Sale sold_count: product #{$productId}, +{$actualIncrement} sold, flash_sale #{$flashSale->id}");
+            }
+        } catch (\Throwable $e) {
+            // Fire-and-forget: không throw để không ảnh hưởng luồng tạo đơn
+            Log::error("[OrderService] syncFlashSaleSoldCount thất bại cho product #{$productId}: {$e->getMessage()}");
+        }
     }
 }

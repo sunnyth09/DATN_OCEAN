@@ -67,18 +67,39 @@ export const useUiStore = defineStore('ui', () => {
   };
 
   const pendingContactCount = ref(0);
+  const adminPendingContactCount = pendingContactCount;
   const setPendingContactCount = (count) => {
     pendingContactCount.value = count;
   };
+  const setAdminPendingContactCount = setPendingContactCount;
 
   const pendingChatCount = ref(0);
+  const adminUnreadChatCount = pendingChatCount;
   const setPendingChatCount = (count) => {
     pendingChatCount.value = count;
   };
+  const setAdminUnreadChatCount = setPendingChatCount;
 
   const pendingReviewCount = ref(0);
+  const adminPendingReviewCount = pendingReviewCount;
   const setPendingReviewCount = (count) => {
     pendingReviewCount.value = count;
+  };
+  const setAdminPendingReviewCount = setPendingReviewCount;
+
+  const adminPendingTicketCount = ref(0);
+  const setAdminPendingTicketCount = (count) => {
+    adminPendingTicketCount.value = count;
+  };
+
+  const adminPendingReturnCount = ref(0);
+  const setAdminPendingReturnCount = (count) => {
+    adminPendingReturnCount.value = count;
+  };
+
+  const adminPendingOrderCount = ref(0);
+  const setAdminPendingOrderCount = (count) => {
+    adminPendingOrderCount.value = count;
   };
 
   return {
@@ -89,8 +110,14 @@ export const useUiStore = defineStore('ui', () => {
     isAdminStaffMenuOpen,
     adminUnreadNotificationCount,
     pendingContactCount,
+    adminPendingContactCount,
     pendingChatCount,
+    adminUnreadChatCount,
     pendingReviewCount,
+    adminPendingReviewCount,
+    adminPendingTicketCount,
+    adminPendingReturnCount,
+    adminPendingOrderCount,
     setSearchModalOpen,
     toggleSearchModal,
     setBackofficeDarkMode,
@@ -106,8 +133,15 @@ export const useUiStore = defineStore('ui', () => {
     decrementAdminUnreadNotificationCount,
     incrementAdminUnreadNotificationCount,
     setPendingContactCount,
+    setAdminPendingContactCount,
     setPendingChatCount,
+    setAdminUnreadChatCount,
     setPendingReviewCount,
+    setAdminPendingReviewCount,
+    setAdminPendingTicketCount,
+    setAdminPendingReturnCount,
+    setAdminPendingOrderCount,
   };
 });
+
 

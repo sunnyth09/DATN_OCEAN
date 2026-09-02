@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { walletService } from '@/services/walletService';
 import { useToast } from '@/composables/useToast';
+import Swal from 'sweetalert2';
 
 const { showToast } = useToast();
 
@@ -160,6 +161,71 @@ const fetchBankAccounts = async () => {
   } catch (e) { console.error('Bank accounts error', e); }
 };
 
+const vietqrBanks = ref([]);
+const fetchVietQRBanks = async () => {
+  try {
+    const res = await fetch('https://api.vietqr.io/v2/banks');
+    const data = await res.json();
+    if (data.code === '00') {
+      vietqrBanks.value = data.data;
+    }
+  } catch (e) { console.error('Error fetching VietQR banks:', e); }
+};
+
+const lookupLoading = ref(false);
+
+const onBankSelectionChange = () => {
+    const bank = vietqrBanks.value.find(b => b.shortName === bankForm.value.bank_short_name);
+    if (bank) {
+        bankForm.value.bank_name = bank.name;
+        bankForm.value.bank_bin = bank.bin;
+        lookupBankAccount();
+    }
+};
+
+const lookupBankAccount = async () => {
+    if (!bankForm.value.bank_bin || !bankForm.value.account_number) {
+        bankForm.value.account_name = '';
+        return;
+    }
+    
+    lookupLoading.value = true;
+    bankForm.value.account_name = '';
+    
+    try {
+        const res = await walletService.verifyBankAccount({
+            bank_bin: bankForm.value.bank_bin,
+            account_number: bankForm.value.account_number
+        });
+        if (res.data?.status === 'success') {
+            bankForm.value.account_name = res.data.data.accountName;
+        } else {
+            showToast(res.data?.message || 'Không tìm thấy tài khoản', 'error');
+        }
+    } catch (e) {
+        showToast(e.response?.data?.message || 'Lỗi kiểm tra tài khoản', 'error');
+    } finally {
+        lookupLoading.value = false;
+    }
+};
+
+let lookupTimer = null;
+watch(() => bankForm.value.account_number, (newVal) => {
+    clearTimeout(lookupTimer);
+    if (!newVal || newVal.length < 5) {
+        bankForm.value.account_name = '';
+        return;
+    }
+    lookupTimer = setTimeout(() => {
+        lookupBankAccount();
+    }, 600);
+});
+
+const getBankLogo = (bin) => {
+    const bank = vietqrBanks.value.find(b => String(b.bin) === String(bin));
+    return bank ? bank.logo : 'https://vietqr.net/portal/v2021/assets/images/vietqr.png';
+};
+
 const openAddBank = () => {
   editingBankId.value = null;
   bankForm.value = { bank_name: '', bank_short_name: '', bank_bin: '', account_name: '', account_number: '' };
@@ -202,7 +268,17 @@ const saveBankAccount = async () => {
 };
 
 const deleteBank = async (id) => {
-  if (!confirm('Xóa tài khoản ngân hàng này?')) return;
+  const result = await Swal.fire({
+    title: 'Xác nhận xóa',
+    text: 'Bạn có chắc chắn muốn xóa tài khoản ngân hàng này?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#9ca3af',
+    confirmButtonText: 'Xóa',
+    cancelButtonText: 'Hủy'
+  });
+  if (!result.isConfirmed) return;
   try {
     await walletService.deleteBankAccount(id);
     showToast('Đã xóa tài khoản', 'success');
@@ -296,17 +372,49 @@ const getTypeColor = (type) => {
 };
 
 onMounted(async () => {
-  await Promise.all([fetchSummary(), fetchHistory(), fetchBankAccounts()]);
+  await Promise.all([fetchSummary(), fetchHistory(), fetchBankAccounts(), fetchVietQRBanks()]);
   loading.value = false;
 });
 </script>
 
 <template>
   <div class="wallet-page">
-    <!-- Loading -->
-    <div v-if="loading" class="wallet-loading">
-      <div class="wallet-spinner"></div>
-      <p>Đang tải thông tin ví...</p>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="loading" class="wallet-skeleton">
+      <div class="skeleton-main-card">
+        <div style="display: flex; gap: 16px; align-items: center;">
+          <div class="skeleton-box" style="width: 56px; height: 56px; border-radius: 50%;"></div>
+          <div>
+            <div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 200px; height: 32px; border-radius: 6px;"></div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <div class="skeleton-box" style="width: 120px; height: 44px; border-radius: 12px;"></div>
+          <div class="skeleton-box" style="width: 120px; height: 44px; border-radius: 12px;"></div>
+        </div>
+      </div>
+
+      <div class="skeleton-balance-grid" style="margin-top: 20px;">
+        <div v-for="i in 3" :key="i" class="skeleton-card" style="padding: 20px;">
+          <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 10px;"></div>
+          <div class="skeleton-box" style="width: 140px; height: 24px; border-radius: 6px;"></div>
+        </div>
+      </div>
+
+      <div class="skeleton-card" style="margin-top: 24px; padding: 24px;">
+        <div class="skeleton-box" style="width: 180px; height: 22px; border-radius: 6px; margin-bottom: 20px;"></div>
+        <div v-for="i in 4" :key="i" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #f1f5f9;">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 10px;"></div>
+            <div>
+              <div class="skeleton-box" style="width: 160px; height: 16px; border-radius: 4px; margin-bottom: 6px;"></div>
+              <div class="skeleton-box" style="width: 100px; height: 12px; border-radius: 4px;"></div>
+            </div>
+          </div>
+          <div class="skeleton-box" style="width: 90px; height: 20px; border-radius: 4px;"></div>
+        </div>
+      </div>
     </div>
 
     <template v-else>
@@ -405,7 +513,9 @@ onMounted(async () => {
         </div>
         <div v-else class="ba-list">
           <div v-for="acc in bankAccounts" :key="acc.id" class="ba-item" :class="{ 'ba-default': acc.is_default }">
-            <div class="ba-icon">🏦</div>
+            <div class="ba-icon">
+              <img :src="getBankLogo(acc.bank_bin)" :alt="acc.bank_name" style="width: 84px; height: 56px; object-fit: contain; border-radius: 4px;" />
+            </div>
             <div class="ba-info">
               <span class="ba-bank-name">{{ acc.bank_name }}
                 <span v-if="acc.is_default" class="ba-badge">Mặc định</span>
@@ -414,9 +524,15 @@ onMounted(async () => {
               <span class="ba-acc-num">{{ acc.account_number }}</span>
             </div>
             <div class="ba-actions">
-              <button v-if="!acc.is_default" class="ba-btn" title="Đặt mặc định" @click="setDefaultBank(acc.id)">⭐</button>
-              <button class="ba-btn" title="Sửa" @click="openEditBank(acc)">✏️</button>
-              <button class="ba-btn ba-btn-del" title="Xóa" @click="deleteBank(acc.id)">🗑️</button>
+              <button v-if="!acc.is_default" class="ba-btn" title="Đặt mặc định" @click="setDefaultBank(acc.id)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              </button>
+              <button class="ba-btn" title="Sửa" @click="openEditBank(acc)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </button>
+              <button class="ba-btn ba-btn-del" title="Xóa" @click="deleteBank(acc.id)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -460,6 +576,7 @@ onMounted(async () => {
             </div>
             <div class="hi-info">
               <span class="hi-label">{{ tx.type_label || getTypeLabel(tx.type) }}</span>
+              <span class="hi-code">{{ tx.transaction_code }}</span>
               <span class="hi-desc" v-if="tx.description">{{ tx.description }}</span>
               <span class="hi-date">{{ new Date(tx.created_at).toLocaleString('vi-VN') }}</span>
             </div>
@@ -686,15 +803,23 @@ onMounted(async () => {
           </div>
           <div class="dm-body">
             <label class="dm-label">Tên ngân hàng *</label>
-            <input type="text" v-model="bankForm.bank_name" class="dm-input" placeholder="VD: MB Bank, Vietcombank..." />
-
-            <label class="dm-label mt-16">Tên chủ tài khoản *</label>
-            <input type="text" v-model="bankForm.account_name" class="dm-input" placeholder="VD: NGUYEN VAN A" />
+            <select v-model="bankForm.bank_short_name" class="dm-input" @change="onBankSelectionChange">
+                <option value="">-- Chọn ngân hàng --</option>
+                <option v-for="bank in vietqrBanks" :key="bank.bin" :value="bank.shortName">
+                    {{ bank.shortName }} - {{ bank.name }}
+                </option>
+            </select>
 
             <label class="dm-label mt-16">Số tài khoản *</label>
             <input type="text" v-model="bankForm.account_number" class="dm-input" placeholder="VD: 1234567890" />
 
-            <button class="btn-confirm-deposit" @click="saveBankAccount" :disabled="bankFormLoading">
+            <label class="dm-label mt-16">Tên chủ tài khoản *</label>
+            <div style="position: relative;">
+                <input type="text" v-model="bankForm.account_name" class="dm-input" placeholder="Tự động hiển thị" disabled style="background-color: #f3f4f6; color: #374151; font-weight: 600;" />
+                <div v-if="lookupLoading" class="wallet-spinner small" style="position: absolute; right: 12px; top: 12px; border-color: #d1d5db; border-top-color: var(--primary);"></div>
+            </div>
+
+            <button class="btn-confirm-deposit mt-16" @click="saveBankAccount" :disabled="bankFormLoading || !bankForm.account_name">
               <div v-if="bankFormLoading" class="wallet-spinner small white"></div>
               <span v-else>{{ editingBankId ? 'Cập nhật' : 'Liên kết' }}</span>
             </button>
@@ -707,7 +832,7 @@ onMounted(async () => {
 
 <style scoped>
 .wallet-page {
-  font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 /* Loading */
@@ -755,14 +880,15 @@ onMounted(async () => {
 .balance-label { font-size: 0.85rem; opacity: 0.85; margin: 0; }
 .balance-amount { font-size: 1.8rem; font-weight: 800; margin: 4px 0 0; letter-spacing: -0.5px; }
 .btn-deposit {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 24px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px;
+  padding: 0 18px;
   background: rgba(255,255,255,0.2);
   border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 12px;
+  border-radius: 8px;
   color: #fff;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   cursor: pointer;
   transition: all 0.2s;
   backdrop-filter: blur(10px);
@@ -951,6 +1077,7 @@ onMounted(async () => {
 }
 .hi-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hi-label { font-size: 0.9rem; font-weight: 600; color: #1f2937; }
+.hi-code { font-size: 0.75rem; font-family: monospace; font-weight: 700; color: var(--primary); background: rgba(230,59,111,0.08); padding: 2px 6px; border-radius: 4px; display: inline-block; width: fit-content; }
 .hi-desc { font-size: 0.78rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hi-date { font-size: 0.75rem; color: #d1d5db; }
 .hi-amount { font-size: 0.95rem; font-weight: 700; white-space: nowrap; }
@@ -1148,5 +1275,63 @@ onMounted(async () => {
   .balance-detail-cards { grid-template-columns: 1fr; }
   .wallet-stats { grid-template-columns: repeat(2, 1fr); }
   .history-header { flex-direction: column; align-items: flex-start; }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.wallet-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-main-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+
+.skeleton-balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

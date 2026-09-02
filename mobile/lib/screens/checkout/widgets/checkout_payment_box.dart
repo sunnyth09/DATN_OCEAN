@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_theme.dart';
 
 /// Box chọn phương thức thanh toán. Thuần trình bày: nhận [selectedPayment]
 /// và báo thay đổi qua [onChanged].
@@ -29,7 +30,7 @@ class CheckoutPaymentBox extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.payment_outlined, color: Color(0xFFE63B6F), size: 20),
+              Icon(Icons.payment_outlined, color: AppColors.primary, size: 20),
               SizedBox(width: 8),
               Text(
                 'Phương thức thanh toán',
@@ -82,7 +83,7 @@ class CheckoutPaymentBox extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFFE63B6F)
+                ? AppColors.primary
                 : const Color(0xFFE2E8F0),
             width: isSelected ? 1.5 : 1,
           ),
@@ -93,14 +94,14 @@ class CheckoutPaymentBox extends StatelessWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? const Color(0xFFE63B6F).withValues(alpha: 0.1)
+                    ? AppColors.primary.withValues(alpha: 0.1)
                     : const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
                 color: isSelected
-                    ? const Color(0xFFE63B6F)
+                    ? AppColors.primary
                     : const Color(0xFF475569),
                 size: 20,
               ),
@@ -116,7 +117,7 @@ class CheckoutPaymentBox extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                       color: isSelected
-                          ? const Color(0xFFE63B6F)
+                          ? AppColors.primary
                           : const Color(0xFF0F172A),
                     ),
                   ),
@@ -134,7 +135,7 @@ class CheckoutPaymentBox extends StatelessWidget {
             Icon(
               isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
               color: isSelected
-                  ? const Color(0xFFE63B6F)
+                  ? AppColors.primary
                   : const Color(0xFFCBD5E1),
               size: 20,
             ),

@@ -1,7 +1,11 @@
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
+import '../config/app_theme.dart';
+import '../widgets/app_text_field.dart';
+import '../widgets/app_toast.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -33,13 +37,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _sendOtp() async {
+    HapticFeedback.lightImpact();
     final email = _emailCtrl.text.trim();
     if (email.isEmpty || !_emailPattern.hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập email hợp lệ!'),
-          backgroundColor: Colors.orange,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Vui lòng nhập email hợp lệ!',
       );
       return;
     }
@@ -53,30 +56,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       setState(() => _currentStep = 1);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mã OTP đã được gửi đến email của bạn!'),
-            backgroundColor: Colors.green,
-          ),
+        AppToast.showSuccess(
+          context,
+          message: 'Mã OTP đã được gửi đến email của bạn!',
         );
       }
     } on DioException catch (e) {
       final message = e.response?.data is Map ? e.response?.data['message'] : null;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message ?? 'Lỗi gửi OTP!'),
-            backgroundColor: Colors.red,
-          ),
+        AppToast.showError(
+          context,
+          message: message ?? 'Lỗi gửi OTP!',
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể kết nối máy chủ!'),
-            backgroundColor: Colors.red,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Không thể kết nối máy chủ!',
         );
       }
     } finally {
@@ -85,13 +82,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _verifyOtp() async {
+    HapticFeedback.lightImpact();
     final otp = _otpCtrl.text.trim();
     if (otp.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập mã OTP!'),
-          backgroundColor: Colors.orange,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Vui lòng nhập mã OTP!',
       );
       return;
     }
@@ -108,30 +104,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       setState(() => _currentStep = 2);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Xác thực OTP thành công!'),
-            backgroundColor: Colors.green,
-          ),
+        AppToast.showSuccess(
+          context,
+          message: 'Xác thực OTP thành công!',
         );
       }
     } on DioException catch (e) {
       final message = e.response?.data is Map ? e.response?.data['message'] : null;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message ?? 'Mã OTP không chính xác!'),
-            backgroundColor: Colors.red,
-          ),
+        AppToast.showError(
+          context,
+          message: message ?? 'Mã OTP không chính xác!',
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể kết nối máy chủ!'),
-            backgroundColor: Colors.red,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Không thể kết nối máy chủ!',
         );
       }
     } finally {
@@ -140,24 +130,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _resetPassword() async {
+    HapticFeedback.lightImpact();
     final password = _passwordCtrl.text;
     final confirm = _confirmPasswordCtrl.text;
 
     if (password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Mật khẩu phải từ 6 ký tự!'),
-          backgroundColor: Colors.orange,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Mật khẩu phải từ 6 ký tự!',
       );
       return;
     }
     if (password != confirm) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Mật khẩu xác nhận không khớp!'),
-          backgroundColor: Colors.orange,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Mật khẩu xác nhận không khớp!',
       );
       return;
     }
@@ -175,31 +162,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đổi mật khẩu thành công! Hãy đăng nhập lại.'),
-            backgroundColor: Colors.green,
-          ),
+        AppToast.showSuccess(
+          context,
+          message: 'Đổi mật khẩu thành công! Hãy đăng nhập lại.',
         );
         context.pop(); // Quay về màn login
       }
     } on DioException catch (e) {
       final message = e.response?.data is Map ? e.response?.data['message'] : null;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message ?? 'Lỗi đặt lại mật khẩu!'),
-            backgroundColor: Colors.red,
-          ),
+        AppToast.showError(
+          context,
+          message: message ?? 'Lỗi đặt lại mật khẩu!',
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể kết nối máy chủ!'),
-            backgroundColor: Colors.red,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Không thể kết nối máy chủ!',
         );
       }
     } finally {
@@ -211,18 +192,43 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.primary.withValues(alpha: 0.08),
+              Colors.white,
+            ],
+            stops: const [0.0, 0.3],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                      icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A), size: 28),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/login');
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const Text(
                 'Quên Mật Khẩu',
                 style: TextStyle(
                   fontSize: 28,
@@ -272,7 +278,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     child: const Text(
                       'Gửi lại mã OTP',
                       style: TextStyle(
-                        color: Color(0xFFE63B6F),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -301,6 +307,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -312,52 +319,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     bool isPassword = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: isPassword,
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 14,
-              ),
-              prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-          ),
-        ),
-      ],
+    return AppTextField(
+      labelText: label,
+      hintText: hint,
+      controller: controller,
+      prefixIcon: icon,
+      isPassword: isPassword,
+      keyboardType: keyboardType,
     );
   }
 
   Widget _buildButton(String text, VoidCallback onPressed) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 46,
       child: ElevatedButton(
         onPressed: _isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFE63B6F),
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -376,8 +355,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             : Text(
                 text,
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.5,
                 ),
               ),
       ),

@@ -5,11 +5,12 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import '../utils/app_logger.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
 import '../router/app_router.dart';
+import '../widgets/app_toast.dart';
 import 'auth_service.dart';
 import 'storage_service.dart';
 
@@ -22,13 +23,41 @@ class ApiClient {
   factory ApiClient() => _instance;
 
   late Dio dio;
+  static String? _resolvedIp;
+  static DateTime? _lastDnsLookup;
+
+  /// Giải quyết lỗi DNS IPv6 treo trên Android Emulator:
+  /// Phân giải trực tiếp sang IPv4, fallback về hostname gốc để OS tự resolve.
+  static Future<String> getEffectiveHost() async {
+    const hostname = 'api.oceansport.pro.vn';
+    if (kIsWeb) return hostname;
+    if (_resolvedIp != null &&
+        _lastDnsLookup != null &&
+        DateTime.now().difference(_lastDnsLookup!).inMinutes < 10) {
+      return _resolvedIp!;
+    }
+    try {
+      final list = await InternetAddress.lookup(hostname, type: InternetAddressType.IPv4)
+          .timeout(const Duration(milliseconds: 2000));
+      if (list.isNotEmpty) {
+        _resolvedIp = list.first.address;
+        _lastDnsLookup = DateTime.now();
+        return _resolvedIp!;
+      }
+    } catch (_) {
+      // DNS lookup thất bại → trả hostname gốc để OS tự resolve
+      _resolvedIp = null;
+    }
+    return _resolvedIp ?? hostname;
+  }
 
   ApiClient._internal() {
     dio = Dio(
       BaseOptions(
         baseUrl: kBaseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 35),
+        receiveTimeout: const Duration(seconds: 35),
+        sendTimeout: const Duration(seconds: 35),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -41,9 +70,51 @@ class ApiClient {
       dio.httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () {
           final client = HttpClient();
-          client.badCertificateCallback =
-              (X509Certificate cert, String host, int port) => true;
+          client.connectionTimeout = const Duration(seconds: 30);
+          client.idleTimeout = const Duration(seconds: 60);
+          client.maxConnectionsPerHost = 20;
+          // ⚠️ CHỈ bypass SSL trên môi trường dev/emulator
+          if (!AppConfig.isProduction) {
+            client.badCertificateCallback =
+                (X509Certificate cert, String host, int port) => true;
+          }
           client.userAgent = kMobileUserAgent;
+
+          // Khắc phục lỗi nghẽn DNS IPv6 trên Android Emulator:
+          // Phân giải DNS sang IPv4 rồi mở kết nối TCP trực tiếp.
+          client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) async {
+            // Resolve DNS IPv4 tránh nghẽn IPv6 trên emulator
+            String targetHost = uri.host;
+            try {
+              final addresses = await InternetAddress.lookup(
+                uri.host,
+                type: InternetAddressType.IPv4,
+              ).timeout(const Duration(seconds: 3));
+              if (addresses.isNotEmpty) {
+                targetHost = addresses.first.address;
+              }
+            } catch (_) {
+              // Fallback: dùng hostname gốc để OS tự resolve
+            }
+
+            final Future<Socket> futureSocket = Socket.connect(
+              targetHost,
+              uri.port,
+              timeout: const Duration(seconds: 15),
+            ).then<Socket>((rawSocket) {
+              if (uri.scheme == 'https') {
+                return SecureSocket.secure(
+                  rawSocket,
+                  host: uri.host, // Thiết lập chuẩn tiêu đề TLS SNI
+                  onBadCertificate: AppConfig.isProduction ? null : (cert) => true,
+                );
+              }
+              return rawSocket;
+            });
+
+            return ConnectionTask.fromSocket(futureSocket, () {});
+          };
+
           return client;
         },
       );
@@ -65,7 +136,8 @@ class ApiClient {
             options.headers['User-Agent'] = kMobileUserAgent;
           }
 
-          final token = await StorageService.read('access_token');
+          final token = StorageService.readSync('access_token') ??
+              await StorageService.read('access_token');
           if (token != null && token.trim().isNotEmpty && token != 'null') {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -75,33 +147,52 @@ class ApiClient {
             if (safeHeaders.containsKey('Authorization')) {
               safeHeaders['Authorization'] = 'Bearer ***';
             }
-            debugPrint('====== API REQUEST ======');
-            debugPrint('URL: ${options.baseUrl}${options.path}');
-            debugPrint('Headers: $safeHeaders');
-            debugPrint('Body: ${options.data}');
-            debugPrint('=========================');
+            AppLogger.debug('====== API REQUEST ======');
+            AppLogger.debug('URL: ${options.baseUrl}${options.path}');
+            AppLogger.debug('Headers: $safeHeaders');
+            AppLogger.debug('Body: ${options.data}');
+            AppLogger.debug('=========================');
           }
 
           return handler.next(options);
         },
         onResponse: (response, handler) {
           if (kDebugMode) {
-            debugPrint('====== API RESPONSE ======');
-            debugPrint('Status: ${response.statusCode}');
-            debugPrint('Data: ${response.data}');
-            debugPrint('==========================');
+            AppLogger.debug('====== API RESPONSE ======');
+            AppLogger.debug('Status: ${response.statusCode}');
+            AppLogger.debug('Data: ${response.data}');
+            AppLogger.debug('==========================');
           }
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
           if (kDebugMode) {
-            debugPrint('======= API ERROR =======');
-            debugPrint('Type: ${e.type}');
-            debugPrint('Message: ${e.message}');
-            debugPrint('Error: ${e.error}');
-            debugPrint('Status: ${e.response?.statusCode}');
-            debugPrint('Data: ${e.response?.data}');
-            debugPrint('=========================');
+            AppLogger.debug('======= API ERROR =======');
+            AppLogger.debug('Type: ${e.type}');
+            AppLogger.debug('Message: ${e.message}');
+            AppLogger.error(': ${e.error}');
+            AppLogger.debug('Status: ${e.response?.statusCode}');
+            AppLogger.debug('Data: ${e.response?.data}');
+            AppLogger.debug('=========================');
+          }
+
+          // 1. Tự động retry 1 lần đối với request GET khi gặp timeout hoặc mạng chập chờn
+          final isGet = e.requestOptions.method.toUpperCase() == 'GET';
+          final isTimeoutOrConnError =
+              e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.connectionError;
+          final alreadyRetriedConn = e.requestOptions.extra['__conn_retried'] == true;
+
+          if (isGet && isTimeoutOrConnError && !alreadyRetriedConn) {
+            try {
+              final opts = e.requestOptions..extra['__conn_retried'] = true;
+              await Future.delayed(const Duration(milliseconds: 600));
+              final retryRes = await dio.fetch(opts);
+              return handler.resolve(retryRes);
+            } catch (_) {
+              // Tiếp tục luồng xử lý lỗi tiếp theo
+            }
           }
 
           final is401 = e.response?.statusCode == 401;
@@ -155,9 +246,7 @@ class ApiClient {
     if (hasToken) {
       final context = rootNavigatorKey.currentContext;
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại')),
-        );
+        AppToast.showInfo(context, message: 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
         context.go('/login');
       }
     }

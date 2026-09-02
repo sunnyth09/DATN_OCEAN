@@ -24,36 +24,96 @@ class FlashSaleController extends Controller
     public function adminIndex()
     {
         $flashSales = FlashSale::with('items.product')->latest()->get();
+        $tz = config('app.timezone', 'Asia/Ho_Chi_Minh');
+        $now = now();
 
-        return response()->json(['status' => 'success', 'data' => $flashSales]);
+        $data = $flashSales->map(function ($fs) use ($tz, $now) {
+            $calculatedStatus = $fs->status;
+            if ($fs->status === 'active') {
+                if ($fs->end_time && $fs->end_time->lt($now)) {
+                    $calculatedStatus = 'ended';
+                } elseif ($fs->start_time && $fs->start_time->gt($now)) {
+                    $calculatedStatus = 'upcoming';
+                } else {
+                    $calculatedStatus = 'ongoing';
+                }
+            }
+
+            return [
+                'id' => $fs->id,
+                'name' => $fs->name,
+                'status' => $fs->status,
+                'calculated_status' => $calculatedStatus,
+                'start_time' => $fs->start_time ? $fs->start_time->toISOString() : null,
+                'end_time' => $fs->end_time ? $fs->end_time->toISOString() : null,
+                'start_time_formatted' => $fs->start_time ? $fs->start_time->timezone($tz)->format('d/m/Y H:i') : '',
+                'end_time_formatted' => $fs->end_time ? $fs->end_time->timezone($tz)->format('d/m/Y H:i') : '',
+                'start_time_local' => $fs->start_time ? $fs->start_time->timezone($tz)->format('Y-m-d\TH:i') : '',
+                'end_time_local' => $fs->end_time ? $fs->end_time->timezone($tz)->format('Y-m-d\TH:i') : '',
+                'items' => $fs->items->map(function ($item) {
+                    $product = $item->product;
+                    $basePrice = $product ? (float) ($product->min_price ?? 0) : 0;
+                    $discountPct = $basePrice > 0 ? round((($basePrice - $item->campaign_price) / $basePrice) * 100) : 0;
+
+                    return [
+                        'id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'campaign_price' => (float) $item->campaign_price,
+                        'campaign_stock' => (int) $item->campaign_stock,
+                        'sold' => (int) $item->sold,
+                        'discount_percent' => max(0, $discountPct),
+                        'product' => $product ? [
+                            'product_id' => $product->product_id,
+                            'name' => $product->name,
+                            'thumbnail' => $product->thumbnail_url ?: ($product->mainImage?->image_url ?: ($product->images?->first()?->image_url ?: null)),
+                            'base_price' => $basePrice,
+                        ] : null,
+                    ];
+                }),
+                'created_at' => $fs->created_at ? $fs->created_at->toISOString() : null,
+            ];
+        });
+
+        return response()->json(['status' => 'success', 'data' => $data]);
     }
 
     public function searchProducts(Request $request)
     {
-        $query = $request->input('query', '');
+        $query = trim($request->input('query', ''));
+        $categoryId = $request->input('category_id');
+        $limit = (int) $request->input('limit', 60);
+        $limit = max(1, min($limit, 100));
 
-        if (strlen($query) < 2) {
-            return response()->json(['status' => 'success', 'data' => []]);
+        $q = Product::where('status', 'active')
+            ->with(['category', 'variants', 'mainImage', 'images']);
+
+        if ($query !== '') {
+            $q->where(function ($sub) use ($query) {
+                $sub->where('name', 'LIKE', "%{$query}%")
+                    ->orWhere('slug', 'LIKE', "%{$query}%")
+                    ->orWhere('sku', 'LIKE', "%{$query}%")
+                    ->orWhere('product_id', $query);
+            });
         }
 
-        $products = Product::where('status', 'active')
-            ->where(function ($q) use ($query) {
-                $q->where('name', 'LIKE', "%{$query}%")
-                    ->orWhere('slug', 'LIKE', "%{$query}%");
-            })
-            ->limit(20)
-            ->get();
+        if (! empty($categoryId) && $categoryId !== 'all') {
+            $q->where('category_id', $categoryId);
+        }
+
+        $products = $q->latest()->limit($limit)->get();
 
         $results = $products->map(function ($product) {
-            // Load variants to sum stock
-            $product->load('variants');
+            $totalStock = (int) $product->variants->sum('stock');
 
             return [
                 'product_id' => $product->product_id,
                 'name' => $product->name,
-                'thumbnail' => $product->thumbnail_url,
-                'base_price' => $product->min_price ?? 0,
-                'stock' => $product->variants->sum('stock'),
+                'sku' => $product->sku,
+                'category_name' => $product->category?->name ?? '',
+                'category_id' => $product->category_id,
+                'thumbnail' => $product->thumbnail_url ?: ($product->mainImage?->image_url ?: ($product->images?->first()?->image_url ?: null)),
+                'base_price' => (float) ($product->min_price ?? 0),
+                'stock' => $totalStock,
             ];
         });
 

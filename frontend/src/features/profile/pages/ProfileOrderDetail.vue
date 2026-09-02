@@ -1,7 +1,7 @@
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Toast } from 'bootstrap';
+import { useToast } from '@/composables/useToast';
 import { orderService } from '@/services/orderService';
 import { returnRequestService } from '@/services/returnRequestService';
 import AppIcon from '@/components/AppIcon.vue';
@@ -18,14 +18,14 @@ import {
 import api from '@/axios';
 import { getStorageUrl } from '@/utils/url';
 import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline.vue';
+import SepayPaymentModal from '@/components/SepayPaymentModal.vue';
 
-const toastData = ref({ message: '', type: 'success' });
-const showToast = (message, type = 'success') => {
-  toastData.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('orderDetailToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
-  });
+const { showToast } = useToast();
+
+const showSepayModal = ref(false);
+const onSepaySuccess = () => {
+  showToast('Thanh toán đơn hàng thành công!', 'success');
+  fetchOrderDetail();
 };
 
 const route = useRoute();
@@ -40,6 +40,21 @@ const actionLoading = ref(false);
 
 const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
+};
+
+const getOtherDiscount = (orderData) => {
+  if (!orderData) return 0;
+  const subtotal = Number(orderData.subtotal) || 0;
+  const shippingFee = Number(orderData.shipping_fee) || 0;
+  const grandTotal = Number(orderData.grand_total) || 0;
+  const knownDiscount = (Number(orderData.discount_amount) || 0) +
+    (Number(orderData.combo_discount) || 0) +
+    (Number(orderData.wallet_deposit_discount) || 0) +
+    (Number(orderData.wallet_commission_discount) || 0);
+
+  const totalCalculatedDiscount = Math.max(0, subtotal + shippingFee - grandTotal);
+  const remaining = totalCalculatedDiscount - knownDiscount;
+  return remaining > 0 ? remaining : 0;
 };
 
 const getProductImage = (item) => {
@@ -472,20 +487,82 @@ watch(orderId, (newId) => {
     <div class="page-header">
       <div class="header-left">
         <button class="btn-back" @click="goBack">
-          <span>&larr;</span> Quay lại
+          <AppIcon name="arrow-left" size="16" /> Quay lại
         </button>
         <h2 class="page-title">Chi tiết đơn hàng</h2>
       </div>
       <div v-if="order" class="header-right" style="display: flex; align-items: center; gap: 8px;">
         <span class="order-code">#{{ order.order_code }}</span>
-        <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; font-weight: 700;">⚡ Flash Sale</span>
+        <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+          <AppIcon name="zap" size="13" /> Flash Sale
+        </span>
       </div>
     </div>
 
+    <!-- Modern Skeleton Loading -->
     <div v-if="loading" class="profile-order-detail-skeleton">
-      <div class="skeleton-pulse" style="height:100px; border-radius:12px; margin-bottom:20px;"></div>
-      <div class="skeleton-pulse" style="height:300px; border-radius:12px; margin-bottom:20px;"></div>
-      <div class="skeleton-pulse" style="height:200px; border-radius:12px;"></div>
+      <!-- Status Section Skeleton -->
+      <div class="skeleton-status-section">
+        <div class="skeleton-status-info">
+          <div class="skeleton-box" style="width: 140px; height: 32px; border-radius: 20px;"></div>
+          <div class="skeleton-box" style="width: 180px; height: 16px; border-radius: 6px;"></div>
+        </div>
+        <div class="skeleton-status-actions">
+          <div class="skeleton-box" style="width: 130px; height: 38px; border-radius: 10px;"></div>
+        </div>
+      </div>
+
+      <!-- Detail Grid Skeleton: Address & Summary -->
+      <div class="skeleton-detail-grid">
+        <!-- Address Card Skeleton -->
+        <div class="skeleton-card">
+          <div class="skeleton-box" style="width: 150px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+          <div class="skeleton-box" style="width: 120px; height: 18px; border-radius: 4px; margin-bottom: 8px;"></div>
+          <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+          <div class="skeleton-box" style="width: 85%; height: 14px; border-radius: 4px; margin-bottom: 6px;"></div>
+          <div class="skeleton-box" style="width: 60%; height: 14px; border-radius: 4px;"></div>
+        </div>
+
+        <!-- Summary Card Skeleton -->
+        <div class="skeleton-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div class="skeleton-box" style="width: 160px; height: 20px; border-radius: 6px;"></div>
+            <div class="skeleton-box" style="width: 70px; height: 22px; border-radius: 6px;"></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 70px; height: 14px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 90px; height: 14px; border-radius: 4px;"></div></div>
+            <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 70px; height: 14px; border-radius: 4px;"></div></div>
+            <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border-color, #e9ecef);"><div class="skeleton-box" style="width: 80px; height: 18px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 110px; height: 22px; border-radius: 6px;"></div></div>
+          </div>
+          <div class="skeleton-box" style="width: 160px; height: 26px; border-radius: 20px;"></div>
+        </div>
+      </div>
+
+      <!-- Items List Card Skeleton -->
+      <div class="skeleton-card" style="margin-top: 24px;">
+        <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 6px; margin-bottom: 20px;"></div>
+        <div v-for="i in 2" :key="i" class="skeleton-item-row">
+          <div class="skeleton-box" style="width: 72px; height: 72px; border-radius: 10px; flex-shrink: 0;"></div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="skeleton-box" style="width: 60%; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 30%; height: 13px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 40px; height: 13px; border-radius: 4px;"></div>
+          </div>
+          <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 4px;"></div>
+        </div>
+      </div>
+
+      <!-- History Card Skeleton -->
+      <div class="skeleton-card" style="margin-top: 24px;">
+        <div class="skeleton-box" style="width: 150px; height: 20px; border-radius: 6px; margin-bottom: 20px;"></div>
+        <div v-for="i in 3" :key="i" style="display: flex; gap: 14px; margin-bottom: 16px;">
+          <div class="skeleton-box" style="width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;"></div>
+          <div style="flex: 1;">
+            <div class="skeleton-box" style="width: 35%; height: 15px; border-radius: 4px; margin-bottom: 6px;"></div>
+            <div class="skeleton-box" style="width: 20%; height: 12px; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="order" class="order-content">
@@ -499,6 +576,7 @@ watch(orderId, (newId) => {
           <span class="order-date">Đặt lúc: {{ formatDate(order.created_at) }}</span>
         </div>
         <div class="status-actions">
+         
           <button 
             v-if="order.fulfillment_status === 'pending'" 
             class="btn-action btn-cancel-order"
@@ -506,7 +584,7 @@ watch(orderId, (newId) => {
             :disabled="actionLoading"
           >
             <span v-if="actionLoading" class="spinner-small"></span>
-            <span v-else>⊗ Yêu cầu hủy đơn</span>
+            <span v-else class="btn-inner"><AppIcon name="x" size="15" /> Yêu cầu hủy đơn</span>
           </button>
           <button
             v-if="order.can_request_return"
@@ -515,9 +593,25 @@ watch(orderId, (newId) => {
             :disabled="submittingReturnRequest"
           >
             <span v-if="submittingReturnRequest" class="spinner-small"></span>
-            <span v-else>↺ Yêu cầu hoàn hàng</span>
+            <span v-else class="btn-inner"><AppIcon name="rotate-ccw" size="15" /> Yêu cầu hoàn hàng</span>
           </button>
         </div>
+      </div>
+
+      <!-- Banner Cảnh Báo Chưa Thanh Toán -->
+      <div v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'" class="unpaid-detail-banner">
+        <div class="unpaid-banner-content">
+          <div class="unpaid-icon-box">
+            <AppIcon name="alert-circle" size="22" color="#b45309" />
+          </div>
+          <div class="unpaid-banner-text">
+            <strong class="unpaid-banner-title">Sản phẩm/Đơn hàng bạn chưa thanh toán!</strong>
+            <p class="unpaid-banner-sub">Vui lòng chuyển khoản ngân hàng trong thời hạn 15 phút để hoàn tất đơn hàng.</p>
+          </div>
+        </div>
+        <button class="btn-banner-pay" @click="showSepayModal = true">
+          <AppIcon name="credit-card" size="16" /> Thanh toán ngay
+        </button>
       </div>
 
       <div v-if="order.latest_return_request" class="return-request-banner">
@@ -536,23 +630,23 @@ watch(orderId, (newId) => {
         </router-link>
       </div>
 
-      <div v-if="tracking?.tracking_number || trackingLoading" class="ghn-tracking-card mt-4">
+      <div v-if="tracking?.tracking_number || tracking?.ghn_order_code || trackingLoading" class="ghn-tracking-card mt-4">
         <div class="card-header">
-          <h3>Thông tin vận chuyển GHN</h3>
+          <h3>Thông tin vận chuyển {{ tracking?.tracking_number?.startsWith('OE-') ? 'Ocean Express' : (tracking?.ghn_order_code ? 'GHN' : '') }}</h3>
         </div>
         <div class="card-body">
           <p v-if="trackingLoading" class="tracking-muted">Đang tải thông tin vận chuyển...</p>
           <template v-else>
             <div class="ghn-info-row">
               <span>Mã vận đơn</span>
-              <strong>{{ tracking.tracking_number }}</strong>
+              <strong>{{ tracking.tracking_number || tracking.ghn_order_code }}</strong>
             </div>
             <div class="ghn-info-row" v-if="tracking.receiver_phone">
               <span>SĐT nhận hàng</span>
               <strong>{{ tracking.receiver_phone }}</strong>
             </div>
-            <a v-if="tracking.ghn_tracking_url" class="ghn-tracking-link" :href="tracking.ghn_tracking_url" target="_blank" rel="noopener">
-              Xem trực tiếp trên GHN
+            <a v-if="tracking.tracking_url || tracking.ghn_tracking_url" class="ghn-tracking-link" :href="tracking.tracking_url || tracking.ghn_tracking_url" target="_blank" rel="noopener">
+              Xem trực tiếp trên {{ tracking.tracking_url?.includes('oceanexpress') ? 'Ocean Express' : 'GHN' }}
             </a>
           </template>
         </div>
@@ -587,12 +681,39 @@ watch(orderId, (newId) => {
              </div>
              <div class="summary-row">
                <span class="fw-bold">Phí vận chuyển</span>
-               <span>{{ formatPrice(order.shipping_fee) }}</span>
+               <span>{{ Number(order.shipping_fee) === 0 ? 'Miễn phí (0 đ)' : formatPrice(order.shipping_fee) }}</span>
              </div>
-             <div class="summary-row discount" v-if="order.discount_amount > 0">
-               <span>Giảm giá</span>
+
+             <!-- Giảm giá Voucher / Khuyến mãi -->
+             <div class="summary-row discount" v-if="Number(order.discount_amount) > 0">
+               <span class="fw-bold">Giảm giá Voucher / Ưu đãi</span>
                <span>-{{ formatPrice(order.discount_amount) }}</span>
              </div>
+
+             <!-- Giảm giá Combo thể thao -->
+             <div class="summary-row discount" v-if="Number(order.combo_discount) > 0">
+               <span class="fw-bold">Giảm giá Combo thể thao</span>
+               <span>-{{ formatPrice(order.combo_discount) }}</span>
+             </div>
+
+             <!-- Trừ Ví Ocean (Tiền nạp) -->
+             <div class="summary-row discount" v-if="Number(order.wallet_deposit_discount) > 0">
+               <span class="fw-bold">Khấu trừ Ví Ocean (Tiền nạp)</span>
+               <span>-{{ formatPrice(order.wallet_deposit_discount) }}</span>
+             </div>
+
+             <!-- Trừ Ví Ocean (Hoa hồng) -->
+             <div class="summary-row discount" v-if="Number(order.wallet_commission_discount) > 0">
+               <span class="fw-bold">Khấu trừ Ví Ocean (Hoa hồng)</span>
+               <span>-{{ formatPrice(order.wallet_commission_discount) }}</span>
+             </div>
+
+             <!-- Chiết khấu / Ưu đãi trừ thêm khác (đảm bảo toán học luôn đúng 100%) -->
+             <div class="summary-row discount" v-if="getOtherDiscount(order) > 0">
+               <span class="fw-bold">Chiết khấu / Ưu đãi khác</span>
+               <span>-{{ formatPrice(getOtherDiscount(order)) }}</span>
+             </div>
+
              <div class="summary-row total">
                <span>Tổng cộng</span>
                <span class="total-price">{{ formatPrice(order.grand_total) }}</span>
@@ -627,7 +748,7 @@ watch(orderId, (newId) => {
                   class="btn-ticket mt-2"
                   @click="openTicketModal(item)"
                 >
-                  ⚠ Khiếu nại
+                  <AppIcon name="shield" size="14" /> Khiếu nại
                 </button>
               </div>
               <div class="item-price">
@@ -656,6 +777,17 @@ watch(orderId, (newId) => {
       </div>
       
     </div>
+
+    <!-- SePay Modal -->
+    <SepayPaymentModal
+        :show="showSepayModal"
+        :order-code="order?.order_code || ''"
+        :amount="order?.grand_total || 0"
+        :created-at="order?.created_at"
+        :is-guest="false"
+        @close="showSepayModal = false"
+        @success="onSepaySuccess"
+    />
 
     <!-- Cancel Reason Modal -->
     <Transition name="modal">
@@ -865,16 +997,6 @@ watch(orderId, (newId) => {
         </div>
       </div>
     </Transition>
-
-    <!-- Bootstrap Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center border-0" :class="toastData.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="orderDetailToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body">{{ toastData.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -1016,6 +1138,23 @@ watch(orderId, (newId) => {
   align-items: center;
   gap: 6px;
 }
+.btn-continue-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border-color: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+.btn-continue-pay:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+  transform: translateY(-1px);
+}
+.btn-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 .btn-cancel-order {
   border-color: #fca5a5;
   color: #ef4444;
@@ -1030,6 +1169,84 @@ watch(orderId, (newId) => {
 }
 .btn-return-order:hover:not(:disabled) {
   background: #fff7ed;
+}
+
+/* Unpaid Detail Banner */
+.unpaid-detail-banner {
+  background: linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%);
+  border: 1.5px solid #fde68a;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.08);
+}
+
+.unpaid-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.unpaid-icon-box {
+  width: 42px;
+  height: 42px;
+  background: rgba(245, 158, 11, 0.18);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.unpaid-banner-title {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.unpaid-banner-sub {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #b45309;
+}
+
+.btn-banner-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+
+.btn-banner-pay:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+}
+
+@media (max-width: 640px) {
+  .unpaid-detail-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .btn-banner-pay {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .return-request-banner {
@@ -1542,4 +1759,176 @@ watch(orderId, (newId) => {
   text-decoration: none;
 }
 .ghn-tracking-link:hover { background: #dbeafe; }
+
+.unpaid-detail-banner {
+  background: linear-gradient(135deg, #fffbe6 0%, #fff1b8 100%);
+  border: 1.5px solid #ffe58f;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(212, 107, 8, 0.08);
+}
+
+.unpaid-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.unpaid-icon {
+  font-size: 1.8rem;
+}
+
+.unpaid-banner-content strong {
+  display: block;
+  font-size: 1rem;
+  color: #d46b08;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.unpaid-banner-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #8c4b00;
+}
+
+.btn-banner-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-banner-pay:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4);
+}
+
+.btn-continue-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+  padding: 6px 14px !important;
+  border-radius: 20px !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.25) !important;
+  transition: all 0.2s !important;
+}
+
+.btn-continue-pay:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.35) !important;
+}
+
+@media (max-width: 640px) {
+  .unpaid-detail-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-banner-pay {
+    text-align: center;
+    width: 100%;
+  }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.profile-order-detail-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-status-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e9ecef);
+  border-radius: var(--radius-lg, 16px);
+  margin-bottom: 24px;
+}
+
+.skeleton-status-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.skeleton-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .skeleton-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .skeleton-status-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+}
+
+.skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e9ecef);
+  border-radius: var(--radius-lg, 16px);
+  padding: 24px;
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(45, 52, 70, 0.04));
+}
+
+.skeleton-item-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+}
+
+.skeleton-item-row:last-child {
+  border-bottom: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 </style>

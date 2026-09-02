@@ -41,7 +41,7 @@ class AdminOrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,awaiting_pickup,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returning,warehouse_received,inspection_failed,inspected_ok,returned,refunded',
+            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,awaiting_pickup,completed,cancelled,return_requested,return_approved,return_rejected,warehouse_received,inspected_ok,inspection_failed,returned,refunded',
             'note' => 'nullable|string|max:500',
         ]);
 
@@ -60,7 +60,7 @@ class AdminOrderController extends Controller
         $request->validate([
             'order_ids' => 'required|array',
             'order_ids.*' => 'integer',
-            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returning,warehouse_received,inspection_failed,inspected_ok,returned,refunded',
+            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,awaiting_pickup,cancelled',
             'note' => 'nullable|string|max:500',
         ]);
 
@@ -91,23 +91,6 @@ class AdminOrderController extends Controller
     public function selfDelivery($id)
     {
         $result = $this->adminOrderService->selfDelivery($id);
-        $status = $result['_status'] ?? 200;
-        unset($result['_status']);
-
-        return response()->json($result, $status);
-    }
-
-    /**
-     * PUT — Ép chuyển trạng thái đơn hàng (bỏ qua StateMachine)
-     */
-    public function forceStatus(Request $request, $id)
-    {
-        $request->validate([
-            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,awaiting_pickup,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returning,warehouse_received,inspection_failed,inspected_ok,returned,refunded',
-            'note' => 'nullable|string|max:500',
-        ]);
-
-        $result = $this->adminOrderService->forceStatus($id, $request->only(['fulfillment_status', 'note']));
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
 

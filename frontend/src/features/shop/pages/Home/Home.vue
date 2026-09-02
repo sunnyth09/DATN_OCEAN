@@ -92,34 +92,38 @@ const isLoadingFlashSale = ref(true);
 const fetchRealFlashSale = async () => {
     try {
         isLoadingFlashSale.value = true;
-        const { data } = await api.get('flash-sale');
-        if (data && data.data && data.data.length > 0) {
+        const { data } = await api.get('flash-sale', { params: { filter: 'ongoing' } });
+        const list = data?.data ?? [];
+        if (list.length > 0) {
             // Lấy danh sách sản phẩm và giới hạn 4 sản phẩm
-            flashSaleProducts.value = data.data.slice(0, 4).map(p => {
-                const salePrice = p.sale_price ?? p.flash_price ?? p.price ?? 0;
-                const origPrice = p.original_price ?? p.originalPrice ?? salePrice;
-                const totalStock = p.total_stock ?? p.total_quantity ?? 0;
-                const soldCount = p.sold_count ?? p.sold ?? 0;
-                const percent = totalStock > 0 ? Math.min(100, Math.floor((soldCount / totalStock) * 100)) : 0;
+            flashSaleProducts.value = list.slice(0, 4).map(p => {
+                const flashPrice = Number(p.sale_price ?? p.flash_price ?? p.min_price ?? p.price ?? 0);
+                const originalPrice = Number(p.original_price ?? p.originalPrice ?? flashPrice);
+                const totalStock = Number(p.total_stock ?? p.total_quantity ?? 0);
+                const soldCount = Number(p.sold_count ?? p.sold ?? 0);
+                const flashPercent = totalStock > 0 ? Math.min(100, Math.floor((soldCount / totalStock) * 100)) : 0;
+                const discount = Number(p.discount_percent) || (originalPrice > 0 ? Math.round(((originalPrice - flashPrice) / originalPrice) * 100) : 0);
 
                 return {
-                    id: p.product_id ?? p.id,
+                    id: p.product_id || p.id,
+                    product_id: p.product_id || p.id,
                     flash_sale_id: p.id,
                     item_id: p.item_id,
-                    name: p.product_name ?? p.name ?? 'Sản phẩm Flash Sale',
-                    min_price: salePrice,
-                    price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(salePrice),
-                    original_price: origPrice,
-                    originalPrice: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(origPrice),
-                    discount_percent: p.discount_percent ?? (origPrice > 0 ? Math.round(((origPrice - salePrice) / origPrice) * 100) : 0),
+                    name: p.product_name || p.name || 'Sản phẩm Flash Sale',
+                    min_price: flashPrice,
+                    price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(flashPrice),
+                    originalPrice: originalPrice ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(originalPrice) : null,
+                    original_price: originalPrice,
+                    discount_percent: discount,
                     is_on_sale: true,
-                    image: p.product_thumbnail ?? p.image_url ?? p.image ?? '',
+                    image: getImageUrl(p.product_thumbnail || p.thumbnail_url || p.image_url || p.image || ''),
+                    thumbnail_url: p.product_thumbnail || p.thumbnail_url || p.image_url || '',
                     badge: "Hot",
-                    slug: p.slug ?? '',
+                    slug: p.slug || '',
                     category_name: p.category_name || '',
                     flash_sold: soldCount,
                     flash_total: totalStock,
-                    flash_percent: percent
+                    flash_percent: flashPercent
                 };
             });
             // Lấy thời gian kết thúc flash sale (ends_at hoặc end_time)
@@ -201,6 +205,7 @@ const mapProduct = (item) => {
 
     // Sản phẩm coi là "đang sale" nếu có sale_price active hoặc compare_at_price > price
     const isOnSale = lowest?.is_on_sale || (lowest?.compare_at_price > lowest?.price) || false;
+    const soldCount = Number(item.sold_count ?? item.total_sold ?? item.sold ?? 0);
 
     return {
         id: item.product_id, name: item.name,
@@ -215,6 +220,7 @@ const mapProduct = (item) => {
         slug: item.slug,
         category_name: item.category_name || '',
         variants_sum_stock: item.variants_sum_stock ?? null,
+        sold_count: Number.isFinite(soldCount) ? soldCount : 0,
         variants: item.variants ?? [],
     };
 };
@@ -264,9 +270,13 @@ const fetchCategories = async () => {
         Categories.value = flatData.map(cat => ({
             id: cat.category_id || cat.id,
             name: cat.displayName || cat.name,
+            rawName: cat.name,
+            parentName: cat.parentName || '',
+            parent_id: cat.parent_id || 0,
             slug: cat.slug || '',
             image: getCategoryImage(cat),
             product_count: cat.products_count || cat.product_count || 0,
+            children: cat.children || [],
         }));
     } catch (e) {
         console.error('Lỗi tải danh mục:', e);
@@ -480,8 +490,13 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
             />
             <FlashSaleSection :flashSaleProducts="flashSaleProducts" :isLoadingFlashSale="isLoadingFlashSale"
                 :countdown="countdown" />
-            <CategoriesSection :Categories="Categories" :isLoadingCategories="isLoadingCategories"
-                :getCatIcon="getCatIcon" :getCatGradient="getCatGradient" />
+            <CategoriesSection 
+                :Categories="Categories" 
+                :topCategories="storeCategories"
+                :isLoadingCategories="isLoadingCategories"
+                :getCatIcon="getCatIcon" 
+                :getCatGradient="getCatGradient" 
+            />
             <BannerSection :activeTab="activeTab" :filteredProducts="filteredProducts"
                 :isLoadingFeatured="isLoadingFeatured" :isLoadingSale="isLoadingSale"
                 @update:activeTab="activeTab = $event" />
@@ -518,8 +533,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .section-subtitle {
-    color: #636E72;
-    font-size: 0.95rem;
+    color: var(--text-secondary, #636E72);
+    font-size: 0.9rem;
 }
 
 .accent-title::after {
@@ -533,15 +548,19 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .link-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     color: var(--primary);
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     text-decoration: none;
     white-space: nowrap;
-    transition: gap 0.2s;
+    transition: gap 0.2s, color 0.2s;
 }
 
 .link-more:hover {
-    color: #d82f65;
+    color: var(--primary-dark, #b50c4d);
+    gap: 8px;
 }
 </style>

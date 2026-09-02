@@ -407,8 +407,11 @@ class PaymentProcessingService
 
         try {
             if (! $this->hasCompletedPostPaymentStep($payment, 'customer_email')) {
-                $this->sendPaymentConfirmationEmail($order);
+                $sent = $this->sendPaymentConfirmationEmail($order);
                 $this->markPostPaymentStepCompleted($payment, 'customer_email');
+                if ($sent) {
+                    $order->update(['email_sent' => true]);
+                }
             }
 
             $methodLabel = 'VNPay';
@@ -470,6 +473,8 @@ class PaymentProcessingService
             $methodLabel = 'Chuyển khoản ngân hàng (SePay)';
         } elseif ($order->payment_method === 'momo') {
             $methodLabel = 'Ví MoMo';
+        } elseif ($order->payment_method === 'wallet') {
+            $methodLabel = 'Ví Ocean';
         }
 
         $emailUser = config('mail.mailers.smtp.username');
@@ -493,60 +498,133 @@ class PaymentProcessingService
 
         $itemsHtml = '';
         foreach ($order->items as $item) {
-            $variantInfo = $item->variant_name ? '('.$item->color.'/'.$item->size.')' : '';
+            $variantInfo = $item->variant_name ? ' ('.htmlspecialchars($item->color ?? '').'/'.htmlspecialchars($item->size ?? '').')' : '';
             $itemsHtml .= '
             <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #eee;">'.htmlspecialchars($item->product_name).' '.$variantInfo.' x'.$item->quantity.'</td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">'.number_format($item->line_total, 0, ',', '.').'đ</td>
+                <td style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 14px;">
+                    <div style="font-weight: 600; color: #1e293b;">'.htmlspecialchars($item->product_name).'</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">'.$variantInfo.' <span style="display:inline-block; margin-left: 6px; padding: 1px 6px; background: #f1f5f9; border-radius: 4px; font-weight: 600;">x'.$item->quantity.'</span></div>
+                </td>
+                <td style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9; text-align: right; font-weight: 700; color: #0f172a; font-size: 14px; white-space: nowrap;">
+                    '.number_format($item->line_total, 0, ',', '.').'đ
+                </td>
             </tr>';
         }
 
         $actionUrl = $this->buildOrderActionUrl($order);
-        $actionLabel = $order->user_id ? 'Xem lịch sử đơn hàng' : 'Theo dõi đơn hàng';
+        $actionLabel = $order->user_id ? 'Xem chi tiết đơn hàng ➔' : 'Theo dõi đơn hàng ➔';
 
         $htmlBody = '
         <!DOCTYPE html>
         <html>
-        <head><meta charset="UTF-8"></head>
-        <body style="font-family: Arial, sans-serif; background: #f9fafb; padding: 20px;">
-            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <div style="background: #16a34a; padding: 20px; text-align: center; color: white;">
-                    <h2 style="margin: 0;">Thanh toán thành công!</h2>
-                    <p style="margin: 5px 0 0;">Đơn hàng '.$order->order_code.' đã được xác nhận thanh toán qua '.$methodLabel.'</p>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Xác nhận thanh toán đơn hàng '.$order->order_code.'</title>
+        </head>
+        <body style="font-family: \'Plus Jakarta Sans\', -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; background-color: #f8f9fa; margin: 0; padding: 30px 15px; color: #2d3436; -webkit-font-smoothing: antialiased;">
+            <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(230, 59, 111, 0.08); border: 1px solid #f1f3f5;">
+                
+                <!-- HEADER WITH ROSE PINK BRAND GRADIENT -->
+                <div style="background: linear-gradient(135deg, #E63B6F 0%, #b50c4d 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
+                    <div style="font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; color: #ffd9de;">OCEAN SPORT</div>
+                    <h1 style="margin: 0; font-size: 24px; font-weight: 800; line-height: 1.3; color: #ffffff;">Thanh toán thành công!</h1>
+                    <p style="margin: 8px 0 0; font-size: 14px; color: #ffd9de; font-weight: 500;">Đơn hàng <strong>#'.$order->order_code.'</strong> đã được xác nhận thanh toán</p>
                 </div>
-                <div style="padding: 20px;">
-                    <p>Xin chào <strong>'.htmlspecialchars($order->recipient_name).'</strong>,</p>
-                    <p>Chúng tôi xác nhận đơn hàng <strong>'.$order->order_code.'</strong> đã được thanh toán thành công vào lúc '.now()->format('H:i d/m/Y').'.</p>
 
-                    <h3 style="border-bottom: 2px solid #16a34a; padding-bottom: 5px; color: #333;">Chi tiết đơn hàng</h3>
-                    <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
-                        '.$itemsHtml.'
-                        <tr>
-                            <td style="padding: 10px; text-align: right;">Tạm tính:</td>
-                            <td style="padding: 10px; text-align: right;">'.number_format($order->subtotal, 0, ',', '.').'đ</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; text-align: right;">Phí vận chuyển:</td>
-                            <td style="padding: 10px; text-align: right;">'.number_format($order->shipping_fee, 0, ',', '.').'đ</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; text-align: right;">Khuyến mãi:</td>
-                            <td style="padding: 10px; text-align: right; color: green;">-'.number_format($order->discount_amount, 0, ',', '.').'đ</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px; text-align: right; font-weight: bold; font-size: 16px;">TỔNG CỘNG:</td>
-                            <td style="padding: 10px; text-align: right; font-weight: bold; font-size: 16px; color: #e53e3e;">'.number_format($order->grand_total, 0, ',', '.').'đ</td>
-                        </tr>
-                    </table>
+                <!-- MAIN CONTENT -->
+                <div style="padding: 28px 24px;">
+                    <p style="font-size: 15px; line-height: 1.6; margin-top: 0; color: #334155;">
+                        Xin chào <strong style="color: #0f172a;">'.htmlspecialchars($order->recipient_name).'</strong>,<br>
+                        Ocean Sport xin cảm ơn bạn đã mua sắm! Đơn hàng của bạn đã được thanh toán thành công vào lúc <strong>'.now()->format('H:i d/m/Y').'</strong> và đang được nhân viên chuẩn bị đóng gói chuyển đi.
+                    </p>
 
-                    <div style="background: #dcfce7; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
-                        <p style="margin: 0; color: #166534;"><strong>Phương thức thanh toán:</strong> '.$methodLabel.' (Đã thanh toán)</p>
+                    <!-- PAYMENT STATUS BADGE -->
+                    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 14px 18px; margin: 20px 0; display: flex; align-items: center;">
+                        <table width="100%" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td style="width: 32px; vertical-align: middle;">
+                                    <span style="display: inline-block; width: 26px; height: 26px; line-height: 26px; text-align: center; background: #10b981; color: white; border-radius: 50%; font-size: 14px; font-weight: bold;">✓</span>
+                                </td>
+                                <td style="vertical-align: middle; padding-left: 8px;">
+                                    <div style="font-size: 14px; font-weight: 700; color: #065f46;">ĐÃ THANH TOÁN THÀNH CÔNG</div>
+                                    <div style="font-size: 13px; color: #047857; margin-top: 2px;">Cổng thanh toán: <strong>'.$methodLabel.'</strong></div>
+                                </td>
+                            </tr>
+                        </table>
                     </div>
 
-                    <div style="text-align: center; margin-top: 30px;">
-                        <a href="'.htmlspecialchars($actionUrl, ENT_QUOTES, 'UTF-8').'" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">'.htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8').'</a>
+                    <!-- ORDER ITEMS TABLE -->
+                    <div style="margin-top: 24px;">
+                        <div style="font-size: 15px; font-weight: 700; color: #1e293b; border-left: 4px solid #E63B6F; padding-left: 10px; margin-bottom: 12px;">Chi tiết sản phẩm</div>
+                        <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse: collapse; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 10px; overflow: hidden;">
+                            <thead>
+                                <tr style="background: #FFF0F3;">
+                                    <th style="padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 700; color: #b50c4d; text-transform: uppercase;">Sản phẩm</th>
+                                    <th style="padding: 10px 14px; text-align: right; font-size: 12px; font-weight: 700; color: #b50c4d; text-transform: uppercase;">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                '.$itemsHtml.'
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ORDER SUMMARY -->
+                    <div style="margin-top: 16px; background: #fafafa; border: 1px solid #f1f3f5; border-radius: 10px; padding: 14px 16px;">
+                        <table width="100%" cellspacing="0" cellpadding="0" style="font-size: 14px;">
+                            <tr>
+                                <td style="padding: 5px 0; color: #64748b;">Tạm tính:</td>
+                                <td style="padding: 5px 0; text-align: right; font-weight: 600; color: #334155;">'.number_format($order->subtotal, 0, ',', '.').'đ</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 5px 0; color: #64748b;">Phí vận chuyển:</td>
+                                <td style="padding: 5px 0; text-align: right; font-weight: 600; color: #334155;">'.number_format($order->shipping_fee, 0, ',', '.').'đ</td>
+                            </tr>';
+
+        if ($order->discount_amount > 0) {
+            $htmlBody .= '
+                            <tr>
+                                <td style="padding: 5px 0; color: #64748b;">Khuyến mãi / Giảm giá:</td>
+                                <td style="padding: 5px 0; text-align: right; font-weight: 700; color: #16a34a;">-'.number_format($order->discount_amount, 0, ',', '.').'đ</td>
+                            </tr>';
+        }
+
+        $htmlBody .= '
+                            <tr>
+                                <td colspan="2" style="padding-top: 8px; border-top: 1px dashed #e2e8f0;"></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; font-size: 16px; font-weight: 800; color: #0f172a;">TỔNG THANH TOÁN:</td>
+                                <td style="padding: 6px 0; text-align: right; font-size: 18px; font-weight: 800; color: #E63B6F;">'.number_format($order->grand_total, 0, ',', '.').'đ</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- SHIPPING INFO -->
+                    <div style="margin-top: 22px; background: #FFF0F3; border: 1px solid #ffd9de; border-radius: 12px; padding: 16px 18px;">
+                        <div style="font-size: 14px; font-weight: 700; color: #b50c4d; margin-bottom: 8px;">Địa chỉ nhận hàng</div>
+                        <div style="font-size: 14px; color: #334155; line-height: 1.5;">
+                            <div><strong>Người nhận:</strong> '.htmlspecialchars($order->recipient_name).' - '.htmlspecialchars($order->recipient_phone).'</div>
+                            <div style="margin-top: 4px;"><strong>Địa chỉ:</strong> '.htmlspecialchars($order->shipping_address).'</div>
+                        </div>
+                    </div>
+
+                    <!-- CTA BUTTON -->
+                    <div style="text-align: center; margin: 32px 0 12px;">
+                        <a href="'.htmlspecialchars($actionUrl, ENT_QUOTES, 'UTF-8').'" style="display: inline-block; background: linear-gradient(135deg, #E63B6F 0%, #C4305D 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 15px; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.35); letter-spacing: 0.3px;">
+                            '.htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8').'
+                        </a>
                     </div>
                 </div>
+
+                <!-- FOOTER -->
+                <div style="background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 20px 24px; text-align: center; font-size: 12px; color: #94a3b8; line-height: 1.6;">
+                    <div style="font-weight: 700; color: #64748b; margin-bottom: 4px;">OCEAN SPORT — CỬA HÀNG THỂ THAO CAO CẤP</div>
+                    <div>Hotline hỗ trợ: <strong style="color: #E63B6F;">1900 6868</strong> | Email: <strong style="color: #E63B6F;">contact@oceansport.vn</strong></div>
+                    <div style="margin-top: 6px;">Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi để được giải đáp nhanh chóng nhất.</div>
+                </div>
+
             </div>
         </body>
         </html>
@@ -555,7 +633,7 @@ class PaymentProcessingService
         $emailMessage = (new Email)
             ->from($emailUser)
             ->to($recipientEmail)
-            ->subject('Thanh toán thành công — Đơn hàng '.$order->order_code)
+            ->subject('[Ocean Sport] Xác nhận đơn hàng & Thanh toán thành công — #'.$order->order_code)
             ->html($htmlBody);
 
         $mailer->send($emailMessage);
@@ -573,7 +651,7 @@ class PaymentProcessingService
         $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
 
         if ($order->user_id) {
-            return $frontendUrl.'/profile/orders';
+            return $frontendUrl.'/profile/orders/'.$order->order_id;
         }
 
         $token = $this->ensureTrackingToken($order);

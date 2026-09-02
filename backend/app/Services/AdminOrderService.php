@@ -94,22 +94,18 @@ class AdminOrderService
         $newFulfillmentStatus = $data['fulfillment_status'] ?? null;
 
         if ($newFulfillmentStatus) {
-            // Khóa cập nhật các trạng thái thuộc về đơn vị vận chuyển nếu dùng đối tác thứ 3
-            if ($order->tracking_number && $order->tracking_number !== 'SELF-DELIVERY') {
-                $carrierStatuses = [
-                    \App\Models\Enums\OrderStatus::SHIPPING->value,
-                    \App\Models\Enums\OrderStatus::DELIVERED->value,
-                    \App\Models\Enums\OrderStatus::RETURNING->value,
-                    \App\Models\Enums\OrderStatus::RETURNED->value,
-                    \App\Models\Enums\OrderStatus::WAREHOUSE_RECEIVED->value,
+            // Khóa cập nhật các trạng thái thuộc về đơn vị vận chuyển (chỉ nhận qua Webhook hoặc tạo vận đơn)
+            $carrierStatuses = [
+                OrderStatus::SHIPPING->value,
+                OrderStatus::DELIVERED->value,
+                OrderStatus::RETURNING->value,
+            ];
+            if (in_array($newFulfillmentStatus, $carrierStatuses, true)) {
+                return [
+                    '_status' => 422,
+                    'status' => 'error',
+                    'message' => 'Trạng thái giao nhận này thuộc quyền sở hữu của đối tác vận chuyển. Hệ thống sẽ tự động cập nhật qua Webhook!',
                 ];
-                if (in_array($newFulfillmentStatus, $carrierStatuses, true)) {
-                    return [
-                        '_status' => 422,
-                        'status' => 'error',
-                        'message' => "Đơn hàng đang được xử lý bởi đối tác vận chuyển. Không thể thủ công cập nhật trạng thái giao hàng!",
-                    ];
-                }
             }
 
             // Kiểm tra trùng trạng thái
@@ -131,40 +127,13 @@ class AdminOrderService
             }
         }
 
-        return $this->processStatusUpdate($order, $newFulfillmentStatus, $data, false);
+        return $this->processStatusUpdate($order, $newFulfillmentStatus, $data);
     }
 
     /**
-     * Cập nhật trạng thái đơn hàng (Bỏ qua StateMachine)
+     * Logic cập nhật trạng thái đơn hàng và các side-effects liên quan
      */
-    public function forceStatus(int $id, array $data): array
-    {
-        $order = $this->orderRepository->find($id);
-        if (! $order) {
-            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
-        }
-
-        $newFulfillmentStatus = $data['fulfillment_status'] ?? null;
-
-        if ($newFulfillmentStatus && $newFulfillmentStatus === $order->fulfillment_status) {
-            return [
-                '_status' => 422,
-                'status' => 'error',
-                'message' => "Đơn hàng đang ở trạng thái '{$order->fulfillment_status}' rồi.",
-            ];
-        }
-
-        // Bỏ qua validate của StateMachine
-        // Mọi logic cập nhật bên trong giống như updateStatus
-
-        // Gọi lại logic chung cập nhật
-        return $this->processStatusUpdate($order, $newFulfillmentStatus, $data, true);
-    }
-
-    /**
-     * Logic dùng chung cho updateStatus và forceStatus (tránh lặp code)
-     */
-    private function processStatusUpdate(Order $order, ?string $newFulfillmentStatus, array $data, bool $isForce = false): array
+    private function processStatusUpdate(Order $order, ?string $newFulfillmentStatus, array $data): array
     {
         DB::beginTransaction();
         try {
@@ -190,7 +159,7 @@ class AdminOrderService
                 }
 
                 if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
-                    $updates['cancel_reason'] = $data['note'] ?? ($isForce ? 'Ép hủy bởi Admin' : 'Hủy bởi Admin');
+                    $updates['cancel_reason'] = $data['note'] ?? 'Hủy bởi Admin';
 
                     if (in_array($order->payment_method, ['vnpay', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
@@ -241,7 +210,7 @@ class AdminOrderService
                         'order_id' => $order->order_id,
                         'old_status' => $oldFulfillmentStatus,
                         'new_status' => $updates['fulfillment_status'],
-                        'note' => $data['note'] ?? ($isForce ? 'Ép chuyển trạng thái bởi Admin' : 'Chuyển trạng thái bởi Admin'),
+                        'note' => $data['note'] ?? 'Chuyển trạng thái bởi Admin',
                     ]);
 
                     if ($order->user) {
@@ -595,11 +564,11 @@ class AdminOrderService
             DB::beginTransaction();
 
             $oldStatus = $order->fulfillment_status;
-            
+
             $order->tracking_number = 'SELF-DELIVERY';
             $order->fulfillment_status = OrderStatus::SHIPPING->value;
             $order->shipped_at = now();
-            
+
             $order->save();
 
             $this->orderRepository->createStatusHistory([
@@ -615,11 +584,12 @@ class AdminOrderService
             return [
                 '_status' => 200,
                 'status' => 'success',
-                'message' => 'Đã xác nhận tự đi giao hàng thành công!'
+                'message' => 'Đã xác nhận tự đi giao hàng thành công!',
             ];
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Lỗi selfDelivery: '.$e->getMessage()."\n".$e->getTraceAsString());
+
             return ['_status' => 500, 'status' => 'error', 'message' => 'Có lỗi xảy ra khi cập nhật đơn hàng.'];
         }
     }

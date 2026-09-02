@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Helpers\OceanTimestampHelper;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Repositories\AdminOrderRepository;
@@ -24,12 +25,24 @@ class OceanExpressOrderStatusSyncService
     {
         return [
             'pending' => OrderStatus::PENDING->value,
+            'ready_to_pick' => OrderStatus::AWAITING_PICKUP->value,
             'picking' => OrderStatus::AWAITING_PICKUP->value,
+            'picked' => OrderStatus::SHIPPING->value,
+            'picked_up' => OrderStatus::SHIPPING->value,
+            'stored' => OrderStatus::SHIPPING->value,
+            'storing' => OrderStatus::SHIPPING->value,
+            'in_hub' => OrderStatus::SHIPPING->value,
+            'hub_inbound' => OrderStatus::SHIPPING->value,
+            'hub_outbound' => OrderStatus::SHIPPING->value,
+            'transporting' => OrderStatus::SHIPPING->value,
+            'in_transit' => OrderStatus::SHIPPING->value,
             'shipping' => OrderStatus::SHIPPING->value,
             'delivering' => OrderStatus::SHIPPING->value,
             'delivered' => OrderStatus::DELIVERED->value,
             'completed' => OrderStatus::COMPLETED->value,
             'cancelled' => OrderStatus::CANCELLED->value,
+            'return_requested' => OrderStatus::RETURN_REQUESTED->value,
+            'returning' => OrderStatus::RETURNING->value,
             'returned' => OrderStatus::RETURNED->value,
         ][$status] ?? null;
     }
@@ -93,7 +106,7 @@ class OceanExpressOrderStatusSyncService
                 ];
             }
 
-            return $this->applyStatus($order, $mappedStatus, $oeStatus, 'ocean_express_webhook', $happenedAt, $description, $latitude, $longitude);
+            return $this->applyStatus($order, $mappedStatus, $oeStatus, 'ocean_express', $happenedAt, $description, $latitude, $longitude);
         } finally {
             $lock->release();
         }
@@ -101,21 +114,41 @@ class OceanExpressOrderStatusSyncService
 
     /**
      * Đã có bản ghi lịch sử cùng trạng thái + cùng mốc thời gian từ hãng vận chuyển?
-     *
-     * Chỉ chống trùng khi payload CÓ `timestamp`. Nếu thiếu timestamp thì
-     * parseHappenedAt() trả về now(), không thể dùng làm khoá so sánh — khi đó
-     * cho đi tiếp và dựa vào shouldUpdateOrder() để không đổi trạng thái sai.
      */
     private function isDuplicate(Order $order, string $oeStatus, array $payload): bool
     {
-        if (empty($payload['timestamp'])) {
-            return false;
+        $happenedAt = $this->parseHappenedAt($payload);
+
+        // 1. Chặn trùng chính xác theo order_id, ghn_status và mốc happened_at
+        $exactDuplicate = OrderStatusHistory::where('order_id', $order->order_id)
+            ->where('ghn_status', $oeStatus)
+            ->where('happened_at', $happenedAt)
+            ->exists();
+
+        if ($exactDuplicate) {
+            return true;
         }
 
-        return OrderStatusHistory::where('order_id', $order->order_id)
+        // 2. Chặn trùng lặp khi đã có log cùng ghn_status trong khoảng 12 giờ
+        $hasRecentSameGhnStatus = OrderStatusHistory::where('order_id', $order->order_id)
             ->where('ghn_status', $oeStatus)
-            ->where('happened_at', $this->parseHappenedAt($payload))
+            ->whereRaw('ABS(TIMESTAMPDIFF(MINUTE, happened_at, ?)) < 720', [$happenedAt->format('Y-m-d H:i:s')])
             ->exists();
+
+        if ($hasRecentSameGhnStatus) {
+            return true;
+        }
+
+        // 3. Chặn webhook retry liên tục khi đơn hàng không thay đổi trạng thái
+        $latestHistory = OrderStatusHistory::where('order_id', $order->order_id)
+            ->latest('history_id')
+            ->first();
+
+        if ($latestHistory && $latestHistory->ghn_status === $oeStatus) {
+            return true;
+        }
+
+        return false;
     }
 
     private function applyStatus(
@@ -188,7 +221,7 @@ class OceanExpressOrderStatusSyncService
                 'new_status' => $shouldUpdateOrder ? $mappedStatus : $oldStatus,
                 'note' => 'Cập nhật tự động từ Ocean Express (Webhook)',
                 'ghn_status' => $oeStatus, // Ghi log vào cột ghn_status cũ để hiển thị
-                'source' => $source,
+                'source' => substr((string) ($source ?: 'ocean_express'), 0, 20),
                 'description' => $description,
                 'latitude' => $latitude,
                 'longitude' => $longitude,
@@ -241,22 +274,8 @@ class OceanExpressOrderStatusSyncService
         return true;
     }
 
-    private function parseHappenedAt(array $data): Carbon
+    public function parseHappenedAt(array $data): Carbon
     {
-        $time = $data['timestamp'] ?? null;
-
-        if (is_numeric($time)) {
-            return Carbon::createFromTimestamp((int) $time);
-        }
-
-        if (is_string($time) && $time !== '') {
-            try {
-                return Carbon::parse($time);
-            } catch (\Throwable) {
-                return now();
-            }
-        }
-
-        return now();
+        return OceanTimestampHelper::parseOceanTimestamp($data);
     }
 }

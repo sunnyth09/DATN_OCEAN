@@ -1,8 +1,8 @@
 <script setup>
-import Swal from 'sweetalert2';
 import { reactive, ref, onMounted, nextTick, watch } from "vue";
 import api from '@/axios';
 import { useRouter, useRoute } from 'vue-router';
+import { useToast } from '@/composables/useToast';
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 import { getStorageUrl } from '@/utils/url';
@@ -10,28 +10,93 @@ import { getStorageUrl } from '@/utils/url';
 const router = useRouter();
 const route = useRoute();
 const postId = route.params.id;
+const { showToast } = useToast();
 
 let quillContent = null;
 const editorContent = ref(null);
 
 const categories = ref([]);
 const authors = ref([]);
-const toastObj = ref({ message: '', type: 'success' });
 const isSubmitting = ref(false);
 const isLoading = ref(true);
 const SUMMARY_MAX_LENGTH = 500;
 const SEO_DESCRIPTION_MAX_LENGTH = 500;
 
-const showToast = (message, type = 'success') => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
-    text: message,
-    icon: type === 'danger' ? 'error' : type,
-    showConfirmButton: false,
-    timer: 3000
-  });
+const parseMarkdownToHtml = (markdown) => {
+    if (!markdown) return '';
+    let text = String(markdown).trim();
+    if (!text) return '';
+
+    // Nếu đã có thẻ HTML block → nội dung đã được lưu dạng HTML, KHÔNG xử lý lại
+    const hasHtmlTags = /<\/?(?:p|h[1-6]|ul|ol|li|blockquote|div|table|section|article|strong|em|br|img|a)\b/i.test(text);
+    if (hasHtmlTags) return text;
+
+    // Chỉ chuyển đổi khi nội dung là Markdown thuần (có #, *, -, 1.)
+    const isMarkdown = /(^|\n)#{1,6}\s/m.test(text)
+        || /(^|\n)[\*\-]\s/m.test(text)
+        || /(^|\n)\d+\.\s/m.test(text);
+    if (!isMarkdown) return `<p>${text.replace(/\n/g, '</p><p>')}</p>`;
+
+    let lines = text.split(/\r?\n/);
+    let html = [];
+    let inList = false;
+    let listType = '';
+
+    const closeList = () => {
+        if (inList) {
+            html.push(listType === 'ul' ? '</ul>' : '</ol>');
+            inList = false;
+            listType = '';
+        }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) { closeList(); continue; }
+
+        let headerMatch = line.match(/^(#{1,6})\s+(.*)/);
+        if (headerMatch) {
+            closeList();
+            let level = headerMatch[1].length;
+            html.push(`<h${level}>${headerMatch[2]}</h${level}>`);
+            continue;
+        }
+
+        let ulMatch = line.match(/^[\*\-]\s+(.*)/);
+        if (ulMatch) {
+            if (!inList || listType !== 'ul') {
+                closeList();
+                html.push('<ul>');
+                inList = true;
+                listType = 'ul';
+            }
+            html.push(`<li>${ulMatch[1]}</li>`);
+            continue;
+        }
+
+        let olMatch = line.match(/^\d+\.\s+(.*)/);
+        if (olMatch) {
+            if (!inList || listType !== 'ol') {
+                closeList();
+                html.push('<ol>');
+                inList = true;
+                listType = 'ol';
+            }
+            html.push(`<li>${olMatch[1]}</li>`);
+            continue;
+        }
+
+        closeList();
+        html.push(`<p>${line}</p>`);
+    }
+
+    closeList();
+    let result = html.join('');
+    result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+    result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />');
+    result = result.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    result = result.replace(/(^|[^\*])\*(?!\*)(.*?)\*/g, '$1<em>$2</em>');
+    return result;
 };
 
 const initQuill = () => {
@@ -51,9 +116,9 @@ const initQuill = () => {
                     const res = await api.post("/posts/upload-image", fd, {
                         headers: { "Content-Type": "multipart/form-data" },
                     });
-                    const url = res.data.url;
+                    const url = getStorageUrl(res.data.url);
                     const range = quillContent.getSelection();
-                    if(range){
+                    if (range) {
                         quillContent.insertEmbed(range.index, "image", url);
                     } else {
                         quillContent.insertEmbed(0, "image", url);
@@ -85,8 +150,27 @@ const initQuill = () => {
             placeholder: "Nhập nội dung chi tiết bài viết...",
             modules,
         });
+
+        quillContent.root.addEventListener('paste', (e) => {
+            const text = (e.clipboardData || window.clipboardData)?.getData('text/plain');
+            if (text && (/(^|\n)#{1,6}\s/m.test(text) || /(^|\n)[\*\-]\s/m.test(text) || /(^|\n)\d+\.\s/m.test(text))) {
+                e.preventDefault();
+                const html = parseMarkdownToHtml(text);
+                const range = quillContent.getSelection(true);
+                if (range) quillContent.setSelection(range.index, 0);
+                quillContent.clipboard.dangerouslyPasteHTML(html);
+            }
+        });
+
         if (post.content) {
-            quillContent.root.innerHTML = post.content;
+            let processed = parseMarkdownToHtml(post.content);
+            // Fix storage URLs
+            processed = processed.replace(/src=["']([^"']+)["']/gi, (match, src) => `src="${getStorageUrl(src)}"`);
+            // Quill v2: dùng clipboard.convert({ html }) + setContents() để parse HTML → Delta đúng
+            // dangerouslyPasteHTML(0, html) trong v2 sẽ truyền 0 làm html string → sai!
+            const delta = quillContent.clipboard.convert({ html: processed });
+            quillContent.setContents(delta);
+            quillContent.setSelection(0, 0);
         }
         quillContent.on("text-change", () => {
             post.content =
@@ -100,10 +184,10 @@ const initQuill = () => {
 const fetchDependencies = async () => {
     try {
         const catRes = await api.get('/post-categories');
-        if(catRes.data && catRes.data.data) {
-             categories.value = catRes.data.data;
+        if (catRes.data && catRes.data.data) {
+            categories.value = catRes.data.data;
         }
-    } catch(err) {
+    } catch (err) {
         console.error("Lỗi tải danh mục", err);
     }
 };
@@ -112,7 +196,7 @@ const fetchPost = async () => {
     try {
         const res = await api.get(`/posts/edit/${postId}`);
         const data = res.data || res.data.data;
-        if(data) {
+        if (data) {
             post.title = data.title;
             post.slug = data.slug || "";
             post.summary = data.summary || "";
@@ -125,14 +209,14 @@ const fetchPost = async () => {
             post.seo_title = data.seo_title || "";
             post.seo_description = data.seo_description || "";
             post.seo_keywords = data.seo_keywords || "";
-            
+
             if (post.seo_keywords) {
                 keywordTags.value = post.seo_keywords.split(",").map(k => k.trim()).filter(Boolean);
             } else {
                 keywordTags.value = [];
             }
-            
-            if(data.thumbnail_url) {
+
+            if (data.thumbnail_url) {
                 post.thumbnailPreview = getStorageUrl(data.thumbnail_url);
             }
 
@@ -143,7 +227,7 @@ const fetchPost = async () => {
                 isSeoDescManual.value = true;
             });
         }
-    } catch(err) {
+    } catch (err) {
         showToast("Lỗi tải thông tin bài viết", "danger");
     } finally {
         isLoading.value = false;
@@ -238,8 +322,8 @@ watch(() => post.summary, (newVal) => {
 
 const handleSubmit = async () => {
     if (!post.title || !post.post_category_id) {
-         showToast("Vui lòng nhập tiêu đề và chọn danh mục!", "danger");
-         return;
+        showToast("Vui lòng nhập tiêu đề và chọn danh mục!", "danger");
+        return;
     }
 
     if (post.summary && post.summary.length > SUMMARY_MAX_LENGTH) {
@@ -256,17 +340,17 @@ const handleSubmit = async () => {
     const formData = new FormData();
     formData.append("_method", "PUT");
     formData.append("title", post.title);
-    if(post.slug) formData.append("slug", post.slug);
-    if(post.summary) formData.append("summary", post.summary);
+    if (post.slug) formData.append("slug", post.slug);
+    if (post.summary) formData.append("summary", post.summary);
     formData.append("content", post.content);
     formData.append("post_category_id", post.post_category_id);
     formData.append("post_type", post.post_type);
     formData.append("status", post.status);
     formData.append("is_featured", post.is_featured ? 1 : 0);
-    
+
     if (post.view_count) formData.append("view_count", post.view_count);
     if (post.published_at) formData.append("published_at", post.published_at);
-    
+
     if (post.seo_title) formData.append("seo_title", post.seo_title);
     if (post.seo_description) formData.append("seo_description", post.seo_description);
     if (post.seo_keywords) formData.append("seo_keywords", post.seo_keywords);
@@ -283,7 +367,7 @@ const handleSubmit = async () => {
         });
         showToast(response.data?.message || "Cập nhật bài viết thành công!", "success");
         setTimeout(() => {
-             router.push('/admin/post');
+            router.push('/admin/post');
         }, 1500);
     } catch (error) {
         showToast(error.response?.data?.message || "Có lỗi xảy ra khi cập nhật bài viết", "danger");
@@ -295,9 +379,52 @@ const handleSubmit = async () => {
 
 <template>
     <div class="edit-post-page">
-        <div v-if="isLoading">
-            <div class="spinner-border text-primary text-center" role="status">
-                <span class="visually-hidden">Loading...</span>
+        <!-- Modern Skeleton Loading -->
+        <div v-if="isLoading" class="edit-post-skeleton">
+            <div class="page-header">
+                <div class="header-info">
+                    <div class="skeleton-box"
+                        style="width: 200px; height: 28px; border-radius: 6px; margin-bottom: 6px;"></div>
+                    <div class="skeleton-box" style="width: 160px; height: 16px; border-radius: 4px;"></div>
+                </div>
+                <div class="header-actions">
+                    <div class="skeleton-box" style="width: 80px; height: 40px; border-radius: 8px;"></div>
+                    <div class="skeleton-box" style="width: 130px; height: 40px; border-radius: 8px;"></div>
+                </div>
+            </div>
+
+            <div class="form-grid" style="margin-top: 24px;">
+                <div class="content-col">
+                    <div class="ocean-card form-section">
+                        <div class="skeleton-box"
+                            style="width: 140px; height: 20px; border-radius: 4px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box"
+                            style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box"
+                            style="width: 100%; height: 44px; border-radius: 8px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box"
+                            style="width: 80px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box"
+                            style="width: 100%; height: 80px; border-radius: 8px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box"
+                            style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 220px; border-radius: 8px;"></div>
+                    </div>
+                </div>
+                <div class="sidebar-col">
+                    <div class="ocean-card form-section">
+                        <div class="skeleton-box"
+                            style="width: 120px; height: 20px; border-radius: 4px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box"
+                            style="width: 100%; height: 44px; border-radius: 8px; margin-bottom: 16px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px;"></div>
+                    </div>
+                    <div class="ocean-card form-section" style="margin-top: 20px;">
+                        <div class="skeleton-box"
+                            style="width: 120px; height: 20px; border-radius: 4px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 160px; border-radius: 10px;"></div>
+                    </div>
+                </div>
             </div>
         </div>
         <template v-else>
@@ -305,8 +432,10 @@ const handleSubmit = async () => {
             <div class="page-header animate-in">
                 <div class="header-info">
                     <h1 class="page-title">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                         </svg>
                         Sửa bài viết
                     </h1>
@@ -315,13 +444,19 @@ const handleSubmit = async () => {
                 <div class="header-actions">
                     <button type="button" class="btn-outline" @click="$router.push('/admin/post')">Hủy bỏ</button>
                     <button type="submit" form="edit-post-form" class="btn-primary" :disabled="isSubmitting">
-                        <svg v-if="!isSubmitting" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        <svg v-if="!isSubmitting" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                            <polyline points="17 21 17 13 7 13 7 21" />
+                            <polyline points="7 3 7 8 15 8" />
+                        </svg>
                         <span>{{ isSubmitting ? 'Đang lưu...' : 'Lưu cập nhật' }}</span>
                     </button>
                 </div>
             </div>
 
-            <form id="edit-post-form" @submit.prevent="handleSubmit" class="main-content animate-in" style="animation-delay: 0.1s">
+            <form id="edit-post-form" @submit.prevent="handleSubmit" class="main-content animate-in"
+                style="animation-delay: 0.1s">
                 <div class="form-grid">
                     <!-- Cột trái (Nội dung chính) -->
                     <div class="content-col">
@@ -329,23 +464,20 @@ const handleSubmit = async () => {
                             <h3 class="section-title">Thông tin cơ bản</h3>
                             <div class="form-group">
                                 <label for="title">Tiêu đề bài viết <span class="required">*</span></label>
-                                <input type="text" id="title" v-model="post.title" class="form-control" placeholder="Nhập tiêu đề..." required />
+                                <input type="text" id="title" v-model="post.title" class="form-control"
+                                    placeholder="Nhập tiêu đề..." required />
                             </div>
                             <div class="form-group">
                                 <label for="slug">Đường dẫn thân thiện (Slug)</label>
-                                <input type="text" id="slug" v-model="post.slug" @input="isSlugManual = true" class="form-control" placeholder="tieu-de-bai-viet" />
+                                <input type="text" id="slug" v-model="post.slug" @input="isSlugManual = true"
+                                    class="form-control" placeholder="tieu-de-bai-viet" />
                                 <small class="field-hint">Tự động tạo từ tiêu đề. Tối đa 100 ký tự.</small>
                             </div>
                             <div class="form-group">
                                 <label for="summary">Tóm tắt nội dung</label>
-                                <textarea
-                                    id="summary"
-                                    v-model="post.summary"
-                                    class="form-control"
-                                    rows="3"
+                                <textarea id="summary" v-model="post.summary" class="form-control" rows="3"
                                     :maxlength="SUMMARY_MAX_LENGTH"
-                                    placeholder="Nhập đoạn tóm tắt ngắn gọn..."
-                                ></textarea>
+                                    placeholder="Nhập đoạn tóm tắt ngắn gọn..."></textarea>
                                 <small class="field-hint">{{ post.summary.length }}/{{ SUMMARY_MAX_LENGTH }}</small>
                             </div>
                             <div class="form-group">
@@ -360,20 +492,17 @@ const handleSubmit = async () => {
                             <h3 class="section-title">SEO Tùy chỉnh (Tùy chọn)</h3>
                             <div class="form-group">
                                 <label for="seo_title">Tiêu đề SEO</label>
-                                <input type="text" id="seo_title" v-model="post.seo_title" @input="isSeoTitleManual = true" class="form-control" placeholder="Tối đa 60 ký tự" />
+                                <input type="text" id="seo_title" v-model="post.seo_title"
+                                    @input="isSeoTitleManual = true" class="form-control"
+                                    placeholder="Tối đa 60 ký tự" />
                             </div>
                             <div class="form-group">
                                 <label for="seo_description">Mô tả SEO</label>
-                                <textarea
-                                    id="seo_description"
-                                    v-model="post.seo_description"
-                                    @input="isSeoDescManual = true"
-                                    class="form-control"
-                                    rows="2"
-                                    :maxlength="SEO_DESCRIPTION_MAX_LENGTH"
-                                    placeholder="Tối đa 500 ký tự"
-                                ></textarea>
-                                <small class="field-hint">{{ post.seo_description.length }}/{{ SEO_DESCRIPTION_MAX_LENGTH }}</small>
+                                <textarea id="seo_description" v-model="post.seo_description"
+                                    @input="isSeoDescManual = true" class="form-control" rows="2"
+                                    :maxlength="SEO_DESCRIPTION_MAX_LENGTH" placeholder="Tối đa 500 ký tự"></textarea>
+                                <small class="field-hint">{{ post.seo_description.length }}/{{
+                                    SEO_DESCRIPTION_MAX_LENGTH }}</small>
                             </div>
                             <div class="form-group">
                                 <label>Từ khóa SEO</label>
@@ -381,19 +510,16 @@ const handleSubmit = async () => {
                                     <div class="tags-list">
                                         <span v-for="(tag, idx) in keywordTags" :key="idx" class="tag-badge">
                                             {{ tag }}
-                                            <button type="button" @click="removeTag(idx)" class="btn-remove-tag">×</button>
+                                            <button type="button" @click="removeTag(idx)"
+                                                class="btn-remove-tag">×</button>
                                         </span>
                                     </div>
-                                    <input 
-                                        type="text" 
-                                        v-model="newTagInput" 
-                                        @keydown.enter.prevent="addTag"
-                                        @keydown.comma.prevent="addTag"
-                                        placeholder="Nhập từ khóa và nhấn Enter..." 
-                                        class="tag-input-field" 
-                                    />
+                                    <input type="text" v-model="newTagInput" @keydown.enter.prevent="addTag"
+                                        @keydown.comma.prevent="addTag" placeholder="Nhập từ khóa và nhấn Enter..."
+                                        class="tag-input-field" />
                                 </div>
-                                <small class="field-hint">Nhấn Enter hoặc phím dấu phẩy ( , ) để thêm từ khóa mới.</small>
+                                <small class="field-hint">Nhấn Enter hoặc phím dấu phẩy ( , ) để thêm từ khóa
+                                    mới.</small>
                             </div>
                         </div>
                     </div>
@@ -401,12 +527,38 @@ const handleSubmit = async () => {
                     <!-- Cột phải (Cài đặt) -->
                     <div class="sidebar-col">
                         <div class="ocean-card form-section">
+                            <h3 class="section-title">Hình ảnh</h3>
+                            <div class="form-group">
+                                <label>Ảnh Thumbnail (Nhỏ gọn)</label>
+                                <div class="image-upload-box">
+                                    <input type="file" id="thumbnail" @change="handleThumbnailChange" class="file-input"
+                                        accept="image/*" />
+                                    <label for="thumbnail" class="upload-label" v-if="!post.thumbnailPreview">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                            <circle cx="8.5" cy="8.5" r="1.5" />
+                                            <polyline points="21 15 16 10 5 21" />
+                                        </svg>
+                                        <span>Tải ảnh lên</span>
+                                    </label>
+                                    <div class="preview-box" v-else>
+                                        <img :src="post.thumbnailPreview" alt="Thumbnail Preview" class="img-preview" />
+                                        <button type="button" class="btn-remove-img"
+                                            @click="() => { post.thumbnailPreview = null; post.thumbnailFile = null }">×</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ocean-card form-section">
                             <h3 class="section-title">Trạng thái & Phân loại</h3>
                             <div class="form-group">
                                 <label for="post_category_id">Danh mục bài viết <span class="required">*</span></label>
-                                <select id="post_category_id" v-model="post.post_category_id" class="form-control form-select" required>
+                                <select id="post_category_id" v-model="post.post_category_id"
+                                    class="form-control form-select" required>
                                     <option value="" disabled>— Chọn danh mục —</option>
-                                    <option v-for="cat in categories" :key="cat.post_category_id" :value="cat.post_category_id">
+                                    <option v-for="cat in categories" :key="cat.post_category_id"
+                                        :value="cat.post_category_id">
                                         {{ cat.name }}
                                     </option>
                                 </select>
@@ -430,7 +582,8 @@ const handleSubmit = async () => {
                             </div>
                             <div class="form-group">
                                 <label for="published_at">Ngày đăng dự kiến</label>
-                                <input type="datetime-local" id="published_at" v-model="post.published_at" class="form-control" />
+                                <input type="datetime-local" id="published_at" v-model="post.published_at"
+                                    class="form-control" />
                             </div>
                             <div class="form-group mt-3">
                                 <label class="toggle-switch-wrapper">
@@ -442,78 +595,94 @@ const handleSubmit = async () => {
                                 </label>
                             </div>
                         </div>
-
-                        <div class="ocean-card form-section">
-                            <h3 class="section-title">Hình ảnh</h3>
-                            <div class="form-group">
-                                <label>Ảnh Thumbnail (Nhỏ gọn)</label>
-                                <div class="image-upload-box">
-                                    <input type="file" id="thumbnail" @change="handleThumbnailChange" class="file-input" accept="image/*" />
-                                    <label for="thumbnail" class="upload-label" v-if="!post.thumbnailPreview">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                        <span>Tải ảnh lên</span>
-                                    </label>
-                                    <div class="preview-box" v-else>
-                                        <img :src="post.thumbnailPreview" alt="Thumbnail Preview" class="img-preview" />
-                                        <button type="button" class="btn-remove-img" @click="() => { post.thumbnailPreview = null; post.thumbnailFile = null}">×</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </form>
         </template>
-
-        <!-- Bootstrap Toast -->
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-            <div class="toast align-items-center border-0" :class="toastObj.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="postToast" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">{{ toastObj.message }}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 
 <style scoped>
-.edit-post-page { font-family: var(--font-inter); padding-bottom: 2rem; }
+.edit-post-page {
+    font-family: var(--font-inter);
+    padding-bottom: 2rem;
+}
 
 /* Header */
 .page-header {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 24px;
 }
+
 .page-title {
-    font-size: 1.5rem; font-weight: 800; color: var(--text-main);
-    display: flex; align-items: center; gap: 12px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
-.page-subtitle { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
-.header-actions { display: flex; gap: 12px; }
+
+.page-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
 
 /* Buttons */
 .btn-primary {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 22px; border-radius: 8px; border: none;
-    background: var(--primary); color: white;
-    font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
-    cursor: pointer; transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-family: var(--font-inter);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
     box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
+
 .btn-primary:hover {
-    background: #d82f65; transform: translateY(-2px);
+    background: #d82f65;
+    transform: translateY(-2px);
     box-shadow: 0 6px 15px rgba(230, 59, 111, 0.3);
 }
-.btn-primary:disabled { opacity: 0.7; transform: none; cursor: not-allowed; }
+
+.btn-primary:disabled {
+    opacity: 0.7;
+    transform: none;
+    cursor: not-allowed;
+}
 
 .btn-outline {
-    padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color);
-    background: var(--ocean-deepest); color: var(--text-main);
-    font-family: var(--font-inter); font-size: 0.85rem; font-weight: 600;
-    cursor: pointer; transition: all 0.2s;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--ocean-deepest);
+    color: var(--text-main);
+    font-family: var(--font-inter);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
 }
-.btn-outline:hover { border-color: var(--text-light); }
+
+.btn-outline:hover {
+    border-color: var(--text-light);
+}
 
 /* Layout Grid */
 .form-grid {
@@ -521,76 +690,270 @@ const handleSubmit = async () => {
     grid-template-columns: 2fr 1fr;
     gap: 24px;
 }
+
 @media (max-width: 992px) {
-    .form-grid { grid-template-columns: 1fr; }
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
-.form-section { padding: 24px; margin-bottom: 24px; }
-.section-title { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;}
+.form-section {
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+}
 
 /* Form controls */
-.form-group { margin-bottom: 18px; }
-.form-group label { display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px; }
-.required { color: var(--coral); }
-.form-control {
-    width: 100%; padding: 10px 14px; border-radius: 8px;
-    border: 1px solid var(--border-color); background: var(--ocean-deepest);
-    color: var(--text-main); font-family: var(--font-inter);
-    font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
+.form-group {
+    margin-bottom: 18px;
 }
-.form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); background: var(--card-bg);}
-.form-control::placeholder { color: var(--text-light); }
-.field-hint { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); text-align: right; }
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 8px;
+}
+
+.required {
+    color: var(--coral);
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--ocean-deepest);
+    color: var(--text-main);
+    font-family: var(--font-inter);
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+    background: var(--card-bg);
+}
+
+.form-control::placeholder {
+    color: var(--text-light);
+}
+
+.field-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: right;
+}
+
 .form-select {
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 14px center;
+    background-repeat: no-repeat;
+    background-position: right 14px center;
 }
 
 /* Image Upload */
 .image-upload-box {
-    border: 2px dashed var(--border-color); border-radius: 8px;
-    padding: 0; text-align: center; position: relative; overflow: hidden;
-    background: var(--ocean-deepest); transition: all 0.2s;
-    min-height: 140px; display: flex; align-items: center; justify-content: center;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    background: var(--ocean-deepest);
+    transition: all 0.2s;
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.image-upload-box:hover { border-color: var(--primary); background: var(--hover-bg); }
-.file-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
-.upload-label { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-light); pointer-events: none;}
-.upload-label svg { color: var(--primary); }
-.preview-box { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-.img-preview { width: 100%; height: 100%; object-fit: cover; }
+
+.image-upload-box:hover {
+    border-color: var(--primary);
+    background: var(--hover-bg);
+}
+
+.file-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.upload-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-light);
+    pointer-events: none;
+}
+
+.upload-label svg {
+    color: var(--primary);
+}
+
+.preview-box {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.img-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .btn-remove-img {
-    position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; z-index: 20;
-    background: rgba(255, 59, 48, 0.9); color: white; border: none; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-    font-size: 1.2rem; line-height: 1; transition: all 0.2s;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
+    z-index: 20;
+    background: rgba(255, 59, 48, 0.9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: all 0.2s;
 }
-.btn-remove-img:hover { transform: scale(1.1); }
+
+.btn-remove-img:hover {
+    transform: scale(1.1);
+}
 
 /* Toggle */
-.toggle-switch-wrapper { display: flex; align-items: center; justify-content: space-between; cursor: pointer; width: 100%; }
-.toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
-.toggle-input { opacity: 0; width: 0; height: 0; }
-.toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--text-light); transition: .3s; border-radius: 24px; }
-.toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--card-bg); transition: .3s; border-radius: 50%; }
-.toggle-input:checked + .toggle-slider { background-color: var(--primary); }
-.toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
+.toggle-switch-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    width: 100%;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--text-light);
+    transition: .3s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--card-bg);
+    transition: .3s;
+    border-radius: 50%;
+}
+
+.toggle-input:checked+.toggle-slider {
+    background-color: var(--primary);
+}
+
+.toggle-input:checked+.toggle-slider:before {
+    transform: translateX(20px);
+}
 
 /* Quill Custom Styles */
-.quill-wrapper { display: flex; flex-direction: column; }
+.quill-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
 .quill-wrapper :deep(.ql-toolbar.ql-snow) {
-    border: 1px solid var(--border-color); border-top-left-radius: 8px; border-top-right-radius: 8px;
-    background: var(--ocean-deepest); font-family: var(--font-inter); transition: border-color 0.2s;
+    border: 1px solid var(--border-color);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    background: var(--ocean-deepest);
+    font-family: var(--font-inter);
+    transition: border-color 0.2s;
 }
+
 .quill-wrapper :deep(.ql-container.ql-snow) {
-    border: 1px solid var(--border-color); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;
-    border-top: none; font-family: var(--font-inter); font-size: 0.95rem; background: var(--card-bg); transition: border-color 0.2s;
+    border: 1px solid var(--border-color);
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-top: none;
+    font-family: var(--font-inter);
+    font-size: 0.95rem;
+    background: var(--card-bg);
+    transition: border-color 0.2s;
 }
-.quill-wrapper:focus-within :deep(.ql-toolbar.ql-snow) { border-color: var(--primary); }
-.quill-wrapper:focus-within :deep(.ql-container.ql-snow) { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
-.quill-wrapper :deep(.ql-editor) { color: var(--text-main); }
-.editor-long :deep(.ql-editor) { min-height: 350px; }
+
+.quill-wrapper:focus-within :deep(.ql-toolbar.ql-snow) {
+    border-color: var(--primary);
+}
+
+.quill-wrapper:focus-within :deep(.ql-container.ql-snow) {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+}
+
+.quill-wrapper :deep(.ql-editor) {
+    color: var(--text-main);
+}
+
+.quill-wrapper :deep(.ql-editor img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 12px auto;
+    display: block;
+}
+
+.editor-long :deep(.ql-editor) {
+    min-height: 350px;
+}
 
 /* SEO Keyword Tags */
 .tags-input-container {
@@ -603,11 +966,13 @@ const handleSubmit = async () => {
     gap: 8px;
     align-items: center;
 }
+
 .tags-list {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
 }
+
 .tag-badge {
     display: inline-flex;
     align-items: center;
@@ -619,6 +984,7 @@ const handleSubmit = async () => {
     font-size: 0.8rem;
     font-weight: 600;
 }
+
 .btn-remove-tag {
     background: none;
     border: none;
@@ -630,9 +996,11 @@ const handleSubmit = async () => {
     display: flex;
     align-items: center;
 }
+
 .btn-remove-tag:hover {
     color: #fff;
 }
+
 .tag-input-field {
     border: none !important;
     padding: 4px 0 !important;
@@ -644,5 +1012,39 @@ const handleSubmit = async () => {
     color: var(--text-main);
     font-family: var(--font-inter);
     font-size: 0.85rem;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.edit-post-skeleton {
+    width: 100%;
+    pointer-events: none;
+}
+
+.skeleton-box {
+    background: var(--surface-container, #e2e8f0);
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-box::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0,
+            rgba(255, 255, 255, 0.4) 30%,
+            rgba(255, 255, 255, 0.75) 60%,
+            rgba(255, 255, 255, 0) 100%);
+    animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
 }
 </style>

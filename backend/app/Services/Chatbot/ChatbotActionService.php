@@ -2,6 +2,7 @@
 
 namespace App\Services\Chatbot;
 
+use App\Models\Address;
 use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Product;
@@ -48,7 +49,7 @@ class ChatbotActionService
 
     public function addToCart(array $arguments, $customer = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập tài khoản khách hàng để thêm sản phẩm vào giỏ hàng.');
         }
 
@@ -56,7 +57,7 @@ class ChatbotActionService
         $productId = (int) ($arguments['product_id'] ?? 0);
         $quantity = max(1, min((int) ($arguments['quantity'] ?? 1), 20));
 
-        if (!$variantId) {
+        if (! $variantId) {
             return $this->error('Vui lòng chọn màu/size cụ thể trước khi thêm vào giỏ hàng.', 'need_variant');
         }
 
@@ -65,7 +66,7 @@ class ChatbotActionService
             ->where('status', 'active')
             ->first();
 
-        if (!$variant || !$variant->product || $variant->product->status !== 'active') {
+        if (! $variant || ! $variant->product || $variant->product->status !== 'active') {
             return $this->error('Biến thể sản phẩm không khả dụng.', 'invalid_variant');
         }
 
@@ -97,12 +98,12 @@ class ChatbotActionService
 
     public function getCheckoutAddresses($customer = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập để chọn địa chỉ giao hàng.');
         }
 
         $cart = $this->cartRepository->getActiveCart($customer->user_id);
-        if (!$cart) {
+        if (! $cart) {
             return $this->error('Giỏ hàng của bạn đang trống. Vui lòng thêm sản phẩm vào giỏ trước khi chọn địa chỉ giao hàng.', 'empty_cart');
         }
 
@@ -114,7 +115,7 @@ class ChatbotActionService
         foreach ($cartItems as $item) {
             $variant = $item->variant;
             $product = $variant?->product;
-            if (!$variant || !$product || $variant->status !== 'active' || $product->status !== 'active' || $variant->stock < $item->quantity) {
+            if (! $variant || ! $product || $variant->status !== 'active' || $product->status !== 'active' || $variant->stock < $item->quantity) {
                 return $this->error('Một sản phẩm trong giỏ hàng hiện không còn khả dụng. Vui lòng kiểm tra lại giỏ hàng trước khi đặt.', 'invalid_cart_item');
             }
         }
@@ -124,11 +125,11 @@ class ChatbotActionService
 
     public function getMyAddresses($customer = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập để chọn địa chỉ giao hàng.');
         }
 
-        $addresses = \App\Models\Address::query()
+        $addresses = Address::query()
             ->where('user_id', $customer->user_id)
             ->select([
                 'address_id', 'recipient_name', 'phone', 'address_line', 'ward', 'district',
@@ -154,12 +155,12 @@ class ChatbotActionService
 
     public function addShippingAddress(array $arguments, $customer = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập để thêm địa chỉ giao hàng.');
         }
 
         try {
-            $address = \App\Models\Address::create([
+            $address = Address::create([
                 'user_id' => $customer->user_id,
                 'recipient_name' => $arguments['recipient_name'] ?? $customer->name ?? 'Khách hàng',
                 'phone' => $arguments['phone'] ?? $customer->phone ?? '',
@@ -172,7 +173,7 @@ class ChatbotActionService
             ]);
 
             // Unset default for other addresses
-            \App\Models\Address::where('user_id', $customer->user_id)
+            Address::where('user_id', $customer->user_id)
                 ->where('address_id', '!=', $address->address_id)
                 ->update(['is_default' => false]);
 
@@ -183,33 +184,34 @@ class ChatbotActionService
             ];
         } catch (\Throwable $e) {
             Log::error('Chatbot add shipping address failed', ['user_id' => $customer->user_id, 'error' => $e->getMessage()]);
+
             return $this->error('Không thể lưu địa chỉ lúc này. Vui lòng thử lại.', 'save_address_error');
         }
     }
 
     public function prepareOrder(array $arguments, $customer = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập tài khoản khách hàng để đặt hàng.');
         }
 
         $addressId = (int) ($arguments['address_id'] ?? 0);
-        if (!$addressId) {
+        if (! $addressId) {
             return $this->error('Vui lòng chọn địa chỉ giao hàng trước khi đặt hàng.', 'need_address');
         }
 
         $paymentMethod = $arguments['payment_method'] ?? 'cod';
-        if (!in_array($paymentMethod, ['cod', 'bank_transfer'], true)) {
+        if (! in_array($paymentMethod, ['cod', 'bank_transfer'], true)) {
             $paymentMethod = 'cod';
         }
 
         $address = $this->addressRepository->findUserAddress($customer->user_id, $addressId);
-        if (!$address) {
+        if (! $address) {
             return $this->error('Địa chỉ giao hàng không hợp lệ hoặc không thuộc tài khoản của bạn.', 'invalid_address');
         }
 
         $cart = $this->cartRepository->getActiveCart($customer->user_id);
-        if (!$cart) {
+        if (! $cart) {
             return $this->error('Giỏ hàng của bạn đang trống.', 'empty_cart');
         }
 
@@ -224,11 +226,11 @@ class ChatbotActionService
             foreach ($cartItems as $item) {
                 $variant = $item->variant;
                 $product = $variant?->product;
-                if (!$variant || !$product || $variant->status !== 'active' || $product->status !== 'active') {
+                if (! $variant || ! $product || $variant->status !== 'active' || $product->status !== 'active') {
                     return $this->error('Một sản phẩm trong giỏ hàng hiện không còn khả dụng.', 'invalid_cart_item');
                 }
                 if ($variant->stock < $item->quantity) {
-                    return $this->error('Sản phẩm ' . $product->name . ' không đủ tồn kho.', 'out_of_stock');
+                    return $this->error('Sản phẩm '.$product->name.' không đủ tồn kho.', 'out_of_stock');
                 }
 
                 $unitPrice = (float) $variant->price;
@@ -252,7 +254,7 @@ class ChatbotActionService
 
             $couponCode = $arguments['coupon_applied'] ?? null;
             $couponResult = $this->couponService->applyCoupon($customer->user_id, $couponCode, $subtotal);
-            if (!$couponResult['success']) {
+            if (! $couponResult['success']) {
                 return $this->error($couponResult['message'], 'invalid_coupon');
             }
 
@@ -296,13 +298,14 @@ class ChatbotActionService
             ];
         } catch (\Throwable $e) {
             Log::error('Chatbot order preview failed', ['user_id' => $customer->user_id, 'error' => $e->getMessage()]);
+
             return $this->error('Không thể chuẩn bị đơn hàng lúc này. Vui lòng thử lại sau.', 'preview_failed');
         }
     }
 
     public function confirmOrder(array $arguments, $customer = null, ?Request $request = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập để xác nhận đặt hàng.');
         }
 
@@ -313,7 +316,7 @@ class ChatbotActionService
 
         $key = $this->tokenKey($customer->user_id, $token);
         $preview = Cache::pull($key);
-        if (!$preview) {
+        if (! $preview) {
             return $this->error('Bản xem trước đơn hàng đã hết hạn hoặc đã được sử dụng. Vui lòng kiểm tra lại đơn hàng.', 'expired_token');
         }
 
@@ -352,18 +355,18 @@ class ChatbotActionService
      */
     public function autoOrder(array $args, $customer = null, ?Request $request = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập để sử dụng tính năng đặt hàng tự động.');
         }
 
-        $args    = $this->sanitizeSearchArgs($args);
+        $args = $this->sanitizeSearchArgs($args);
         $keyword = trim($args['keyword'] ?? '');
         if ($keyword === '') {
             return $this->error('Vui lòng cho biết bạn muốn mua sản phẩm gì.', 'missing_keyword');
         }
 
-        $color    = $args['color'] ?? null;
-        $size     = $args['size'] ?? null;
+        $color = $args['color'] ?? null;
+        $size = $args['size'] ?? null;
         $quantity = max(1, min((int) ($args['quantity'] ?? 1), 20));
 
         // ── Step 1: Tìm sản phẩm best-match ──────────────────────────
@@ -375,16 +378,16 @@ class ChatbotActionService
         $this->applyKeywordSearch($product, $keyword);
 
         $product = $product->with(['category:category_id,name', 'mainImage', 'variants' => function ($q) {
-                $q->where('status', 'active')->where('stock', '>', 0)->orderBy('price', 'asc');
-            }])
+            $q->where('status', 'active')->where('stock', '>', 0)->orderBy('price', 'asc');
+        }])
             ->orderByDesc('sold_count')
             ->first();
 
-        if (!$product) {
+        if (! $product) {
             return [
-                'status'  => 'not_found',
+                'status' => 'not_found',
                 'message' => "Không tìm thấy sản phẩm nào tên chứa \"{$keyword}\" trong hệ thống. Bạn có muốn tìm sản phẩm tương tự không?",
-                'data'    => null,
+                'data' => null,
             ];
         }
 
@@ -402,22 +405,22 @@ class ChatbotActionService
             $selected = null;
 
             if ($color && $size) {
-                $selected = $variants->first(fn ($v) =>
-                    mb_stripos($v->color ?? '', $color) !== false &&
-                    mb_stripos($v->size  ?? '', $size)  !== false
+                $selected = $variants->first(fn ($v) => mb_stripos($v->color ?? '', $color) !== false &&
+                    mb_stripos($v->size ?? '', $size) !== false
                 );
             }
-            if (!$selected && $color) {
+            if (! $selected && $color) {
                 $colorMatched = $variants->filter(fn ($v) => mb_stripos($v->color ?? '', $color) !== false);
                 if ($colorMatched->isEmpty()) {
                     // Màu không tồn tại trong hệ thống → báo rõ
                     $availableColors = $variants->pluck('color')->filter()->unique()->values()->implode(', ');
+
                     return [
-                        'status'  => 'color_not_found',
-                        'message' => "Sản phẩm {$product->name} không có màu \"{$color}\". Các màu hiện có: " . ($availableColors ?: 'Mặc định') . ".",
-                        'data'    => [
-                            'product_id'  => $product->product_id,
-                            'name'        => $product->name,
+                        'status' => 'color_not_found',
+                        'message' => "Sản phẩm {$product->name} không có màu \"{$color}\". Các màu hiện có: ".($availableColors ?: 'Mặc định').'.',
+                        'data' => [
+                            'product_id' => $product->product_id,
+                            'name' => $product->name,
                             'available_colors' => $variants->pluck('color')->filter()->unique()->values()->toArray(),
                         ],
                     ];
@@ -427,16 +430,17 @@ class ChatbotActionService
                     ? $colorMatched->first(fn ($v) => mb_stripos($v->size ?? '', $size) !== false) ?? $colorMatched->sortByDesc('sold_count')->first()
                     : $colorMatched->sortByDesc('sold_count')->first();
             }
-            if (!$selected && $size) {
+            if (! $selected && $size) {
                 $sizeMatched = $variants->filter(fn ($v) => mb_stripos($v->size ?? '', $size) !== false);
                 if ($sizeMatched->isEmpty()) {
                     $availableSizes = $variants->pluck('size')->filter()->unique()->values()->implode(', ');
+
                     return [
-                        'status'  => 'size_not_found',
-                        'message' => "Sản phẩm {$product->name} không có size \"{$size}\". Các size hiện có: " . ($availableSizes ?: 'Mặc định') . ".",
-                        'data'    => [
-                            'product_id'     => $product->product_id,
-                            'name'           => $product->name,
+                        'status' => 'size_not_found',
+                        'message' => "Sản phẩm {$product->name} không có size \"{$size}\". Các size hiện có: ".($availableSizes ?: 'Mặc định').'.',
+                        'data' => [
+                            'product_id' => $product->product_id,
+                            'name' => $product->name,
                             'available_sizes' => $variants->pluck('size')->filter()->unique()->values()->toArray(),
                         ],
                     ];
@@ -445,19 +449,20 @@ class ChatbotActionService
             }
         }
         // Không có color/size → hỏi lại nếu nhiều lựa chọn
-        if (!$selected) {
+        if (! $selected) {
             $availableColors = $variants->pluck('color')->filter()->unique()->values()->toArray();
-            $availableSizes  = $variants->pluck('size')->filter()->unique()->values()->toArray();
+            $availableSizes = $variants->pluck('size')->filter()->unique()->values()->toArray();
+
             return [
-                'status'  => 'need_variant_info',
+                'status' => 'need_variant_info',
                 'message' => "Sản phẩm {$product->name} có nhiều lựa chọn. Bạn muốn màu và size nào?",
-                'data'    => [
-                    'product_id'      => $product->product_id,
-                    'name'            => $product->name,
-                    'thumbnail'       => $product->mainImage?->image_url ?? $product->thumbnail_url,
+                'data' => [
+                    'product_id' => $product->product_id,
+                    'name' => $product->name,
+                    'thumbnail' => $product->mainImage?->image_url ?? $product->thumbnail_url,
                     'available_colors' => $availableColors,
-                    'available_sizes'  => $availableSizes,
-                    'variants'        => $variants->map(fn ($v) => $this->formatVariant($v))->values()->toArray(),
+                    'available_sizes' => $availableSizes,
+                    'variants' => $variants->map(fn ($v) => $this->formatVariant($v))->values()->toArray(),
                 ],
             ];
         }
@@ -473,23 +478,23 @@ class ChatbotActionService
         $lineTotal = (float) $selected->price * $quantity;
         if ($lineTotal > self::QUICK_ORDER_MAX_AMOUNT) {
             return [
-                'status'  => 'over_limit',
+                'status' => 'over_limit',
                 'message' => "Giá trị đơn hàng {$this->formatMoney($lineTotal)} vượt giới hạn đặt hàng tự động ({$this->formatMoney(self::QUICK_ORDER_MAX_AMOUNT)}). Vui lòng đặt qua trang giỏ hàng.",
-                'data'    => null,
+                'data' => null,
             ];
         }
 
         // ── Step 4: Kiểm tra địa chỉ mặc định ────────────────────────
-        $address = \App\Models\Address::where('user_id', $customer->user_id)
+        $address = Address::where('user_id', $customer->user_id)
             ->orderByDesc('is_default')
             ->orderByDesc('updated_at')
             ->first();
 
-        if (!$address) {
+        if (! $address) {
             return [
-                'status'  => 'no_address',
+                'status' => 'no_address',
                 'message' => 'Bạn chưa có địa chỉ giao hàng. Vui lòng cung cấp Họ tên, Số điện thoại và Địa chỉ chi tiết (Số nhà, Đường, Xã/Phường, Quận/Huyện, Tỉnh/Thành) ngay tại đây để mình tạo đơn cho bạn nhé!',
-                'data'    => null,
+                'data' => null,
             ];
         }
 
@@ -497,17 +502,18 @@ class ChatbotActionService
         try {
             $this->cartService->addItem($customer->user_id, [
                 'variant_id' => $selected->variant_id,
-                'quantity'   => $quantity,
+                'quantity' => $quantity,
             ]);
             $this->selectOnlyVariantForChatbotCheckout($customer->user_id, $selected->variant_id);
         } catch (\Throwable $e) {
             Log::error('Auto order add to cart failed', ['error' => $e->getMessage()]);
+
             return $this->error('Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại.', 'cart_error');
         }
 
         // ── Step 6: Prepare order ─────────────────────────────────────
         $paymentMethod = $customer->default_payment_method ?? 'cod';
-        if (!in_array($paymentMethod, ['cod', 'bank_transfer'], true)) {
+        if (! in_array($paymentMethod, ['cod', 'bank_transfer'], true)) {
             $paymentMethod = 'cod';
         }
 
@@ -516,7 +522,7 @@ class ChatbotActionService
             : null;
 
         $prepareResult = $this->prepareOrder([
-            'address_id'    => $address->address_id,
+            'address_id' => $address->address_id,
             'payment_method' => $paymentMethod,
             'coupon_applied' => $couponCode,
         ], $customer);
@@ -526,7 +532,7 @@ class ChatbotActionService
         }
 
         $token = $prepareResult['data']['confirmation_token'] ?? null;
-        if (!$token) {
+        if (! $token) {
             return $this->error('Không lấy được mã xác nhận đơn hàng. Vui lòng thử lại.', 'token_error');
         }
 
@@ -538,7 +544,7 @@ class ChatbotActionService
         }
 
         // Lưu default payment method cho lần sau
-        if (!$customer->default_payment_method) {
+        if (! $customer->default_payment_method) {
             try {
                 $customer->forceFill(['default_payment_method' => $paymentMethod])->save();
             } catch (\Throwable $e) {
@@ -548,25 +554,25 @@ class ChatbotActionService
 
         // ── Step 8: Format response thân thiện ───────────────────────
         $orderData = $confirmResult['data'] ?? [];
-        $preview   = $prepareResult['data'] ?? [];
-        $totals    = $preview['totals'] ?? [];
+        $preview = $prepareResult['data'] ?? [];
+        $totals = $preview['totals'] ?? [];
 
         return [
-            'status'  => 'auto_order_success',
+            'status' => 'auto_order_success',
             'message' => 'Đặt hàng tự động thành công!',
-            'data'    => [
-                'order_id'       => $orderData['order_id'] ?? ($orderData['data']['order_id'] ?? null),
-                'order_code'     => $orderData['order_code'] ?? ($orderData['data']['order_code'] ?? null),
-                'product_name'   => $product->name,
-                'variant_label'  => trim(($selected->color ?? '') . ' / ' . ($selected->size ?? ''), ' /'),
-                'quantity'       => $quantity,
-                'unit_price'     => $this->formatMoney($selected->price),
-                'grand_total'    => $totals['grand_total'] ?? $lineTotal,
+            'data' => [
+                'order_id' => $orderData['order_id'] ?? ($orderData['data']['order_id'] ?? null),
+                'order_code' => $orderData['order_code'] ?? ($orderData['data']['order_code'] ?? null),
+                'product_name' => $product->name,
+                'variant_label' => trim(($selected->color ?? '').' / '.($selected->size ?? ''), ' /'),
+                'quantity' => $quantity,
+                'unit_price' => $this->formatMoney($selected->price),
+                'grand_total' => $totals['grand_total'] ?? $lineTotal,
                 'grand_total_formatted' => $totals['grand_total_formatted'] ?? $this->formatMoney($lineTotal),
-                'shipping_fee'   => $totals['shipping_fee_formatted'] ?? '—',
+                'shipping_fee' => $totals['shipping_fee_formatted'] ?? '—',
                 'payment_method' => $this->paymentMethodLabel($paymentMethod),
-                'address'        => $this->formatAddress($address),
-                'thumbnail'      => $product->mainImage?->image_url ?? $product->thumbnail_url,
+                'address' => $this->formatAddress($address),
+                'thumbnail' => $product->mainImage?->image_url ?? $product->thumbnail_url,
             ],
         ];
     }
@@ -583,7 +589,7 @@ class ChatbotActionService
      */
     public function quickOrder(array $args, $customer = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập tài khoản khách hàng để sử dụng đặt hàng nhanh.');
         }
 
@@ -605,12 +611,12 @@ class ChatbotActionService
         $this->applyKeywordSearch($productQuery, $keyword);
 
         $product = $productQuery->with(['category:category_id,name', 'mainImage', 'variants' => function ($q) {
-                $q->where('status', 'active')->where('stock', '>', 0)->orderBy('price', 'asc');
-            }])
+            $q->where('status', 'active')->where('stock', '>', 0)->orderBy('price', 'asc');
+        }])
             ->orderByDesc('sold_count')
             ->first();
 
-        if (!$product) {
+        if (! $product) {
             return [
                 'status' => 'not_found',
                 'message' => "Không tìm thấy sản phẩm nào phù hợp với \"{$keyword}\". Bạn có thể thử tìm với từ khóa khác.",
@@ -621,7 +627,7 @@ class ChatbotActionService
         // Step 2: Filter variants theo color/size
         $variants = $product->variants;
         if ($variants->isEmpty()) {
-            return $this->error('Sản phẩm ' . $product->name . ' hiện đã hết hàng.', 'out_of_stock');
+            return $this->error('Sản phẩm '.$product->name.' hiện đã hết hàng.', 'out_of_stock');
         }
 
         $filteredVariants = $variants;
@@ -642,7 +648,7 @@ class ChatbotActionService
         if ($filteredVariants->count() > 1) {
             return [
                 'status' => 'choose_variant',
-                'message' => 'Sản phẩm ' . $product->name . ' có nhiều phiên bản. Vui lòng chọn màu/size.',
+                'message' => 'Sản phẩm '.$product->name.' có nhiều phiên bản. Vui lòng chọn màu/size.',
                 'data' => [
                     'product_id' => $product->product_id,
                     'name' => $product->name,
@@ -667,7 +673,7 @@ class ChatbotActionService
      */
     public function quickOrderWithVariant(array $args, $customer = null): array
     {
-        if (!$customer) {
+        if (! $customer) {
             return $this->requiresLogin('Bạn cần đăng nhập để đặt hàng nhanh.');
         }
 
@@ -677,7 +683,7 @@ class ChatbotActionService
             ? mb_substr(strip_tags(trim($args['coupon_code'])), 0, 50)
             : null;
 
-        if (!$variantId) {
+        if (! $variantId) {
             return $this->error('Vui lòng chọn phiên bản sản phẩm.', 'missing_variant');
         }
 
@@ -687,12 +693,12 @@ class ChatbotActionService
             ->where('stock', '>', 0)
             ->first();
 
-        if (!$variant || !$variant->product || $variant->product->status !== 'active') {
+        if (! $variant || ! $variant->product || $variant->product->status !== 'active') {
             return $this->error('Phiên bản sản phẩm không khả dụng hoặc đã hết hàng.', 'invalid_variant');
         }
 
         if ($variant->stock < $quantity) {
-            return $this->error('Sản phẩm ' . $variant->product->name . ' chỉ còn ' . $variant->stock . ' sản phẩm trong kho.', 'insufficient_stock');
+            return $this->error('Sản phẩm '.$variant->product->name.' chỉ còn '.$variant->stock.' sản phẩm trong kho.', 'insufficient_stock');
         }
 
         return $this->executeQuickOrderWithVariant($variant->product, $variant, $quantity, $couponCode, $customer);
@@ -705,7 +711,7 @@ class ChatbotActionService
     {
         // Validate tồn kho
         if ($variant->stock < $quantity) {
-            return $this->error('Sản phẩm ' . $product->name . ' chỉ còn ' . $variant->stock . ' sản phẩm.', 'insufficient_stock');
+            return $this->error('Sản phẩm '.$product->name.' chỉ còn '.$variant->stock.' sản phẩm.', 'insufficient_stock');
         }
 
         // Validate giới hạn giá trị đơn
@@ -713,9 +719,9 @@ class ChatbotActionService
         if ($lineTotal > self::QUICK_ORDER_MAX_AMOUNT) {
             return [
                 'status' => 'over_limit',
-                'message' => 'Đơn hàng nhanh giới hạn tối đa ' . $this->formatMoney(self::QUICK_ORDER_MAX_AMOUNT) . '. '
-                    . 'Sản phẩm này có giá ' . $this->formatMoney($lineTotal) . '. '
-                    . 'Vui lòng đặt hàng qua giỏ hàng để không bị giới hạn.',
+                'message' => 'Đơn hàng nhanh giới hạn tối đa '.$this->formatMoney(self::QUICK_ORDER_MAX_AMOUNT).'. '
+                    .'Sản phẩm này có giá '.$this->formatMoney($lineTotal).'. '
+                    .'Vui lòng đặt hàng qua giỏ hàng để không bị giới hạn.',
                 'data' => [
                     'product_name' => $product->name,
                     'price' => $this->formatMoney($variant->price),
@@ -727,12 +733,12 @@ class ChatbotActionService
         }
 
         // Step 3: Check address
-        $address = \App\Models\Address::where('user_id', $customer->user_id)
+        $address = Address::where('user_id', $customer->user_id)
             ->orderByDesc('is_default')
             ->orderByDesc('updated_at')
             ->first();
 
-        if (!$address) {
+        if (! $address) {
             return [
                 'status' => 'no_address',
                 'message' => 'Bạn chưa có địa chỉ giao hàng. Vui lòng cung cấp Họ tên, Số điện thoại và Địa chỉ chi tiết ngay tại đây để mình tạo đơn cho bạn nhé!',
@@ -745,7 +751,7 @@ class ChatbotActionService
 
         // Step 4: Payment method
         $paymentMethod = $customer->default_payment_method ?? 'cod';
-        if (!in_array($paymentMethod, ['cod', 'bank_transfer'], true)) {
+        if (! in_array($paymentMethod, ['cod', 'bank_transfer'], true)) {
             $paymentMethod = 'cod';
         }
 
@@ -758,6 +764,7 @@ class ChatbotActionService
             $this->selectOnlyVariantForChatbotCheckout($customer->user_id, $variant->variant_id);
         } catch (\Throwable $e) {
             Log::error('Quick order add to cart failed', ['error' => $e->getMessage()]);
+
             return $this->error('Không thể thêm sản phẩm vào giỏ hàng. Vui lòng thử lại.', 'cart_error');
         }
 
@@ -769,7 +776,7 @@ class ChatbotActionService
         ], $customer);
 
         // Nếu prepare thành công, lưu default_payment_method cho lần sau
-        if (($prepareResult['status'] ?? '') === 'success' && !$customer->default_payment_method) {
+        if (($prepareResult['status'] ?? '') === 'success' && ! $customer->default_payment_method) {
             try {
                 $customer->forceFill(['default_payment_method' => $paymentMethod])->save();
             } catch (\Throwable $e) {
@@ -785,12 +792,12 @@ class ChatbotActionService
     {
         $safe = [];
         foreach (['keyword', 'category', 'color', 'size'] as $field) {
-            if (!empty($args[$field]) && is_string($args[$field])) {
+            if (! empty($args[$field]) && is_string($args[$field])) {
                 $safe[$field] = mb_substr(strip_tags(trim($args[$field])), 0, 60);
             }
         }
 
-        if (!empty($args['categories']) && is_array($args['categories'])) {
+        if (! empty($args['categories']) && is_array($args['categories'])) {
             $safe['categories'] = array_slice(array_values(array_filter(array_map(function ($category) {
                 return is_string($category) ? mb_substr(strip_tags(trim($category)), 0, 60) : null;
             }, $args['categories']))), 0, 3);
@@ -807,7 +814,7 @@ class ChatbotActionService
         }
 
         // on_sale: chỉ lấy sản phẩm đang giảm giá (compare_at_price > price)
-        if (!empty($args['on_sale'])) {
+        if (! empty($args['on_sale'])) {
             $safe['on_sale'] = true;
         }
 
@@ -825,7 +832,7 @@ class ChatbotActionService
         }
 
         $keywordLen = mb_strlen($keyword);
-        
+
         // Bỏ qua các từ khóa chung chung do AI đôi khi trích xuất nhầm
         $genericKeywords = ['bán chạy', 'hot', 'mới nhất', 'giá rẻ', 'đẹp', 'gợi ý', 'sản phẩm'];
         foreach ($genericKeywords as $gk) {
@@ -836,12 +843,12 @@ class ChatbotActionService
 
         // Chia nhỏ từ khóa thành các token để tìm kiếm linh hoạt hơn
         // Ví dụ: "áo thun nam" -> ['áo', 'thun', 'nam']
-        $tokens = array_filter(explode(' ', $keyword), fn($t) => mb_strlen($t) > 0);
-        
+        $tokens = array_filter(explode(' ', $keyword), fn ($t) => mb_strlen($t) > 0);
+
         $query->where(function ($q) use ($keyword, $keywordLen, $tokens) {
             // Cố gắng tìm chuỗi liền kề trước (ưu tiên)
             $q->where('name', 'LIKE', "%{$keyword}%");
-            
+
             // Nếu không, tìm theo các token rời rạc trong name
             if (count($tokens) > 1) {
                 $q->orWhere(function ($subQ) use ($tokens) {
@@ -854,7 +861,7 @@ class ChatbotActionService
             // Tìm trong description nếu keyword dài
             if ($keywordLen > 3) {
                 $q->orWhere('short_description', 'LIKE', "%{$keyword}%");
-                
+
                 if (count($tokens) > 1) {
                     $q->orWhere(function ($subQ) use ($tokens) {
                         foreach ($tokens as $token) {
@@ -877,51 +884,55 @@ class ChatbotActionService
             ->where('status', 'active')
             ->with(['category:category_id,name', 'mainImage', 'variants' => function ($q) use ($color, $size) {
                 $q->where('status', 'active')->where('stock', '>', 0);
-                if ($color) $q->where('color', 'LIKE', "%{$color}%");
-                if ($size) $q->where('size', 'LIKE', "%{$size}%");
+                if ($color) {
+                    $q->where('color', 'LIKE', "%{$color}%");
+                }
+                if ($size) {
+                    $q->where('size', 'LIKE', "%{$size}%");
+                }
                 $q->orderBy('price', 'asc');
             }]);
 
-        if (!empty($args['keyword'])) {
+        if (! empty($args['keyword'])) {
             $keyword = trim((string) $args['keyword']);
             $this->applyKeywordSearch($query, $keyword);
         }
 
-        if (!empty($args['categories'])) {
+        if (! empty($args['categories'])) {
             $categories = array_slice((array) $args['categories'], 0, 3);
             $categoryIds = Category::where(function ($q) use ($categories) {
                 foreach ($categories as $categoryName) {
-                    $q->orWhere('name', 'LIKE', '%' . trim((string) $categoryName) . '%');
+                    $q->orWhere('name', 'LIKE', '%'.trim((string) $categoryName).'%');
                 }
             })->pluck('category_id');
-            
+
             if ($categoryIds->isNotEmpty()) {
                 $query->whereIn('category_id', $categoryIds);
             } else {
                 $query->where(function ($q) use ($categories) {
                     foreach ($categories as $categoryName) {
-                        $q->orWhere('name', 'LIKE', '%' . trim((string) $categoryName) . '%');
+                        $q->orWhere('name', 'LIKE', '%'.trim((string) $categoryName).'%');
                     }
                 });
             }
-        } elseif (!empty($args['category'])) {
+        } elseif (! empty($args['category'])) {
             $categoryName = trim((string) $args['category']);
             $categoryIds = Category::where('name', 'LIKE', "%{$categoryName}%")->pluck('category_id');
-            
+
             if ($categoryIds->isNotEmpty()) {
                 $query->whereIn('category_id', $categoryIds);
             } else {
                 $query->where(function ($q) use ($categoryName) {
                     $q->where('name', 'LIKE', "%{$categoryName}%")
-                      ->orWhere('short_description', 'LIKE', "%{$categoryName}%");
+                        ->orWhere('short_description', 'LIKE', "%{$categoryName}%");
                 });
             }
         }
 
-        if ($color || $size || !empty($args['min_price']) || !empty($args['max_price'])) {
+        if ($color || $size || ! empty($args['min_price']) || ! empty($args['max_price'])) {
             $query->whereHas('variants', function ($q) use ($color, $size, $args) {
                 $q->where('status', 'active')->where('stock', '>', 0);
-                
+
                 if ($color) {
                     $colors = array_map('trim', explode(',', $color));
                     $q->where(function ($subQ) use ($colors) {
@@ -930,7 +941,7 @@ class ChatbotActionService
                         }
                     });
                 }
-                
+
                 if ($size) {
                     $sizes = array_map('trim', explode(',', $size));
                     $q->where(function ($subQ) use ($sizes) {
@@ -939,19 +950,23 @@ class ChatbotActionService
                         }
                     });
                 }
-                
-                if (!empty($args['min_price'])) $q->where('price', '>=', (float) $args['min_price']);
-                if (!empty($args['max_price'])) $q->where('price', '<=', (float) $args['max_price']);
+
+                if (! empty($args['min_price'])) {
+                    $q->where('price', '>=', (float) $args['min_price']);
+                }
+                if (! empty($args['max_price'])) {
+                    $q->where('price', '<=', (float) $args['max_price']);
+                }
             });
         }
 
         // Lọc sản phẩm đang giảm giá (compare_at_price > price)
-        if (!empty($args['on_sale'])) {
+        if (! empty($args['on_sale'])) {
             $query->whereHas('variants', function ($q) {
                 $q->where('status', 'active')
-                  ->where('stock', '>', 0)
-                  ->whereNotNull('compare_at_price')
-                  ->whereColumn('compare_at_price', '>', 'price');
+                    ->where('stock', '>', 0)
+                    ->whereNotNull('compare_at_price')
+                    ->whereColumn('compare_at_price', '>', 'price');
             });
         }
 
@@ -959,7 +974,8 @@ class ChatbotActionService
         if ($products->isEmpty()) {
             $keyword = $args['keyword'] ?? $args['category'] ?? '';
             $hint = $keyword ? "Ocean Sport không có sản phẩm nào tên chứa \"{$keyword}\" trong hệ thống." : 'Không tìm thấy sản phẩm nào phù hợp.';
-            return ['status' => 'no_results', 'message' => $hint . ' Bạn có thể thử từ khoá khác hoặc xem danh mục sản phẩm bán chạy.', 'data' => []];
+
+            return ['status' => 'no_results', 'message' => $hint.' Bạn có thể thử từ khoá khác hoặc xem danh mục sản phẩm bán chạy.', 'data' => []];
         }
 
         $data = $products->map(fn ($product) => $this->formatProductCard($product))->toArray();
@@ -967,7 +983,7 @@ class ChatbotActionService
         return [
             'status' => 'success',
             'count' => count($data),
-            'message' => 'Tìm thấy ' . count($data) . ' sản phẩm.',
+            'message' => 'Tìm thấy '.count($data).' sản phẩm.',
             'data' => $data,
         ];
     }
@@ -988,12 +1004,12 @@ class ChatbotActionService
                     $q->where('product_id', (int) $identifier);
                 }
                 $q->orWhere('slug', $identifier);
-                
+
                 // Ưu tiên chuỗi liền kề
                 $q->orWhere('name', 'LIKE', "%{$identifier}%");
-                
+
                 // Sau đó tìm theo từng token rời rạc (nếu identifier dài hơn 1 từ)
-                $tokens = array_filter(explode(' ', $identifier), fn($t) => mb_strlen($t) > 0);
+                $tokens = array_filter(explode(' ', $identifier), fn ($t) => mb_strlen($t) > 0);
                 if (count($tokens) > 1) {
                     $q->orWhere(function ($subQ) use ($tokens) {
                         foreach ($tokens as $token) {
@@ -1007,7 +1023,7 @@ class ChatbotActionService
             }, 'images'])
             ->first();
 
-        if (!$product) {
+        if (! $product) {
             return ['status' => 'not_found', 'message' => "Không tìm thấy sản phẩm \"{$identifier}\".", 'data' => null];
         }
 
@@ -1015,24 +1031,24 @@ class ChatbotActionService
         $variants = $product->variants->map(fn ($variant) => $this->formatVariant($variant))->toArray();
 
         $availableColors = $product->variants->pluck('color')->filter()->unique()->values()->toArray();
-        $availableSizes  = $product->variants->pluck('size')->filter()->unique()->values()->toArray();
+        $availableSizes = $product->variants->pluck('size')->filter()->unique()->values()->toArray();
 
         return [
             'status' => 'success',
             'message' => 'Đã tìm thấy chi tiết sản phẩm.',
             'data' => [
-                'product_id'       => $product->product_id,
-                'name'             => $product->name,
-                'slug'             => $product->slug,
-                'short_description'=> $product->short_description,
-                'category'         => $product->category?->name,
-                'price_range'      => $this->formatMoney($product->min_price) . ' - ' . $this->formatMoney($product->max_price),
-                'thumbnail'        => $thumbnail,
+                'product_id' => $product->product_id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'short_description' => $product->short_description,
+                'category' => $product->category?->name,
+                'price_range' => $this->formatMoney($product->min_price).' - '.$this->formatMoney($product->max_price),
+                'thumbnail' => $thumbnail,
                 'available_colors' => $availableColors,
-                'available_sizes'  => $availableSizes,
-                'variants'         => $variants,
-                'rating'           => $product->rating_avg,
-                'sold_count'       => $product->sold_count,
+                'available_sizes' => $availableSizes,
+                'variants' => $variants,
+                'rating' => $product->rating_avg,
+                'sold_count' => $product->sold_count,
             ],
         ];
     }
@@ -1040,7 +1056,7 @@ class ChatbotActionService
     private function selectOnlyVariantForChatbotCheckout(int $userId, int $variantId): void
     {
         $cart = $this->cartRepository->getActiveCart($userId);
-        if (!$cart) {
+        if (! $cart) {
             return;
         }
 
@@ -1053,6 +1069,7 @@ class ChatbotActionService
     private function cartSummary(int $userId): array
     {
         $cart = $this->cartService->getCart($userId)['data'] ?? [];
+
         return [
             'cart_id' => $cart['cart_id'] ?? null,
             'items' => $cart['items'] ?? [],
@@ -1070,49 +1087,49 @@ class ChatbotActionService
         $variants = $product->variants->map(fn ($v) => $this->formatVariant($v))->values()->toArray();
 
         // Tính giá sale từ variant đầu tiên — lấy từ DB, không tin frontend
-        $currentPrice   = (float) ($variant?->price ?? $product->min_price ?? 0);
-        $comparePrice   = $variant?->compare_at_price ? (float) $variant->compare_at_price : null;
-        $hasSale        = $comparePrice && $comparePrice > $currentPrice;
+        $currentPrice = (float) ($variant?->price ?? $product->min_price ?? 0);
+        $comparePrice = $variant?->compare_at_price ? (float) $variant->compare_at_price : null;
+        $hasSale = $comparePrice && $comparePrice > $currentPrice;
         $salePercentage = $hasSale ? (int) round((1 - $currentPrice / $comparePrice) * 100) : 0;
 
         return [
-            'product_id'          => $product->product_id,
-            'name'                => $product->name,
-            'slug'                => $product->slug,
-            'price'               => $this->formatMoney($currentPrice),
-            'price_raw'           => $currentPrice,
-            'compare_at_price'    => $hasSale ? $this->formatMoney($comparePrice) : null,
-            'compare_at_price_raw'=> $hasSale ? $comparePrice : null,
-            'has_sale'            => $hasSale,
-            'sale_percentage'     => $salePercentage,
-            'thumbnail'           => $thumbnail,
-            'category'            => $product->category?->name,
-            'sold_count'          => $product->sold_count,
-            'available_colors'    => $product->variants->pluck('color')->unique()->filter()->values()->toArray(),
-            'available_sizes'     => $product->variants->pluck('size')->unique()->filter()->values()->toArray(),
-            'matched_variant'     => $variant?->variant_name,
-            'variant_id'          => $variant?->variant_id,
-            'stock'               => $variant?->stock ?? 0,
-            'variants'            => $variants,
+            'product_id' => $product->product_id,
+            'name' => $product->name,
+            'slug' => $product->slug,
+            'price' => $this->formatMoney($currentPrice),
+            'price_raw' => $currentPrice,
+            'compare_at_price' => $hasSale ? $this->formatMoney($comparePrice) : null,
+            'compare_at_price_raw' => $hasSale ? $comparePrice : null,
+            'has_sale' => $hasSale,
+            'sale_percentage' => $salePercentage,
+            'thumbnail' => $thumbnail,
+            'category' => $product->category?->name,
+            'sold_count' => $product->sold_count,
+            'available_colors' => $product->variants->pluck('color')->unique()->filter()->values()->toArray(),
+            'available_sizes' => $product->variants->pluck('size')->unique()->filter()->values()->toArray(),
+            'matched_variant' => $variant?->variant_name,
+            'variant_id' => $variant?->variant_id,
+            'stock' => $variant?->stock ?? 0,
+            'variants' => $variants,
         ];
     }
 
     private function formatVariant(ProductVariant $variant): array
     {
         $comparePrice = $variant->compare_at_price ? (float) $variant->compare_at_price : null;
-        $hasSale      = $comparePrice && $comparePrice > (float) $variant->price;
+        $hasSale = $comparePrice && $comparePrice > (float) $variant->price;
 
         return [
-            'variant_id'       => $variant->variant_id,
-            'variant_name'     => $variant->variant_name,
-            'color'            => $variant->color,
-            'size'             => $variant->size,
-            'price'            => $this->formatMoney($variant->price),
-            'price_raw'        => (float) $variant->price,
+            'variant_id' => $variant->variant_id,
+            'variant_name' => $variant->variant_name,
+            'color' => $variant->color,
+            'size' => $variant->size,
+            'price' => $this->formatMoney($variant->price),
+            'price_raw' => (float) $variant->price,
             'compare_at_price' => $hasSale ? $this->formatMoney($comparePrice) : null,
-            'has_sale'         => $hasSale,
-            'stock'            => $variant->stock,
-            'status'           => $variant->stock > 0 ? 'Còn hàng' : 'Hết hàng',
+            'has_sale' => $hasSale,
+            'stock' => $variant->stock,
+            'status' => $variant->stock > 0 ? 'Còn hàng' : 'Hết hàng',
         ];
     }
 
@@ -1133,15 +1150,20 @@ class ChatbotActionService
 
     private function maskPhone(?string $phone): ?string
     {
-        if (!$phone) return null;
+        if (! $phone) {
+            return null;
+        }
         $length = strlen($phone);
-        if ($length <= 4) return str_repeat('*', $length);
-        return str_repeat('*', max(0, $length - 4)) . substr($phone, -4);
+        if ($length <= 4) {
+            return str_repeat('*', $length);
+        }
+
+        return str_repeat('*', max(0, $length - 4)).substr($phone, -4);
     }
 
     private function formatMoney(float|int|null $amount): string
     {
-        return number_format((float) ($amount ?? 0), 0, ',', '.') . 'đ';
+        return number_format((float) ($amount ?? 0), 0, ',', '.').'đ';
     }
 
     private function paymentMethodLabel(string $paymentMethod): string

@@ -160,6 +160,25 @@ class LoyaltyService
     }
 
     /**
+     * Earn điểm khi điểm danh hằng ngày.
+     */
+    public function earnDailyCheckIn(User $user, int $streak): ?LoyaltyTransaction
+    {
+        // Ta có thể sử dụng cấu hình 'DAILY_CHECKIN' nếu muốn, hoặc hardcode dựa trên streak
+        // Ở đây ta cộng cứng (min 10*streak, max 100)
+        $points = min(10 * $streak, 100);
+
+        return $this->recordEarn(
+            user: $user,
+            points: $points,
+            rule: null,
+            referenceType: 'daily_checkin',
+            referenceId: null,
+            description: "Điểm danh hằng ngày (Ngày $streak)",
+        );
+    }
+
+    /**
      * Earn điểm sinh nhật cho user.
      * Nên gọi từ Artisan command hàng ngày.
      */
@@ -655,6 +674,23 @@ class LoyaltyService
         ];
     }
 
+    /**
+     * Thêm điểm cho user (dùng cho mini game, vòng quay may mắn, thưởng sự kiện).
+     */
+    public function addPoints(int $userId, int $points, string $type = 'earn', string $description = 'Thưởng điểm'): LoyaltyTransaction
+    {
+        $user = User::findOrFail($userId);
+
+        return $this->recordEarn(
+            user: $user,
+            points: $points,
+            rule: null,
+            referenceType: 'lucky_wheel',
+            referenceId: null,
+            description: $description,
+        );
+    }
+
     // ─── PRIVATE HELPERS ─────────────────────────────────────────────────
 
     /**
@@ -663,10 +699,10 @@ class LoyaltyService
     private function recordEarn(
         User $user,
         int $points,
-        LoyaltyRule $rule,
-        string $referenceType,
-        ?int $referenceId,
-        string $description,
+        ?LoyaltyRule $rule = null,
+        string $referenceType = 'system',
+        ?int $referenceId = null,
+        string $description = '',
     ): LoyaltyTransaction {
         $currentBalance = $this->getBalance($user->user_id);
         $newBalance = $currentBalance + $points;
@@ -684,7 +720,7 @@ class LoyaltyService
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
             'description' => $description,
-            'expires_at' => $rule->calcExpiryDate(),
+            'expires_at' => $rule ? $rule->calcExpiryDate() : Carbon::now()->addYear(),
         ]);
 
         // Gửi thông báo tích điểm tới user

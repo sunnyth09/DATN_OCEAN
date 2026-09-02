@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import api from '@/axios';
@@ -18,6 +18,8 @@ const route = useRoute();
 
 const localIsSaved = ref(false);
 const isSaving = ref(false);
+const isCopied = ref(false);
+let copyTimeout = null;
 
 const isLoggedIn = computed(() => sessionStorage.getItem('user') !== null);
 
@@ -28,7 +30,10 @@ const formatCurrency = (val) => {
 
 const formatCouponValue = (coupon) => {
   if (!coupon) return '';
-  if (coupon.type === 'percent') return `Giảm ${coupon.value}%`;
+  if (coupon.type === 'percent') {
+    const num = Number(coupon.value);
+    return `Giảm ${isNaN(num) ? coupon.value : num}%`;
+  }
   if (coupon.type === 'free_ship') return 'Miễn phí vận chuyển';
   return `Giảm ${formatCurrency(coupon.value)}`;
 };
@@ -81,6 +86,34 @@ const handleSaveCoupon = async () => {
   }
 };
 
+const handleCopyCode = async () => {
+  if (!props.coupon?.code) return;
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(props.coupon.code);
+    } else {
+      const textArea = document.createElement('textarea');
+      textArea.value = props.coupon.code;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  } catch (e) {
+    console.warn('Clipboard copy error:', e);
+  }
+
+  isCopied.value = true;
+  emit('copy', props.coupon.code);
+
+  if (copyTimeout) clearTimeout(copyTimeout);
+  copyTimeout = setTimeout(() => {
+    isCopied.value = false;
+  }, 2000);
+};
+
 const goToLogin = () => {
   emit('close');
   router.push('/client/login?redirect=' + route.fullPath);
@@ -89,9 +122,14 @@ const goToLogin = () => {
 watch(() => props.coupon, (newVal) => {
   if (newVal) {
     localIsSaved.value = false;
+    isCopied.value = false;
     checkSavedStatus();
   }
 }, { immediate: true });
+
+onUnmounted(() => {
+  if (copyTimeout) clearTimeout(copyTimeout);
+});
 </script>
 
 <template>
@@ -101,7 +139,7 @@ watch(() => props.coupon, (newVal) => {
         <Transition name="coupon-modal-card" appear>
           <section class="coupon-modal-card" role="dialog" aria-modal="true" aria-label="Chi tiết voucher">
             <button class="coupon-modal-close" type="button" aria-label="Đóng" @click="emit('close')">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -109,59 +147,75 @@ watch(() => props.coupon, (newVal) => {
 
             <div class="coupon-modal-hero">
               <div class="coupon-modal-icon">
-                <AppIcon :name="getCouponIcon(coupon)" width="34" height="34" :stroke-width="2.1" />
+                <AppIcon :name="getCouponIcon(coupon)" width="22" height="22" :stroke-width="2.2" />
               </div>
               <span class="coupon-modal-kicker">{{ couponLabel(coupon) }}</span>
               <h3>{{ formatCouponValue(coupon) }}</h3>
               <p>Sao chép mã trước, sau đó đăng nhập khi thanh toán để áp dụng voucher cho đơn hàng đủ điều kiện.</p>
             </div>
 
-            <div class="coupon-code-panel">
-              <span>{{ coupon.code }}</span>
-              <button type="button" @click="emit('copy', coupon.code)">Sao chép mã</button>
-            </div>
-
-            <div class="coupon-detail-list">
-              <div class="coupon-detail-row">
-                <span>Điều kiện đơn hàng</span>
-                <strong v-if="coupon.min_order_value">Từ {{ formatCurrency(coupon.min_order_value) }}</strong>
-                <strong v-else>Không yêu cầu</strong>
-              </div>
-              <div class="coupon-detail-row">
-                <span>Hạn sử dụng</span>
-                <strong>{{ formatDate(coupon.end_date) }}</strong>
-              </div>
-              <div class="coupon-detail-row" v-if="coupon.max_discount_value">
-                <span>Giảm tối đa</span>
-                <strong>{{ formatCurrency(coupon.max_discount_value) }}</strong>
-              </div>
-              <div class="coupon-detail-row">
-                <span>Trạng thái</span>
-                <strong>{{ coupon.is_active ? 'Đang khả dụng' : 'Tạm ngưng' }}</strong>
-              </div>
-            </div>
-
-            <div class="coupon-modal-note">
-              <strong>Lưu ý:</strong> Voucher public có thể xem và sao chép, nhưng chỉ tài khoản đã đăng nhập mới được sử dụng tại bước thanh toán.
-            </div>
-
-            <div class="coupon-modal-actions">
-              <template v-if="isLoggedIn">
+            <div class="coupon-modal-body">
+              <div class="coupon-code-panel" :class="{ 'is-copied-panel': isCopied }">
+                <span>{{ coupon.code }}</span>
                 <button 
-                  class="btn-copy" 
                   type="button" 
-                  :disabled="localIsSaved || isSaving" 
-                  @click="handleSaveCoupon"
+                  class="btn-copy-code"
+                  :class="{ 'is-copied': isCopied }"
+                  @click="handleCopyCode"
                 >
-                  <span v-if="isSaving" class="spinner-border spinner-border-sm me-1" role="status"></span>
-                  {{ localIsSaved ? 'Đã lưu mã' : 'Lưu mã' }}
+                  <svg v-if="!isCopied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  {{ isCopied ? 'Đã sao chép' : 'Sao chép mã' }}
                 </button>
-              </template>
-              <template v-else>
-                <button class="btn-copy" type="button" @click="goToLogin">Đăng nhập để lưu</button>
-              </template>
+              </div>
 
-              <button class="btn-view" type="button" @click="emit('viewAll')">Xem tất cả mã</button>
+              <div class="coupon-detail-list">
+                <div class="coupon-detail-row">
+                  <span>Điều kiện đơn hàng</span>
+                  <strong v-if="coupon.min_order_value">Từ {{ formatCurrency(coupon.min_order_value) }}</strong>
+                  <strong v-else>Không yêu cầu</strong>
+                </div>
+                <div class="coupon-detail-row">
+                  <span>Hạn sử dụng</span>
+                  <strong>{{ formatDate(coupon.end_date) }}</strong>
+                </div>
+                <div class="coupon-detail-row" v-if="coupon.max_discount_value">
+                  <span>Giảm tối đa</span>
+                  <strong>{{ formatCurrency(coupon.max_discount_value) }}</strong>
+                </div>
+                <div class="coupon-detail-row">
+                  <span>Trạng thái</span>
+                  <strong class="status-active">{{ coupon.is_active ? 'Đang khả dụng' : 'Tạm ngưng' }}</strong>
+                </div>
+              </div>
+
+              <div class="coupon-modal-note">
+                <strong>Lưu ý:</strong> Voucher public có thể xem và sao chép, nhưng chỉ tài khoản đã đăng nhập mới được sử dụng tại bước thanh toán.
+              </div>
+
+              <div class="coupon-modal-actions">
+                <template v-if="isLoggedIn">
+                  <button 
+                    class="btn-copy" 
+                    type="button" 
+                    :disabled="localIsSaved || isSaving" 
+                    @click="handleSaveCoupon"
+                  >
+                    <span v-if="isSaving" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    {{ localIsSaved ? 'Đã lưu mã' : 'Lưu mã' }}
+                  </button>
+                </template>
+                <template v-else>
+                  <button class="btn-copy" type="button" @click="goToLogin">Đăng nhập để lưu</button>
+                </template>
+
+                <button class="btn-view" type="button" @click="emit('viewAll')">Xem tất cả mã</button>
+              </div>
             </div>
           </section>
         </Transition>
@@ -178,129 +232,193 @@ watch(() => props.coupon, (newVal) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: rgba(15, 23, 42, 0.46);
-  backdrop-filter: blur(8px);
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(6px);
 }
 
 .coupon-modal-card {
   position: relative;
-  width: min(520px, 100%);
-  border-radius: 26px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(88vh, 600px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
   background: #fff;
   overflow: hidden;
-  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
 }
 
 .coupon-modal-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 2;
-  width: 34px;
-  height: 34px;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
   border: 0;
   border-radius: 50%;
-  color: #64748b;
-  background: rgba(255, 255, 255, 0.86);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.coupon-modal-close:hover {
+  background: rgba(255, 255, 255, 0.38);
+  transform: scale(1.06);
 }
 
 .coupon-modal-hero {
-  padding: 34px 30px 28px;
+  flex-shrink: 0;
+  padding: 18px 20px 16px;
   color: #fff;
   background:
-    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.22), transparent 28%),
-    linear-gradient(135deg, var(--primary), #ff6b9d);
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.22), transparent 30%),
+    linear-gradient(135deg, var(--primary, #e63b6f), #ff6b9d);
 }
 
 .coupon-modal-icon {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 18px;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .coupon-modal-kicker {
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 1.3px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .coupon-modal-hero h3 {
-  margin: 8px 0;
-  font-size: 2rem;
-  font-weight: 900;
-  letter-spacing: -0.8px;
+  margin: 4px 0 6px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  line-height: 1.25;
 }
 
 .coupon-modal-hero p {
-  max-width: 420px;
   margin: 0;
-  color: rgba(255, 255, 255, 0.82);
-  line-height: 1.6;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.45;
+}
+
+.coupon-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.coupon-modal-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.coupon-modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
 }
 
 .coupon-code-panel {
-  margin: 24px 30px;
-  padding: 12px;
+  padding: 8px 10px 8px 14px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  border: 1.5px dashed var(--primary);
-  border-radius: 16px;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1.5px dashed var(--primary, #e63b6f);
+  border-radius: 12px;
   background: #fff5f8;
+  transition: all 0.25s ease;
+}
+
+.coupon-code-panel.is-copied-panel {
+  border-color: #10b981;
+  background: #ecfdf5;
 }
 
 .coupon-code-panel span {
   min-width: 0;
   flex: 1;
-  color: var(--primary);
-  font-size: 1.2rem;
-  font-weight: 900;
-  letter-spacing: 0.8px;
+  color: var(--primary, #e63b6f);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color 0.25s ease;
 }
 
-.coupon-code-panel button,
+.coupon-code-panel.is-copied-panel span {
+  color: #059669;
+}
+
+.btn-copy-code,
 .btn-copy,
 .btn-view {
   border: 0;
-  border-radius: 12px;
   font-family: inherit;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
-.coupon-code-panel button {
-  padding: 10px 14px;
+.btn-copy-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 12px;
+  font-size: 0.8rem;
+  border-radius: 8px;
   color: #fff;
-  background: var(--primary);
+  background: var(--primary, #e63b6f);
+  white-space: nowrap;
+}
+
+.btn-copy-code:hover {
+  transform: translateY(-1px);
+}
+
+.btn-copy-code.is-copied {
+  background: #10b981;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  transform: scale(1.03);
 }
 
 .coupon-detail-list {
   display: grid;
-  gap: 10px;
-  padding: 0 30px;
+  gap: 0;
 }
 
 .coupon-detail-row {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
   border-bottom: 1px solid #f1f5f9;
+  font-size: 0.84rem;
+}
+
+.coupon-detail-row:last-child {
+  border-bottom: none;
 }
 
 .coupon-detail-row span {
@@ -308,52 +426,60 @@ watch(() => props.coupon, (newVal) => {
 }
 
 .coupon-detail-row strong {
-  color: #111827;
+  color: #1e293b;
   text-align: right;
 }
 
+.coupon-detail-row strong.status-active {
+  color: #059669;
+}
+
 .coupon-modal-note {
-  margin: 20px 30px 0;
-  padding: 14px 16px;
-  border-radius: 14px;
-  color: #92400e;
+  padding: 8px 11px;
+  border-radius: 8px;
+  color: #9a3412;
   background: #fff7ed;
-  font-size: 0.86rem;
-  line-height: 1.55;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .coupon-modal-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 24px 30px 30px;
+  gap: 10px;
+  margin-top: 2px;
 }
 
 .btn-copy,
 .btn-view {
-  min-height: 44px;
+  min-height: 38px;
+  font-size: 0.84rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-copy {
   color: #fff;
-  background: var(--primary);
-  box-shadow: 0 12px 24px rgba(230, 59, 111, 0.2);
+  background: var(--primary, #e63b6f);
+  box-shadow: 0 8px 18px rgba(230, 59, 111, 0.2);
 }
 
 .btn-view {
-  color: var(--primary);
+  color: var(--primary, #e63b6f);
   background: #fff0f5;
 }
 
 .btn-copy:hover,
 .btn-view:hover,
 .coupon-code-panel button:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .coupon-modal-fade-enter-active,
 .coupon-modal-fade-leave-active {
-  transition: opacity 0.24s ease;
+  transition: opacity 0.22s ease;
 }
 
 .coupon-modal-fade-enter-from,
@@ -363,23 +489,30 @@ watch(() => props.coupon, (newVal) => {
 
 .coupon-modal-card-enter-active,
 .coupon-modal-card-leave-active {
-  transition: opacity 0.26s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.24s ease, transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .coupon-modal-card-enter-from,
 .coupon-modal-card-leave-to {
   opacity: 0;
-  transform: translateY(18px) scale(0.96);
+  transform: translateY(14px) scale(0.97);
 }
 
-@media (max-width: 576px) {
-  .coupon-modal-actions {
-    grid-template-columns: 1fr;
+@media (max-width: 480px) {
+  .coupon-modal-backdrop {
+    padding: 12px;
   }
 
-  .coupon-code-panel {
-    align-items: stretch;
-    flex-direction: column;
+  .coupon-modal-hero {
+    padding: 16px 16px 14px;
+  }
+
+  .coupon-modal-body {
+    padding: 12px 14px 16px;
+  }
+
+  .coupon-modal-actions {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -6,6 +6,7 @@ import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../widgets/shimmer_loading.dart';
+import '../utils/format_utils.dart';
 
 class FlashSaleScreen extends StatefulWidget {
   const FlashSaleScreen({super.key});
@@ -59,20 +60,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     }
   }
 
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      final formatted = p
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-      return '$formattedđ';
-    } catch (_) {
-      return price.toString();
-    }
-  }
+  // P1-01: Đã xóa _formatPrice() duplicate — dùng FormatUtils.formatPrice() xuyên suốt
 
   Map<String, int> _getCountdown(String? endDate) {
     if (endDate == null) return {'h': 0, 'm': 0, 's': 0};
@@ -166,7 +154,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFE63B6F), Color(0xFFFF6B9D)],
+          colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -182,7 +170,13 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/home');
+                      }
+                    },
                   ),
                   const Spacer(),
                   const Text(
@@ -338,22 +332,27 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     final product = item['product'] as Map<String, dynamic>? ?? {};
     final variant = item['variant'] as Map<String, dynamic>? ?? {};
     final name = product['name'] ?? 'Sản phẩm';
-    final salePrice = item['sale_price'] ?? variant['price'] ?? 0;
-    final originalPrice =
-        item['original_price'] ?? variant['price'] ?? salePrice;
+    final num salePrice = FormatUtils.parseNum(item['sale_price'] ?? variant['price']);
+    final num originalPrice = FormatUtils.parseNum(
+        item['original_price'] ?? variant['price'] ?? salePrice);
     final stock = item['stock'] ?? 0;
     final sold = item['sold'] ?? 0;
     final total = stock + sold;
     final progress = total > 0 ? sold / total : 0.0;
     final imageUrl = AppConfig.productImageUrl(product);
 
-    final discountPercent = originalPrice > 0
+    final discountPercent = originalPrice > salePrice && originalPrice > 0
         ? (((originalPrice - salePrice) / originalPrice) * 100).round()
         : 0;
 
     return InkWell(
       onTap: () {
-        context.push('/product-detail', extra: product);
+        final Map<String, dynamic> extraData = Map<String, dynamic>.from(product);
+        extraData['flash_sale'] = item;
+        extraData['flash_sale_price'] = salePrice;
+        extraData['flash_sale_item'] = item;
+        if (originalPrice > 0) extraData['original_price'] = originalPrice;
+        context.push('/product-detail', extra: extraData);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -362,19 +361,24 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
             // Image
             Hero(
               tag: product['id'] ?? product['slug'] ?? UniqueKey().toString(),
-              child: NetworkImageWidget(
-              imageUrl: imageUrl,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(12),
-              errorWidget: Container(
+              child: Container(
                 width: 80,
                 height: 80,
-                color: const Color(0xFFF1F5F9),
-                child: const Icon(Icons.image, color: Colors.grey),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: NetworkImageWidget(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    errorWidget: const Center(
+                      child: Icon(Icons.sports_tennis_rounded, color: Color(0xFFCBD5E1), size: 24),
+                    ),
+                  ),
+                ),
               ),
-            ),
             ),
             const SizedBox(width: 14),
             // Info
@@ -396,7 +400,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                   Row(
                     children: [
                       Text(
-                        _formatPrice(salePrice),
+                        FormatUtils.formatPrice(salePrice),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
@@ -430,7 +434,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        _formatPrice(originalPrice),
+                        FormatUtils.formatPrice(originalPrice),
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF64748B),
@@ -455,7 +459,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                           height: 6,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFFE63B6F), Color(0xFFFF8FAB)],
+                              colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
                             ),
                             borderRadius: BorderRadius.circular(3),
                           ),
